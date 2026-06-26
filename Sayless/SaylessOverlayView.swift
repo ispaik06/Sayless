@@ -92,7 +92,7 @@ struct SaylessOverlayView: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sparkles")
+            Image(systemName: "ellipsis.message")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.green)
 
@@ -465,7 +465,7 @@ private struct IntelligenceGlyph: View {
                 )
                 .frame(width: 21, height: 21)
 
-            Image(systemName: "character.textbox.badge.sparkles")
+            Image(systemName: "lasso.badge.sparkles")
                 .font(.system(size: 10, weight: .black))
                 .foregroundStyle(.white.opacity(0.94))
         }

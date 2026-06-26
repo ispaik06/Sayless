@@ -22,9 +22,35 @@ struct ChatMessage {
 }
 
 struct ChatTimelineSignature: Equatable {
-    let frame: CGRect
+    let tail: [ChatMessageFingerprint]
+
+    func containsNewerMessages(than previous: ChatTimelineSignature) -> Bool {
+        guard tail != previous.tail,
+              !tail.isEmpty,
+              !previous.tail.isEmpty else {
+            return false
+        }
+
+        let maxOverlap = min(previous.tail.count, tail.count)
+        let minimumOverlap = min(2, maxOverlap)
+        guard minimumOverlap > 0 else {
+            return false
+        }
+
+        for overlap in stride(from: maxOverlap, through: minimumOverlap, by: -1) {
+            if Array(previous.tail.suffix(overlap)) == Array(tail.prefix(overlap)) {
+                return tail.count > overlap
+            }
+        }
+
+        return false
+    }
+}
+
+struct ChatMessageFingerprint: Equatable {
+    let role: String
+    let senderHash: Int?
     let textHash: Int
-    let visibleRowCount: Int
 }
 
 private struct MessageTextCandidate {
@@ -260,10 +286,21 @@ final class AccessibilityReader {
             return nil
         }
 
+        let tableFrame = frame(of: chatTable)
         let visibleRowsResult = visibleRows(in: chatTable)
-        let rows = Array(visibleRowsResult.rows.suffix(6))
+        let allRows = rows(from: chatTable)
+        let canUseAllRows = allRows.count > visibleRowsResult.rows.count
+        if !canUseAllRows,
+           isChatTableScrolledToBottom(chatTable) != true {
+            return nil
+        }
 
-        for row in rows.reversed() {
+        let timelineRows = canUseAllRows ? allRows : visibleRowsResult.rows
+        let rows = Array(timelineRows.suffix(10))
+        var inheritedSender = "Unknown"
+        var fingerprints: [ChatMessageFingerprint] = []
+
+        for row in rows {
             let rowScan = scanRowOnce(row)
             guard !rowScan.messageCandidates.isEmpty,
                   !rowScan.hasSystemFeedMarker else {
@@ -271,15 +308,24 @@ final class AccessibilityReader {
             }
 
             let text = rowScan.messageCandidates.map(\.text).joined(separator: "\n")
-            let frame = unionFrame(rowScan.messageCandidates.map(\.frame)).integral
-            return ChatTimelineSignature(
-                frame: frame,
-                textHash: stableHash(text),
-                visibleRowCount: visibleRowsResult.rows.count
+            let messageFrame = unionFrame(rowScan.messageCandidates.map(\.frame))
+            let isMine = isOutgoingMessage(rowScan.messageCandidates, tableFrame: tableFrame, row: row)
+            let explicitSender = isMine ? nil : senderCandidate(from: rowScan, messageFrame: messageFrame, tableFrame: tableFrame)
+            if let explicitSender {
+                inheritedSender = explicitSender
+            }
+
+            fingerprints.append(
+                ChatMessageFingerprint(
+                    role: isMine ? "me" : "other",
+                    senderHash: isMine ? nil : stableHash(inheritedSender),
+                    textHash: stableHash(text)
+                )
             )
         }
 
-        return nil
+        let tail = Array(fingerprints.suffix(8))
+        return tail.isEmpty ? nil : ChatTimelineSignature(tail: tail)
     }
 
     func isWindowUsable(_ window: AXUIElement) -> Bool {
@@ -606,6 +652,69 @@ final class AccessibilityReader {
         return children(of: element).filter {
             (copyStringAttribute($0, kAXRoleAttribute) ?? "") == "AXRow"
         }
+    }
+
+    private func isChatTableScrolledToBottom(_ table: AXUIElement) -> Bool? {
+        guard let scrollBar = verticalScrollBar(for: table),
+              let value = numericAttribute(scrollBar, kAXValueAttribute as String),
+              let maxValue = numericAttribute(scrollBar, "AXMaxValue") else {
+            return nil
+        }
+
+        let minValue = numericAttribute(scrollBar, "AXMinValue") ?? 0
+        let tolerance = max(0.02, (maxValue - minValue) * 0.015)
+        return maxValue - value <= tolerance
+    }
+
+    private func verticalScrollBar(for element: AXUIElement) -> AXUIElement? {
+        if let scrollBar = copyAttribute(element, "AXVerticalScrollBar") as AXUIElement? {
+            return scrollBar
+        }
+
+        return descendants(of: element, maxDepth: 3, maxVisited: 80).first { candidate in
+            let role = copyStringAttribute(candidate, kAXRoleAttribute) ?? ""
+            guard role == "AXScrollBar" else {
+                return false
+            }
+
+            let orientation = (copyStringAttribute(candidate, "AXOrientation") ?? "").lowercased()
+            if orientation.contains("vertical") {
+                return true
+            }
+
+            guard let frame = frame(of: candidate) else {
+                return false
+            }
+
+            return frame.height > frame.width
+        }
+    }
+
+    private func numericAttribute(_ element: AXUIElement, _ attribute: String) -> Double? {
+        var rawValue: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(element, attribute as CFString, &rawValue)
+        guard result == .success,
+              let value = rawValue else {
+            return nil
+        }
+
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        }
+
+        if let double = value as? Double {
+            return double
+        }
+
+        if let float = value as? Float {
+            return Double(float)
+        }
+
+        if let int = value as? Int {
+            return Double(int)
+        }
+
+        return nil
     }
 
     private func cachedUsableChatTable(for window: AXUIElement) -> AXUIElement? {

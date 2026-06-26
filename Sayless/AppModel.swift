@@ -282,7 +282,7 @@ final class AppModel: ObservableObject {
         if let cachedSignature = suggestionCache.timelineSignature,
            let window = context.windowElement,
            let currentSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window),
-           currentSignature != cachedSignature {
+           currentSignature.containsNewerMessages(than: cachedSignature) {
             self.suggestionCache = nil
             overlayController.resetSuggestionState()
             return nil

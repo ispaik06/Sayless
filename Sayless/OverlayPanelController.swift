@@ -193,7 +193,7 @@ final class OverlayPanelController {
             return
         }
 
-        if currentSignature != latestMessageSignature {
+        if currentSignature.containsNewerMessages(than: latestMessageSignature) {
             state.hasNewerVisibleMessages = true
         }
     }
