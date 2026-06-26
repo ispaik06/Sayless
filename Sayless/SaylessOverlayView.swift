@@ -10,16 +10,27 @@ struct SaylessOverlayView: View {
             header
 
             switch state.content {
+            case .generating(let context):
+                if !context.value.isEmpty {
+                    composingPreview(context.value)
+                }
+
+                GeneratingSuggestionsView()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+
+            case .generationFailed(let context):
+                if !context.value.isEmpty {
+                    composingPreview(context.value)
+                }
+
+                GenerationFailedView()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+
             case .suggestions(let context, let items):
                 if !context.value.isEmpty {
-                    Text(context.value)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+                    composingPreview(context.value)
                 }
 
                 VStack(spacing: 7) {
@@ -125,11 +136,18 @@ struct SaylessOverlayView: View {
     }
 
     private var roomTitle: String? {
-        guard case .suggestions(let context, _) = state.content else {
-            return nil
-        }
+        state.content.focusedContext?.windowTitle
+    }
 
-        return context.windowTitle
+    private func composingPreview(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func openAccessibilitySettings() {
@@ -138,6 +156,73 @@ struct SaylessOverlayView: View {
         }
 
         NSWorkspace.shared.open(url)
+    }
+}
+
+private struct GenerationFailedView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "bolt.horizontal.circle")
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text("Backend unavailable")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Text("Start the backend server and try again")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity)
+        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.11), lineWidth: 1)
+        )
+    }
+}
+
+private struct GeneratingSuggestionsView: View {
+    @State private var isAnimating = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 9) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(.green.opacity(isAnimating ? 0.95 : 0.48))
+                        .frame(width: 8, height: 8)
+                        .offset(y: isAnimating ? -8 : 8)
+                        .animation(
+                            .easeInOut(duration: 0.58)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.14),
+                            value: isAnimating
+                        )
+                }
+            }
+            .frame(height: 28)
+
+            Text("Generating replies")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Text("Reading the latest visible messages")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity)
+        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.11), lineWidth: 1)
+        )
+        .onAppear {
+            isAnimating = true
+        }
     }
 }
 

@@ -14,8 +14,21 @@ struct Suggestion: Identifiable {
 }
 
 enum OverlayContent {
+    case generating(context: FocusedTextContext)
+    case generationFailed(context: FocusedTextContext)
     case suggestions(context: FocusedTextContext, items: [Suggestion])
     case notice(title: String, message: String, buttonTitle: String?)
+
+    var focusedContext: FocusedTextContext? {
+        switch self {
+        case .generating(let context), .generationFailed(let context):
+            return context
+        case .suggestions(let context, _):
+            return context
+        case .notice:
+            return nil
+        }
+    }
 }
 
 final class OverlayState: ObservableObject {

@@ -1,0 +1,117 @@
+import Foundation
+
+private struct SuggestionRequest: Encodable {
+    let chatRoom: String?
+    let locale: String
+    let messages: [SuggestionMessageGroup]
+}
+
+private struct SuggestionMessageGroup: Encodable {
+    let role: String
+    let name: String?
+    let texts: [String]
+}
+
+private struct SuggestionResponse: Decodable {
+    let suggestions: [ReplySuggestion]
+}
+
+private struct ReplySuggestion: Decodable {
+    let id: String
+    let text: String
+}
+
+final class BackendSuggestionService {
+    private let endpoint = URL(string: "http://127.0.0.1:8787/suggestions")!
+    private let locale = "ko-KR"
+
+    func suggestions(chatRoom: String, messages: [ChatMessage]) async throws -> [Suggestion] {
+        let groups = groupedMessages(from: messages)
+        guard !groups.isEmpty else {
+            return Suggestion.fixed
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 4
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            SuggestionRequest(
+                chatRoom: chatRoom.isEmpty ? nil : chatRoom,
+                locale: locale,
+                messages: groups
+            )
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode) else {
+            throw BackendSuggestionError.badStatus
+        }
+
+        let decoded = try JSONDecoder().decode(SuggestionResponse.self, from: data)
+        let labels = ["추천 1", "추천 2", "추천 3"]
+        let suggestions = decoded.suggestions.prefix(3).enumerated().map { index, item in
+            Suggestion(label: labels[index], text: item.text)
+        }
+
+        return suggestions.count == 3 ? suggestions : Suggestion.fixed
+    }
+
+    private func groupedMessages(from messages: [ChatMessage]) -> [SuggestionMessageGroup] {
+        let recentMessages = messages.suffix(20)
+        var groups: [SuggestionMessageGroup] = []
+
+        for message in recentMessages {
+            let role = role(for: message.sender)
+            let name = name(for: message.sender, role: role)
+            let texts = message.text
+                .split(whereSeparator: \.isNewline)
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            guard !texts.isEmpty else {
+                continue
+            }
+
+            if let last = groups.last,
+               last.role == role,
+               last.name == name,
+               last.texts.count + texts.count <= 8 {
+                groups[groups.count - 1] = SuggestionMessageGroup(
+                    role: last.role,
+                    name: last.name,
+                    texts: last.texts + texts
+                )
+            } else {
+                groups.append(
+                    SuggestionMessageGroup(
+                        role: role,
+                        name: name,
+                        texts: Array(texts.prefix(8))
+                    )
+                )
+            }
+        }
+
+        return Array(groups.suffix(20))
+    }
+
+    private func role(for sender: String) -> String {
+        sender == "Me" ? "me" : "other"
+    }
+
+    private func name(for sender: String, role: String) -> String? {
+        guard role == "other",
+              sender != "Unknown",
+              !sender.isEmpty else {
+            return nil
+        }
+
+        return sender
+    }
+}
+
+private enum BackendSuggestionError: Error {
+    case badStatus
+}

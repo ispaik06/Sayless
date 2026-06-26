@@ -17,7 +17,6 @@ struct SaylessApp: App {
             Button("Show Sayless") {
                 appModel.handleSummon()
             }
-            .keyboardShortcut(" ", modifiers: [.option])
 
             Button("Check Accessibility") {
                 appModel.checkAccessibilityFromMenu()

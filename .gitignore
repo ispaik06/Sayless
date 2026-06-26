@@ -1,4 +1,19 @@
-# Local secrets
+# Node
+node_modules/
+backend/node_modules/
+backend/dist/
+backend/.turbo/
+npm-debug.log*
+
+# Env files
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+
+# macOS / Xcode user state
+.DS_Store
+*.xcuserstate
+*.xcuserdatad/

@@ -13,7 +13,8 @@ final class OverlayPanelController {
         panel?.isVisible == true
     }
 
-    func show(content: OverlayContent, near axFrame: CGRect?) {
+    @discardableResult
+    func show(content: OverlayContent, near axFrame: CGRect?) -> Int {
         displayGeneration += 1
         state.update(content: content)
 
@@ -26,6 +27,17 @@ final class OverlayPanelController {
         panel.setFrame(targetFrame, display: true)
         panel.orderFrontRegardless()
         panel.makeKey()
+        startSourceWindowMonitor(for: content)
+        return displayGeneration
+    }
+
+    func update(content: OverlayContent, for generation: Int) {
+        guard displayGeneration == generation,
+              isVisible else {
+            return
+        }
+
+        state.update(content: content)
         startSourceWindowMonitor(for: content)
     }
 
@@ -50,7 +62,7 @@ final class OverlayPanelController {
     private func startSourceWindowMonitor(for content: OverlayContent) {
         stopSourceWindowMonitor()
 
-        guard case .suggestions(let context, _) = content,
+        guard let context = content.focusedContext,
               let sourceWindow = context.windowElement else {
             return
         }
@@ -182,11 +194,7 @@ final class OverlayPanelController {
     private func frameForPanel(content: OverlayContent, near axFrame: CGRect?) -> CGRect {
         let size = panelSize(for: content)
         let windowFrame: CGRect?
-        if case .suggestions(let context, _) = content {
-            windowFrame = context.windowFrame
-        } else {
-            windowFrame = nil
-        }
+        windowFrame = content.focusedContext?.windowFrame
         let screenSeedFrame = windowFrame ?? axFrame
         let targetScreen = screen(for: screenSeedFrame) ?? NSScreen.main
         let visibleFrame = targetScreen?.visibleFrame ?? .zero
@@ -291,7 +299,7 @@ final class OverlayPanelController {
 
     private func panelSize(for content: OverlayContent) -> CGSize {
         switch content {
-        case .suggestions:
+        case .generating, .generationFailed, .suggestions:
             CGSize(width: 430, height: 258)
         case .notice(_, _, let buttonTitle):
             buttonTitle == nil ? CGSize(width: 330, height: 118) : CGSize(width: 430, height: 248)

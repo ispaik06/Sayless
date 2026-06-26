@@ -19,7 +19,10 @@ final class AppModel: ObservableObject {
 
     private let accessibilityReader = AccessibilityReader()
     private let overlayController = OverlayPanelController()
+    private let suggestionService = BackendSuggestionService()
     private var hotKeyManager: HotKeyManager?
+    private var suggestionTask: Task<Void, Never>?
+    private var lastSummonTime: CFAbsoluteTime = 0
     private static let shortcutDefaultsKey = "shortcutOption"
     private static let menuBarIconDefaultsKey = "menuBarIconOption"
 
@@ -38,23 +41,29 @@ final class AppModel: ObservableObject {
     }
 
     func handleSummon() {
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastSummonTime > 0.18 else {
+            return
+        }
+        lastSummonTime = now
+
         accessibilityTrusted = accessibilityReader.isAccessibilityTrusted()
 
         if overlayController.isVisible {
+            suggestionTask?.cancel()
             overlayController.hide()
             return
         }
 
         switch accessibilityReader.focusedKakaoTextContext() {
         case .ready(let context):
-            overlayController.show(
-                content: .suggestions(context: context, items: Suggestion.fixed),
+            let generation = overlayController.show(
+                content: .generating(context: context),
                 near: context.frame
             )
-            DispatchQueue.global(qos: .utility).async { [accessibilityReader] in
-                if let window = context.windowElement {
-                    _ = accessibilityReader.collectVisibleKakaoMessages(in: window, limit: 20)
-                }
+            suggestionTask?.cancel()
+            suggestionTask = Task(priority: .utility) { [weak self] in
+                await self?.loadSuggestions(for: context, generation: generation)
             }
 
         case .accessibilityMissing:
@@ -79,6 +88,47 @@ final class AppModel: ObservableObject {
 
         case .noChatInput:
             overlayController.hide()
+        }
+    }
+
+    private func loadSuggestions(for context: FocusedTextContext, generation: Int) async {
+        await Task.yield()
+
+        guard let window = context.windowElement else {
+            return
+        }
+
+        let messages = accessibilityReader.collectVisibleKakaoMessages(in: window, limit: 20)
+        guard !Task.isCancelled,
+              !messages.isEmpty,
+              accessibilityReader.isWindowUsable(window) else {
+            return
+        }
+
+        do {
+            let suggestions = try await suggestionService.suggestions(
+                chatRoom: context.windowTitle,
+                messages: messages
+            )
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            overlayController.update(
+                content: .suggestions(context: context, items: suggestions),
+                for: generation
+            )
+        } catch {
+            guard !Task.isCancelled else {
+                return
+            }
+
+            overlayController.update(
+                content: .generationFailed(context: context),
+                for: generation
+            )
+            print("[Sayless][Backend] suggestions unavailable")
         }
     }
 
