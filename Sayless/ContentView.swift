@@ -41,9 +41,21 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 9) {
-                Image(systemName: "sparkles")
+                Image(systemName: "ellipsis.message.fill")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.78, green: 1.0, blue: 0.44),
+                                Color(red: 0.34, green: 0.95, blue: 0.43),
+                                Color(red: 0.06, green: 0.78, blue: 0.38),
+                                Color(red: 0.0, green: 0.58, blue: 0.32)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: .mint.opacity(0.35), radius: 5, x: 0, y: 1)
 
                 Text("Sayless")
                     .font(.system(size: 16, weight: .bold))
