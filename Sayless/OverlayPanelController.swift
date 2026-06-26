@@ -448,7 +448,7 @@ final class OverlayPanelController {
             return nil
         }
 
-        let availableCount = options.filter { !state.usedAdjustmentOptions.contains($0) }.count
+        let availableCount = options.filter { !isAdjustmentOptionUsed($0) }.count
         guard availableCount > 0 else {
             return nil
         }
@@ -464,7 +464,7 @@ final class OverlayPanelController {
 
         for offset in 1...options.count {
             let candidate = (startIndex + (offset * step) + (options.count * 2)) % options.count
-            if !state.usedAdjustmentOptions.contains(options[candidate]) {
+            if !isAdjustmentOptionUsed(options[candidate]) {
                 return candidate
             }
         }
@@ -484,7 +484,7 @@ final class OverlayPanelController {
     }
 
     private func activateAdjustment(_ option: SuggestionAdjustmentOption) {
-        guard !state.usedAdjustmentOptions.contains(option),
+        guard !isAdjustmentOptionUsed(option),
               !state.isGeneratingMore else {
             return
         }
@@ -511,15 +511,17 @@ final class OverlayPanelController {
     private func submitCustomInstruction() {
         let instruction = state.customInstructionDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !instruction.isEmpty,
-              !state.usedAdjustmentOptions.contains(.custom),
               !state.isGeneratingMore else {
             return
         }
 
-        state.usedAdjustmentOptions.insert(.custom)
         state.isCustomInstructionVisible = false
         clearCustomInstruction()
         requestSuggestions(intent: .custom(instruction))
+    }
+
+    private func isAdjustmentOptionUsed(_ option: SuggestionAdjustmentOption) -> Bool {
+        option != .custom && state.usedAdjustmentOptions.contains(option)
     }
 
     private func hideCustomInstructionIfNeeded(for option: SuggestionAdjustmentOption) {

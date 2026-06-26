@@ -120,7 +120,7 @@ struct SaylessOverlayView: View {
                     RefreshButtonLabel(shortcutTitle: state.refreshShortcutTitle)
                 }
                 .buttonStyle(.plain)
-                .help("AI 맞춤추천 새로 받기")
+                .help("AI 답장 새로 받기")
             }
 
             Button(action: onClose) {
@@ -220,7 +220,7 @@ struct SaylessOverlayView: View {
     private var adjustmentBar: some View {
         HStack(spacing: 6) {
             ForEach(Array(SuggestionAdjustmentOption.allCases.enumerated()), id: \.element.id) { index, option in
-                let isUsed = state.usedAdjustmentOptions.contains(option)
+                let isUsed = option != .custom && state.usedAdjustmentOptions.contains(option)
                 Button {
                     guard !isUsed else {
                         return
@@ -406,7 +406,7 @@ private struct RefreshButtonLabel: View {
             IntelligenceGlyph()
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("맞춤추천")
+                Text("새로 받기")
                     .font(.system(size: 11, weight: .heavy))
                     .lineLimit(1)
                 Text(shortcutTitle)
@@ -466,7 +466,7 @@ private struct IntelligenceGlyph: View {
                 )
                 .frame(width: 21, height: 21)
 
-            Image(systemName: "sparkles")
+            Image(systemName: "character.textbox.badge.sparkles")
                 .font(.system(size: 10, weight: .black))
                 .foregroundStyle(.white.opacity(0.94))
         }
