@@ -4,11 +4,35 @@ struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            content
+        ZStack {
+            VisualEffectView(
+                material: .underWindowBackground,
+                blendingMode: .behindWindow,
+                state: .followsWindowActiveState
+            )
+            .ignoresSafeArea()
+
+            HStack(spacing: 10) {
+                sidebar
+                content
+            }
+            .padding(10)
+            .ignoresSafeArea(.container, edges: .top)
         }
-        .frame(minWidth: 560, idealWidth: 640, minHeight: 520, idealHeight: 590)
+        .ignoresSafeArea()
+        .frame(
+            minWidth: 560,
+            idealWidth: 640,
+            maxWidth: .infinity,
+            minHeight: 520,
+            idealHeight: 590,
+            maxHeight: .infinity
+        )
+        .clipShape(RoundedRectangle(cornerRadius: WindowStyling.preferencesCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: WindowStyling.preferencesCornerRadius, style: .continuous)
+                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+        )
         .background(WindowAccessor { window in
             WindowStyling.applyPreferencesGlass(to: window)
         })
@@ -32,16 +56,12 @@ struct ContentView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.top, 44)
+        .padding(.top, 70)
         .padding(.horizontal, 14)
         .padding(.bottom, 14)
         .frame(width: 140)
-        .background(
-            ZStack {
-                VisualEffectView(material: .sidebar, blendingMode: .behindWindow)
-                Color.white.opacity(0.035)
-            }
-        )
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(PreferencesPanelBackground(material: .sidebar, tintOpacity: 0.035))
     }
 
     private var content: some View {
@@ -66,18 +86,13 @@ struct ContentView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.top, 44)
+            .padding(.top, 24)
             .padding(.horizontal, 22)
-            .padding(.bottom, 20)
+            .padding(.bottom, 22)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            ZStack {
-                VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-                Color.black.opacity(0.05)
-            }
-        )
+        .background(PreferencesPanelBackground(material: .hudWindow, tintOpacity: 0.028))
     }
 
     private var shortcutCard: some View {
@@ -105,10 +120,10 @@ struct ContentView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.13), lineWidth: 1)
+                .stroke(.white.opacity(0.085), lineWidth: 1)
         )
     }
 
@@ -137,10 +152,10 @@ struct ContentView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.13), lineWidth: 1)
+                .stroke(.white.opacity(0.085), lineWidth: 1)
         )
     }
 
@@ -160,10 +175,10 @@ struct ContentView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.13), lineWidth: 1)
+                .stroke(.white.opacity(0.085), lineWidth: 1)
         )
     }
 
@@ -179,6 +194,27 @@ struct ContentView: View {
                 appModel.openAccessibilitySettingsIfNeeded()
             }
         }
+    }
+}
+
+private struct PreferencesPanelBackground: View {
+    let material: NSVisualEffectView.Material
+    let tintOpacity: Double
+
+    var body: some View {
+        ZStack {
+            VisualEffectView(
+                material: material,
+                blendingMode: .withinWindow,
+                state: .followsWindowActiveState
+            )
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(.white.opacity(tintOpacity))
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.08), radius: 22, x: 0, y: 10)
     }
 }
 
