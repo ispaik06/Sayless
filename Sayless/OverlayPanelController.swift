@@ -8,9 +8,20 @@ final class OverlayPanelController {
     private let state = OverlayState()
     private var displayGeneration = 0
     private var sourceWindowMonitor: Timer?
+    var onRefreshRequested: ((FocusedTextContext) -> Void)?
+    var onSuggestionAccepted: (() -> Void)?
+    var refreshShortcutOption: RefreshShortcutOption = .rightArrow {
+        didSet {
+            state.refreshShortcutTitle = refreshShortcutOption.title
+        }
+    }
 
     var isVisible: Bool {
         panel?.isVisible == true
+    }
+
+    var currentFocusedContext: FocusedTextContext? {
+        state.content.focusedContext
     }
 
     @discardableResult
@@ -27,6 +38,14 @@ final class OverlayPanelController {
         panel.setFrame(targetFrame, display: true)
         panel.orderFrontRegardless()
         panel.makeKey()
+        startSourceWindowMonitor(for: content)
+        return displayGeneration
+    }
+
+    @discardableResult
+    func refresh(content: OverlayContent) -> Int {
+        displayGeneration += 1
+        state.update(content: content)
         startSourceWindowMonitor(for: content)
         return displayGeneration
     }
@@ -123,10 +142,17 @@ final class OverlayPanelController {
         }
 
         insertionService.insert(items[index].text, into: context)
+        onSuggestionAccepted?()
         hide()
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
+        if refreshShortcutOption.matches(event),
+           let context = state.content.focusedContext {
+            onRefreshRequested?(context)
+            return true
+        }
+
         switch event.keyCode {
         case 53:
             hide()
@@ -173,10 +199,17 @@ final class OverlayPanelController {
                 state: state,
                 onSelect: { [weak self] suggestion, context in
                     self?.insertionService.insert(suggestion.text, into: context)
+                    self?.onSuggestionAccepted?()
                     self?.hide()
                 },
                 onClose: { [weak self] in
                     self?.hide()
+                },
+                onRefresh: { [weak self] in
+                    guard let context = self?.state.content.focusedContext else {
+                        return
+                    }
+                    self?.onRefreshRequested?(context)
                 }
             )
         )

@@ -26,6 +26,39 @@ enum ShortcutOption: String, CaseIterable, Identifiable {
     }
 }
 
+enum RefreshShortcutOption: String, CaseIterable, Identifiable {
+    case rightArrow
+    case optionRightArrow
+    case commandR
+    case custom
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .rightArrow: "→"
+        case .optionRightArrow: "⌥ →"
+        case .commandR: "⌘ R"
+        case .custom: "Custom"
+        }
+    }
+
+    func matches(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
+
+        switch self {
+        case .rightArrow:
+            return event.keyCode == 124 && modifiers.isEmpty
+        case .optionRightArrow:
+            return event.keyCode == 124 && modifiers == .option
+        case .commandR:
+            return event.keyCode == 15 && modifiers == .command
+        case .custom:
+            return false
+        }
+    }
+}
+
 final class HotKeyManager {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?

@@ -16,21 +16,31 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(menuBarIconOption.rawValue, forKey: Self.menuBarIconDefaultsKey)
         }
     }
+    @Published var refreshShortcutOption: RefreshShortcutOption {
+        didSet {
+            UserDefaults.standard.set(refreshShortcutOption.rawValue, forKey: Self.refreshShortcutDefaultsKey)
+            overlayController.refreshShortcutOption = refreshShortcutOption
+        }
+    }
 
     private let accessibilityReader = AccessibilityReader()
     private let overlayController = OverlayPanelController()
     private let suggestionService = BackendSuggestionService()
     private var hotKeyManager: HotKeyManager?
     private var suggestionTask: Task<Void, Never>?
+    private var suggestionCache: SuggestionCache?
     private var lastSummonTime: CFAbsoluteTime = 0
     private static let shortcutDefaultsKey = "shortcutOption"
     private static let menuBarIconDefaultsKey = "menuBarIconOption"
+    private static let refreshShortcutDefaultsKey = "refreshShortcutOption"
 
     init() {
         let savedShortcut = UserDefaults.standard.string(forKey: Self.shortcutDefaultsKey)
         shortcutOption = savedShortcut.flatMap(ShortcutOption.init(rawValue:)) ?? .optionSpace
         let savedMenuBarIcon = UserDefaults.standard.string(forKey: Self.menuBarIconDefaultsKey)
         menuBarIconOption = savedMenuBarIcon.flatMap(MenuBarIconOption.init(rawValue:)) ?? .quoteBubble
+        let savedRefreshShortcut = UserDefaults.standard.string(forKey: Self.refreshShortcutDefaultsKey)
+        refreshShortcutOption = savedRefreshShortcut.flatMap(RefreshShortcutOption.init(rawValue:)) ?? .rightArrow
 
         hotKeyManager = HotKeyManager { [weak self] in
             DispatchQueue.main.async {
@@ -38,6 +48,14 @@ final class AppModel: ObservableObject {
             }
         }
         hotKeyManager?.configure(shortcutOption)
+        overlayController.refreshShortcutOption = refreshShortcutOption
+        overlayController.onRefreshRequested = { [weak self] context in
+            self?.refreshSuggestions(for: context)
+        }
+        overlayController.onSuggestionAccepted = { [weak self] in
+            self?.suggestionTask?.cancel()
+            self?.suggestionCache = nil
+        }
     }
 
     func handleSummon() {
@@ -57,13 +75,22 @@ final class AppModel: ObservableObject {
 
         switch accessibilityReader.focusedKakaoTextContext() {
         case .ready(let context):
+            if let cached = cachedSuggestions(for: context) {
+                suggestionTask?.cancel()
+                overlayController.show(
+                    content: .suggestions(context: context, items: cached.suggestions),
+                    near: context.frame
+                )
+                return
+            }
+
             let generation = overlayController.show(
                 content: .generating(context: context),
                 near: context.frame
             )
             suggestionTask?.cancel()
             suggestionTask = Task(priority: .utility) { [weak self] in
-                await self?.loadSuggestions(for: context, generation: generation)
+                await self?.loadSuggestions(for: context, generation: generation, forceRefresh: false)
             }
 
         case .accessibilityMissing:
@@ -91,7 +118,15 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func loadSuggestions(for context: FocusedTextContext, generation: Int) async {
+    private func refreshSuggestions(for context: FocusedTextContext) {
+        suggestionTask?.cancel()
+        let generation = overlayController.refresh(content: .generating(context: context))
+        suggestionTask = Task(priority: .utility) { [weak self] in
+            await self?.loadSuggestions(for: context, generation: generation, forceRefresh: true)
+        }
+    }
+
+    private func loadSuggestions(for context: FocusedTextContext, generation: Int, forceRefresh: Bool) async {
         await Task.yield()
 
         guard let window = context.windowElement else {
@@ -115,6 +150,13 @@ final class AppModel: ObservableObject {
                 return
             }
 
+            suggestionCache = SuggestionCache(
+                key: cacheKey(for: context),
+                suggestions: suggestions,
+                messages: messages,
+                createdAt: Date()
+            )
+
             overlayController.update(
                 content: .suggestions(context: context, items: suggestions),
                 for: generation
@@ -128,8 +170,26 @@ final class AppModel: ObservableObject {
                 content: .generationFailed(context: context),
                 for: generation
             )
-            print("[Sayless][Backend] suggestions unavailable")
+            print("[Sayless][Backend] suggestions unavailable\(forceRefresh ? " during refresh" : "")")
         }
+    }
+
+    private func cachedSuggestions(for context: FocusedTextContext) -> SuggestionCache? {
+        guard let suggestionCache,
+              suggestionCache.key == cacheKey(for: context) else {
+            return nil
+        }
+
+        return suggestionCache
+    }
+
+    private func cacheKey(for context: FocusedTextContext) -> String {
+        let title = context.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
+            return "\(context.bundleIdentifier)|\(title)"
+        }
+
+        return "\(context.bundleIdentifier)|\(Int(context.frame.minX))|\(Int(context.frame.minY))"
     }
 
     func openAccessibilitySettingsIfNeeded() {
@@ -157,4 +217,11 @@ final class AppModel: ObservableObject {
             openAccessibilitySettingsIfNeeded()
         }
     }
+}
+
+private struct SuggestionCache {
+    let key: String
+    let suggestions: [Suggestion]
+    let messages: [ChatMessage]
+    let createdAt: Date
 }

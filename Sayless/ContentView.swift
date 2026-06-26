@@ -8,7 +8,7 @@ struct ContentView: View {
             sidebar
             content
         }
-        .frame(width: 560, height: 430)
+        .frame(width: 560, height: 520)
         .background(WindowAccessor { window in
             WindowStyling.applyPreferencesGlass(to: window)
         })
@@ -55,6 +55,7 @@ struct ContentView: View {
             }
 
             shortcutCard
+            refreshShortcutCard
             iconCard
             accessibilityBlock
 
@@ -92,6 +93,35 @@ struct ContentView: View {
 
             if appModel.shortcutOption == .custom {
                 Text("Custom shortcut recording will be added after the KakaoTalk flow is stable.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.13), lineWidth: 1)
+        )
+    }
+
+    private var refreshShortcutCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Refresh Context")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Picker("Refresh Context", selection: $appModel.refreshShortcutOption) {
+                ForEach(RefreshShortcutOption.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+
+            if appModel.refreshShortcutOption == .custom {
+                Text("Custom refresh shortcut recording will be added later.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }

@@ -4,6 +4,7 @@ struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
     let onSelect: (Suggestion, FocusedTextContext) -> Void
     let onClose: () -> Void
+    let onRefresh: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -123,6 +124,23 @@ struct SaylessOverlayView: View {
             }
 
             Spacer()
+
+            if state.content.focusedContext != nil {
+                Button(action: onRefresh) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(state.refreshShortcutTitle)
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .help("Refresh context")
+            }
 
             Button(action: onClose) {
                 Image(systemName: "xmark")

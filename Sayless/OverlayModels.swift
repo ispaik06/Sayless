@@ -34,6 +34,7 @@ enum OverlayContent {
 final class OverlayState: ObservableObject {
     @Published var content: OverlayContent = .notice(title: "", message: "", buttonTitle: nil)
     @Published var selectedIndex: Int?
+    @Published var refreshShortcutTitle = RefreshShortcutOption.rightArrow.title
 
     func update(content: OverlayContent) {
         self.content = content
