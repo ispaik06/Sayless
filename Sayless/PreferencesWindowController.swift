@@ -63,8 +63,9 @@ final class PreferencesWindowController: NSWindowController {
             window.center()
         }
 
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        AppActivationManager.shared.showAppWindow(window) { window in
+            WindowStyling.applyPreferencesGlass(to: window)
+        }
     }
 }
 

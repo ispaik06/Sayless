@@ -6,7 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        AppActivationManager.shared.enterMenuBarModeIfPossible()
     }
 
     private func terminatePreviousInstances() {

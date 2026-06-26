@@ -9,11 +9,27 @@ export const ChatMessageGroupSchema = z.object({
 export const SuggestionRequestSchema = z.object({
   chatRoom: z.string().trim().max(120).optional(),
   locale: z.string().trim().max(20).optional(),
-  messages: z.array(ChatMessageGroupSchema).min(1).max(24)
+  messages: z.array(ChatMessageGroupSchema).min(1).max(24),
+  intent: z
+    .object({
+      kind: z.enum(['initial', 'regenerate', 'shorter', 'softer', 'wittier', 'custom']),
+      instruction: z.string().trim().min(1).max(500).optional()
+    })
+    .optional(),
+  previousSuggestions: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1).max(24),
+        text: z.string().trim().min(1).max(240)
+      })
+    )
+    .max(24)
+    .optional()
 });
 
 export const ReplySuggestionSchema = z.object({
   id: z.string().trim().min(1).max(24),
+  label: z.string().trim().min(1).max(24),
   text: z.string().trim().min(1).max(240)
 });
 

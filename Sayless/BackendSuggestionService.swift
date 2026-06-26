@@ -3,7 +3,24 @@ import Foundation
 private struct SuggestionRequest: Encodable {
     let chatRoom: String?
     let locale: String
+    let intent: SuggestionIntentPayload
+    let previousSuggestions: [PreviousSuggestionPayload]
     let messages: [SuggestionMessageGroup]
+}
+
+private struct SuggestionIntentPayload: Encodable {
+    let kind: String
+    let instruction: String?
+
+    init(intent: SuggestionIntent) {
+        kind = intent.backendKind
+        instruction = intent.instruction
+    }
+}
+
+private struct PreviousSuggestionPayload: Encodable {
+    let label: String
+    let text: String
 }
 
 private struct SuggestionMessageGroup: Encodable {
@@ -18,6 +35,7 @@ private struct SuggestionResponse: Decodable {
 
 private struct ReplySuggestion: Decodable {
     let id: String
+    let label: String
     let text: String
 }
 
@@ -25,7 +43,12 @@ final class BackendSuggestionService {
     private let endpoint = URL(string: "http://127.0.0.1:8787/suggestions")!
     private let locale = "ko-KR"
 
-    func suggestions(chatRoom: String, messages: [ChatMessage]) async throws -> [Suggestion] {
+    func suggestions(
+        chatRoom: String,
+        messages: [ChatMessage],
+        intent: SuggestionIntent = .initial,
+        previousSuggestions: [Suggestion] = []
+    ) async throws -> [Suggestion] {
         let groups = groupedMessages(from: messages)
         guard !groups.isEmpty else {
             return Suggestion.fixed
@@ -39,6 +62,10 @@ final class BackendSuggestionService {
             SuggestionRequest(
                 chatRoom: chatRoom.isEmpty ? nil : chatRoom,
                 locale: locale,
+                intent: SuggestionIntentPayload(intent: intent),
+                previousSuggestions: previousSuggestions.suffix(18).map {
+                    PreviousSuggestionPayload(label: $0.label, text: $0.text)
+                },
                 messages: groups
             )
         )
@@ -50,12 +77,20 @@ final class BackendSuggestionService {
         }
 
         let decoded = try JSONDecoder().decode(SuggestionResponse.self, from: data)
-        let labels = ["추천 1", "추천 2", "추천 3"]
         let suggestions = decoded.suggestions.prefix(3).enumerated().map { index, item in
-            Suggestion(label: labels[index], text: item.text)
+            Suggestion(label: normalizedLabel(item.label, index: index, intent: intent), text: item.text)
         }
 
         return suggestions.count == 3 ? suggestions : Suggestion.fixed
+    }
+
+    private func normalizedLabel(_ label: String, index: Int, intent: SuggestionIntent) -> String {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if index == 0, intent == .initial {
+            return "추천"
+        }
+
+        return trimmed.isEmpty ? "옵션 \(index + 1)" : trimmed
     }
 
     private func groupedMessages(from messages: [ChatMessage]) -> [SuggestionMessageGroup] {

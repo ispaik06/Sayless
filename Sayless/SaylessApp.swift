@@ -22,8 +22,8 @@ struct SaylessApp: App {
                 appModel.checkAccessibilityFromMenu()
             }
 
-            SettingsLink {
-                Text("Preferences...")
+            Button("Preferences...") {
+                appModel.openPreferences()
             }
 
             Divider()
@@ -31,11 +31,6 @@ struct SaylessApp: App {
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }
-        }
-
-        Settings {
-            ContentView()
-                .environmentObject(appModel)
         }
     }
 }

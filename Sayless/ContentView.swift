@@ -41,7 +41,7 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 9) {
-                Image(systemName: "ellipsis.message.fill")
+                Image(systemName: "ellipsis.message")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(
                         LinearGradient(

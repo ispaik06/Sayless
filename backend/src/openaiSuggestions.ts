@@ -20,12 +20,13 @@ function getOpenAIClient(): OpenAI {
 export async function createOpenAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
   const completion = await getOpenAIClient().chat.completions.create({
     model: config.openaiModel,
-    temperature: 0.7,
-    max_tokens: 120,
+    temperature: 0.85,
+    max_tokens: 360,
     messages: [
       {
         role: 'system',
-        content: 'You are a concise reply suggestion engine. Return only valid JSON matching the requested schema.'
+        content:
+          'You are Sayless, a Korean chat reply judgment and recommendation engine. Return only valid JSON matching the requested schema.'
       },
       {
         role: 'user',

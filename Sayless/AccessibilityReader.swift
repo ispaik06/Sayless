@@ -21,6 +21,12 @@ struct ChatMessage {
     let debugSource: String?
 }
 
+struct ChatTimelineSignature: Equatable {
+    let frame: CGRect
+    let textHash: Int
+    let visibleRowCount: Int
+}
+
 private struct MessageTextCandidate {
     let text: String
     let frame: CGRect
@@ -245,6 +251,35 @@ final class AccessibilityReader {
         )
 
         return finalMessages
+    }
+
+    func latestVisibleKakaoMessageSignature(in focusedWindow: AXUIElement) -> ChatTimelineSignature? {
+        guard isAccessibilityTrusted(),
+              isWindowUsable(focusedWindow),
+              let chatTable = findChatTable(in: focusedWindow) else {
+            return nil
+        }
+
+        let visibleRowsResult = visibleRows(in: chatTable)
+        let rows = Array(visibleRowsResult.rows.suffix(6))
+
+        for row in rows.reversed() {
+            let rowScan = scanRowOnce(row)
+            guard !rowScan.messageCandidates.isEmpty,
+                  !rowScan.hasSystemFeedMarker else {
+                continue
+            }
+
+            let text = rowScan.messageCandidates.map(\.text).joined(separator: "\n")
+            let frame = unionFrame(rowScan.messageCandidates.map(\.frame)).integral
+            return ChatTimelineSignature(
+                frame: frame,
+                textHash: stableHash(text),
+                visibleRowCount: visibleRowsResult.rows.count
+            )
+        }
+
+        return nil
     }
 
     func isWindowUsable(_ window: AXUIElement) -> Bool {
@@ -710,6 +745,12 @@ final class AccessibilityReader {
     private func unionFrame(_ frames: [CGRect]) -> CGRect {
         frames.reduce(CGRect.null) { partialResult, frame in
             partialResult.union(frame)
+        }
+    }
+
+    private func stableHash(_ text: String) -> Int {
+        text.unicodeScalars.reduce(5381) { hash, scalar in
+            (hash &* 33) &+ Int(scalar.value)
         }
     }
 

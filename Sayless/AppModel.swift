@@ -41,6 +41,7 @@ final class AppModel: ObservableObject {
     private let overlayController = OverlayPanelController()
     private let suggestionService = BackendSuggestionService()
     private var hotKeyManager: HotKeyManager?
+    private var preferencesWindowController: PreferencesWindowController?
     private var suggestionTask: Task<Void, Never>?
     private var suggestionCache: SuggestionCache?
     private var lastSummonTime: CFAbsoluteTime = 0
@@ -56,7 +57,7 @@ final class AppModel: ObservableObject {
         let savedMenuBarIcon = UserDefaults.standard.string(forKey: Self.menuBarIconDefaultsKey)
         menuBarIconOption = savedMenuBarIcon.flatMap(MenuBarIconOption.init(rawValue:)) ?? .quoteBubble
         let savedRefreshShortcut = UserDefaults.standard.string(forKey: Self.refreshShortcutDefaultsKey)
-        refreshShortcutOption = savedRefreshShortcut.flatMap(RefreshShortcutOption.init(rawValue:)) ?? .rightArrow
+        refreshShortcutOption = savedRefreshShortcut.flatMap(RefreshShortcutOption.init(rawValue:)) ?? .commandR
         customShortcut = Self.loadShortcut(key: Self.customShortcutDefaultsKey)
         customRefreshShortcut = Self.loadShortcut(key: Self.customRefreshShortcutDefaultsKey)
 
@@ -67,11 +68,17 @@ final class AppModel: ObservableObject {
         }
         hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
         overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
-        overlayController.onRefreshRequested = { [weak self] context in
-            self?.refreshSuggestions(for: context)
+        overlayController.onSuggestionGenerationRequested = { [weak self] context, intent in
+            self?.generateSuggestions(for: context, intent: intent)
         }
-        overlayController.onSuggestionAccepted = { [weak self] in
+        overlayController.onContextResetRequested = { [weak self] context in
+            self?.resetAndRegenerateSuggestions(for: context)
+        }
+        overlayController.onSuggestionAccepted = { [weak self] suggestion in
             self?.suggestionTask?.cancel()
+            self?.recordAcceptedSuggestion(suggestion)
+        }
+        overlayController.onSourceWindowInvalidated = { [weak self] in
             self?.suggestionCache = nil
         }
     }
@@ -95,20 +102,30 @@ final class AppModel: ObservableObject {
         case .ready(let context):
             if let cached = cachedSuggestions(for: context) {
                 suggestionTask?.cancel()
-                overlayController.show(
-                    content: .suggestions(context: context, items: cached.suggestions),
-                    near: context.frame
+                overlayController.showSuggestions(
+                    context: context,
+                    batches: cached.batches,
+                    near: context.frame,
+                    acceptedSuggestionID: cached.acceptedSuggestionID
                 )
                 return
             }
 
+            overlayController.resetSuggestionState()
             let generation = overlayController.show(
                 content: .generating(context: context),
                 near: context.frame
             )
             suggestionTask?.cancel()
             suggestionTask = Task(priority: .utility) { [weak self] in
-                await self?.loadSuggestions(for: context, generation: generation, forceRefresh: false)
+                await self?.loadSuggestions(
+                    for: context,
+                    generation: generation,
+                    intent: .initial,
+                    previousSuggestions: [],
+                    existingBatches: [],
+                    forceRefresh: false
+                )
             }
 
         case .accessibilityMissing:
@@ -136,18 +153,52 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func refreshSuggestions(for context: FocusedTextContext) {
+    private func generateSuggestions(for context: FocusedTextContext, intent: SuggestionIntent) {
         suggestionTask?.cancel()
-        let generation = overlayController.refresh(content: .generating(context: context))
+        let generation = overlayController.beginSuggestionRequest()
+        let previousSuggestions = overlayController.suggestionHistory
+        let existingBatches = overlayController.suggestionBatches
         suggestionTask = Task(priority: .utility) { [weak self] in
-            await self?.loadSuggestions(for: context, generation: generation, forceRefresh: true)
+            await self?.loadSuggestions(
+                for: context,
+                generation: generation,
+                intent: intent,
+                previousSuggestions: previousSuggestions,
+                existingBatches: existingBatches,
+                forceRefresh: true
+            )
         }
     }
 
-    private func loadSuggestions(for context: FocusedTextContext, generation: Int, forceRefresh: Bool) async {
+    private func resetAndRegenerateSuggestions(for context: FocusedTextContext) {
+        suggestionTask?.cancel()
+        suggestionCache = nil
+        overlayController.resetSuggestionState()
+        let generation = overlayController.refresh(content: .generating(context: context))
+        suggestionTask = Task(priority: .utility) { [weak self] in
+            await self?.loadSuggestions(
+                for: context,
+                generation: generation,
+                intent: .initial,
+                previousSuggestions: [],
+                existingBatches: [],
+                forceRefresh: true
+            )
+        }
+    }
+
+    private func loadSuggestions(
+        for context: FocusedTextContext,
+        generation: Int,
+        intent: SuggestionIntent,
+        previousSuggestions: [Suggestion],
+        existingBatches: [SuggestionBatch],
+        forceRefresh: Bool
+    ) async {
         await Task.yield()
 
         guard let window = context.windowElement else {
+            finishUnavailableSuggestionRequest(context: context, generation: generation, existingBatches: existingBatches)
             return
         }
 
@@ -155,40 +206,65 @@ final class AppModel: ObservableObject {
         guard !Task.isCancelled,
               !messages.isEmpty,
               accessibilityReader.isWindowUsable(window) else {
+            finishUnavailableSuggestionRequest(context: context, generation: generation, existingBatches: existingBatches)
             return
         }
+        let timelineSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window)
 
         do {
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
-                messages: messages
+                messages: messages,
+                intent: intent,
+                previousSuggestions: previousSuggestions
             )
 
             guard !Task.isCancelled else {
                 return
             }
 
+            let batch = SuggestionBatch(intent: intent, suggestions: suggestions)
+            let batches = existingBatches + [batch]
             suggestionCache = SuggestionCache(
                 key: cacheKey(for: context),
-                suggestions: suggestions,
+                batches: batches,
+                acceptedSuggestionID: overlayController.acceptedSuggestionID,
+                windowElement: context.windowElement,
+                timelineSignature: timelineSignature,
                 messages: messages,
                 createdAt: Date()
             )
 
-            overlayController.update(
-                content: .suggestions(context: context, items: suggestions),
-                for: generation
-            )
+            overlayController.appendSuggestions(batch, context: context, for: generation)
         } catch {
             guard !Task.isCancelled else {
                 return
             }
 
+            if existingBatches.isEmpty {
+                overlayController.update(
+                    content: .generationFailed(context: context),
+                    for: generation
+                )
+            } else {
+                overlayController.finishSuggestionRequest()
+            }
+            print("[Sayless][Backend] suggestions unavailable\(forceRefresh ? " during refresh" : "")")
+        }
+    }
+
+    private func finishUnavailableSuggestionRequest(
+        context: FocusedTextContext,
+        generation: Int,
+        existingBatches: [SuggestionBatch]
+    ) {
+        if existingBatches.isEmpty {
             overlayController.update(
                 content: .generationFailed(context: context),
                 for: generation
             )
-            print("[Sayless][Backend] suggestions unavailable\(forceRefresh ? " during refresh" : "")")
+        } else {
+            overlayController.finishSuggestionRequest()
         }
     }
 
@@ -198,7 +274,39 @@ final class AppModel: ObservableObject {
             return nil
         }
 
+        if let cachedWindow = suggestionCache.windowElement,
+           !accessibilityReader.isWindowUsable(cachedWindow) {
+            self.suggestionCache = nil
+            overlayController.resetSuggestionState()
+            return nil
+        }
+
+        if let cachedSignature = suggestionCache.timelineSignature,
+           let window = context.windowElement,
+           let currentSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window),
+           currentSignature != cachedSignature {
+            self.suggestionCache = nil
+            overlayController.resetSuggestionState()
+            return nil
+        }
+
         return suggestionCache
+    }
+
+    private func recordAcceptedSuggestion(_ suggestion: Suggestion) {
+        guard let suggestionCache else {
+            return
+        }
+
+        self.suggestionCache = SuggestionCache(
+            key: suggestionCache.key,
+            batches: suggestionCache.batches,
+            acceptedSuggestionID: suggestion.id,
+            windowElement: suggestionCache.windowElement,
+            timelineSignature: suggestionCache.timelineSignature,
+            messages: suggestionCache.messages,
+            createdAt: suggestionCache.createdAt
+        )
     }
 
     private func cacheKey(for context: FocusedTextContext) -> String {
@@ -236,6 +344,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func openPreferences() {
+        if preferencesWindowController == nil {
+            preferencesWindowController = PreferencesWindowController(appModel: self)
+        }
+
+        preferencesWindowController?.showPreferences()
+    }
+
     private func save(_ shortcut: KeyboardShortcutSpec?, key: String) {
         if let shortcut,
            let data = try? JSONEncoder().encode(shortcut) {
@@ -256,7 +372,10 @@ final class AppModel: ObservableObject {
 
 private struct SuggestionCache {
     let key: String
-    let suggestions: [Suggestion]
+    let batches: [SuggestionBatch]
+    let acceptedSuggestionID: UUID?
+    let windowElement: AXUIElement?
+    let timelineSignature: ChatTimelineSignature?
     let messages: [ChatMessage]
     let createdAt: Date
 }

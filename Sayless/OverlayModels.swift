@@ -13,31 +13,144 @@ struct Suggestion: Identifiable {
     ]
 }
 
+struct SuggestionBatch: Identifiable {
+    let id = UUID()
+    let intent: SuggestionIntent
+    let suggestions: [Suggestion]
+}
+
+enum SuggestionIntent: Equatable {
+    case initial
+    case regenerate
+    case shorter
+    case softer
+    case wittier
+    case custom(String)
+
+    var backendKind: String {
+        switch self {
+        case .initial: "initial"
+        case .regenerate: "regenerate"
+        case .shorter: "shorter"
+        case .softer: "softer"
+        case .wittier: "wittier"
+        case .custom: "custom"
+        }
+    }
+
+    var instruction: String? {
+        if case .custom(let instruction) = self {
+            return instruction
+        }
+
+        return nil
+    }
+}
+
+enum SuggestionAdjustmentOption: CaseIterable, Equatable, Hashable, Identifiable {
+    case shorter
+    case softer
+    case wittier
+    case custom
+
+    var id: String {
+        title
+    }
+
+    var title: String {
+        switch self {
+        case .shorter: "더 짧게"
+        case .softer: "더 부드럽게"
+        case .wittier: "더 센스있게"
+        case .custom: "직접 입력"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .shorter: "textformat.size.smaller"
+        case .softer: "leaf"
+        case .wittier: "sparkles"
+        case .custom: "keyboard"
+        }
+    }
+
+    var intent: SuggestionIntent? {
+        switch self {
+        case .shorter: .shorter
+        case .softer: .softer
+        case .wittier: .wittier
+        case .custom: nil
+        }
+    }
+}
+
+enum OverlayKeyboardFocus {
+    case suggestions
+    case adjustments
+}
+
 enum OverlayContent {
     case generating(context: FocusedTextContext)
     case generationFailed(context: FocusedTextContext)
-    case suggestions(context: FocusedTextContext, items: [Suggestion])
+    case suggestions(context: FocusedTextContext, batches: [SuggestionBatch], activeBatchIndex: Int)
     case notice(title: String, message: String, buttonTitle: String?)
 
     var focusedContext: FocusedTextContext? {
         switch self {
         case .generating(let context), .generationFailed(let context):
             return context
-        case .suggestions(let context, _):
+        case .suggestions(let context, _, _):
             return context
         case .notice:
             return nil
         }
     }
+
+    var suggestionBatches: [SuggestionBatch] {
+        if case .suggestions(_, let batches, _) = self {
+            return batches
+        }
+
+        return []
+    }
+
+    var activeBatchIndex: Int? {
+        if case .suggestions(_, let batches, let activeBatchIndex) = self, !batches.isEmpty {
+            return min(max(activeBatchIndex, 0), batches.count - 1)
+        }
+
+        return nil
+    }
+
+    var activeSuggestions: [Suggestion] {
+        guard let activeBatchIndex else {
+            return []
+        }
+
+        return suggestionBatches[activeBatchIndex].suggestions
+    }
 }
 
 final class OverlayState: ObservableObject {
     @Published var content: OverlayContent = .notice(title: "", message: "", buttonTitle: nil)
+    @Published var keyboardFocus: OverlayKeyboardFocus = .suggestions
     @Published var selectedIndex: Int?
-    @Published var refreshShortcutTitle = RefreshShortcutOption.rightArrow.title
+    @Published var acceptedSuggestionID: UUID?
+    @Published var selectedAdjustmentIndex: Int?
+    @Published var usedAdjustmentOptions: Set<SuggestionAdjustmentOption> = []
+    @Published var isGeneratingMore = false
+    @Published var hasNewerVisibleMessages = false
+    @Published var isCustomInstructionVisible = false
+    @Published var isCustomInstructionFocused = false
+    @Published var customInstructionDraft = ""
+    @Published var refreshShortcutTitle = "⌘ R"
 
     func update(content: OverlayContent) {
         self.content = content
-        selectedIndex = nil
+        selectedIndex = content.activeSuggestions.isEmpty ? nil : 0
+        keyboardFocus = .suggestions
+        selectedAdjustmentIndex = nil
+        isGeneratingMore = false
     }
 }

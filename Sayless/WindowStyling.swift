@@ -73,24 +73,13 @@ enum WindowStyling {
             window.standardWindowButton(.zoomButton)
         ].compactMap { $0 }
 
-        guard buttons.count == 3, let contentView = window.contentView else {
+        guard buttons.count == 3 else {
             return
         }
 
-        let titlebarButtonSuperview = buttons.first?.superview === contentView ? nil : buttons.first?.superview
-
         for button in buttons {
-            if button.superview !== contentView {
-                button.removeFromSuperview()
-                contentView.addSubview(button)
-            }
-
-            button.autoresizingMask = [.maxXMargin, .minYMargin]
             button.isHidden = false
         }
-
-        titlebarButtonSuperview?.isHidden = true
-        hideTitlebarChrome(in: window, preserving: contentView)
     }
 
     static func layoutPreferencesTrafficLights(in window: NSWindow) {
@@ -107,45 +96,24 @@ enum WindowStyling {
         var nextX = trafficLightLeadingInset
 
         for button in buttons {
-            var frame = button.frame
-            frame.origin.x = nextX
+            button.isHidden = false
 
-            if contentView.isFlipped {
-                frame.origin.y = trafficLightTopInset
-            } else {
-                frame.origin.y = contentView.bounds.height - trafficLightTopInset - frame.height
-            }
-
-            button.frame = frame.integral
-            nextX += frame.width + trafficLightButtonGap
-        }
-    }
-
-    private static func hideTitlebarChrome(in window: NSWindow, preserving contentView: NSView) {
-        guard let frameView = contentView.superview else {
-            return
-        }
-
-        hideTitlebarChrome(in: frameView, preserving: contentView)
-    }
-
-    private static func hideTitlebarChrome(in view: NSView, preserving preservedView: NSView) {
-        for subview in view.subviews {
-            if subview === preservedView || subview.isDescendant(of: preservedView) {
+            guard let buttonSuperview = button.superview else {
                 continue
             }
 
-            let className = NSStringFromClass(type(of: subview)).lowercased()
-            let isTitlebarChrome = className.contains("titlebar")
-                || className.contains("toolbar")
-                || className.contains("separator")
+            let contentFrame = CGRect(
+                x: nextX,
+                y: contentView.isFlipped
+                    ? trafficLightTopInset
+                    : contentView.bounds.height - trafficLightTopInset - button.frame.height,
+                width: button.frame.width,
+                height: button.frame.height
+            )
 
-            if isTitlebarChrome {
-                subview.isHidden = true
-                subview.alphaValue = 0
-            } else {
-                hideTitlebarChrome(in: subview, preserving: preservedView)
-            }
+            button.frame = buttonSuperview.convert(contentFrame, from: contentView).integral
+            nextX += button.frame.width + trafficLightButtonGap
         }
     }
+
 }

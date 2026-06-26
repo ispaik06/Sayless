@@ -2,9 +2,12 @@ import SwiftUI
 
 struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
+    @FocusState private var isCustomInstructionFocused: Bool
     let onSelect: (Suggestion, FocusedTextContext) -> Void
     let onClose: () -> Void
     let onRefresh: () -> Void
+    let onAdjustment: (SuggestionAdjustmentOption) -> Void
+    let onCustomInstructionSubmit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -29,41 +32,12 @@ struct SaylessOverlayView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
-            case .suggestions(let context, let items):
+            case .suggestions(let context, let batches, let activeBatchIndex):
                 if !context.value.isEmpty {
                     composingPreview(context.value)
                 }
 
-                VStack(spacing: 7) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            onSelect(item, context)
-                        } label: {
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text(item.label)
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.green.opacity(0.95))
-                                    .frame(width: 76, alignment: .leading)
-
-                                Text(item.text)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
-
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .contentShape(RoundedRectangle(cornerRadius: 13))
-                        }
-                        .buttonStyle(SuggestionButtonStyle(isSelected: state.selectedIndex == index))
-                        .onHover { isHovering in
-                            if isHovering {
-                                state.selectedIndex = index
-                            }
-                        }
-                    }
-                }
+                suggestionsView(context: context, batches: batches, activeBatchIndex: activeBatchIndex)
 
             case .notice(let title, let message, let buttonTitle):
                 VStack(alignment: .leading, spacing: 10) {
@@ -99,9 +73,21 @@ struct SaylessOverlayView: View {
             }
         }
         .padding(14)
-        .frame(width: 430, alignment: .leading)
+        .frame(width: 470, alignment: .leading)
         .background(GlassBackground())
-        .onExitCommand(perform: onClose)
+        .onExitCommand {
+            if state.isCustomInstructionFocused {
+                state.isCustomInstructionFocused = false
+            } else {
+                onClose()
+            }
+        }
+        .onChange(of: state.isCustomInstructionFocused) { _, isFocused in
+            isCustomInstructionFocused = isFocused
+        }
+        .onChange(of: isCustomInstructionFocused) { _, isFocused in
+            state.isCustomInstructionFocused = isFocused
+        }
     }
 
     private var header: some View {
@@ -126,20 +112,15 @@ struct SaylessOverlayView: View {
             Spacer()
 
             if state.content.focusedContext != nil {
+                if state.hasNewerVisibleMessages {
+                    NewMessageBadge()
+                }
+
                 Button(action: onRefresh) {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 11, weight: .bold))
-                        Text(state.refreshShortcutTitle)
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    RefreshButtonLabel(shortcutTitle: state.refreshShortcutTitle)
                 }
                 .buttonStyle(.plain)
-                .help("Refresh context")
+                .help("AI 맞춤추천 새로 받기")
             }
 
             Button(action: onClose) {
@@ -155,6 +136,150 @@ struct SaylessOverlayView: View {
 
     private var roomTitle: String? {
         state.content.focusedContext?.windowTitle
+    }
+
+    private func suggestionsView(
+        context: FocusedTextContext,
+        batches: [SuggestionBatch],
+        activeBatchIndex: Int
+    ) -> some View {
+        let clampedBatchIndex = min(max(activeBatchIndex, 0), max(batches.count - 1, 0))
+        let items = batches.indices.contains(clampedBatchIndex) ? batches[clampedBatchIndex].suggestions : []
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("Tab / Shift Tab")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                if batches.count > 1 {
+                    Text("\(clampedBatchIndex + 1)/\(batches.count)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.green.opacity(0.95))
+                }
+
+                Spacer(minLength: 0)
+
+                if state.isGeneratingMore {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.62)
+                    Text("새로 받는 중")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            VStack(spacing: 7) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    Button {
+                        onSelect(item, context)
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(item.label)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.green.opacity(0.95))
+                                .lineLimit(1)
+                                .frame(width: 82, alignment: .leading)
+
+                            Text(item.text)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.primary)
+                                .lineLimit(2)
+
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .contentShape(RoundedRectangle(cornerRadius: 13))
+                    }
+                    .buttonStyle(
+                        SuggestionButtonStyle(
+                            isSelected: state.keyboardFocus == .suggestions && state.selectedIndex == index,
+                            isAccepted: state.acceptedSuggestionID == item.id
+                        )
+                    )
+                    .onHover { isHovering in
+                        if isHovering {
+                            state.keyboardFocus = .suggestions
+                            state.selectedIndex = index
+                            state.selectedAdjustmentIndex = nil
+                        }
+                    }
+                }
+            }
+
+            adjustmentBar
+
+            if state.isCustomInstructionVisible {
+                customInstructionInput
+            }
+        }
+    }
+
+    private var adjustmentBar: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(SuggestionAdjustmentOption.allCases.enumerated()), id: \.element.id) { index, option in
+                let isUsed = state.usedAdjustmentOptions.contains(option)
+                Button {
+                    guard !isUsed else {
+                        return
+                    }
+
+                    state.keyboardFocus = .adjustments
+                    onAdjustment(option)
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: isUsed ? "checkmark" : option.systemImage)
+                            .font(.system(size: 10, weight: .bold))
+                        Text(option.title)
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .lineLimit(1)
+                    .padding(.horizontal, 9)
+                    .frame(height: 28)
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .buttonStyle(
+                    AdjustmentButtonStyle(
+                        isSelected: state.keyboardFocus == .adjustments && state.selectedAdjustmentIndex == index,
+                        isUsed: isUsed
+                    )
+                )
+                .disabled(isUsed)
+            }
+        }
+    }
+
+    private var customInstructionInput: some View {
+        HStack(spacing: 8) {
+            TextField("원하는 느낌, 길이, 말투, 언어 입력", text: $state.customInstructionDraft)
+                .textFieldStyle(.plain)
+                .focused($isCustomInstructionFocused)
+                .font(.system(size: 13, weight: .medium))
+                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .stroke(.green.opacity(0.26), lineWidth: 1)
+                )
+                .onSubmit(onCustomInstructionSubmit)
+                .onExitCommand {
+                    state.isCustomInstructionFocused = false
+                }
+
+            Button {
+                onCustomInstructionSubmit()
+            } label: {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .frame(width: 34, height: 34)
+                    .background(.green.opacity(0.34), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func composingPreview(_ text: String) -> some View {
@@ -244,8 +369,114 @@ private struct GeneratingSuggestionsView: View {
     }
 }
 
+private struct NewMessageBadge: View {
+    @State private var isLit = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(.green)
+                .frame(width: 6, height: 6)
+                .shadow(color: .green.opacity(isLit ? 0.9 : 0.25), radius: isLit ? 7 : 2)
+
+            Text("새 메시지 · ⌘⇧R")
+                .font(.system(size: 11, weight: .bold))
+        }
+        .foregroundStyle(.green.opacity(isLit ? 1 : 0.62))
+        .padding(.horizontal, 8)
+        .frame(height: 24)
+        .background(.green.opacity(isLit ? 0.14 : 0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(.green.opacity(isLit ? 0.38 : 0.16), lineWidth: 1)
+        )
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
+                isLit = true
+            }
+        }
+    }
+}
+
+private struct RefreshButtonLabel: View {
+    let shortcutTitle: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            IntelligenceGlyph()
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("맞춤추천")
+                    .font(.system(size: 11, weight: .heavy))
+                    .lineLimit(1)
+                Text(shortcutTitle)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.68))
+                    .lineLimit(1)
+            }
+
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundStyle(.white.opacity(0.86))
+        }
+        .foregroundStyle(.white.opacity(0.96))
+        .padding(.leading, 7)
+        .padding(.trailing, 9)
+        .frame(height: 32)
+        .background(
+            LinearGradient(
+                colors: [
+                    .green.opacity(0.44),
+                    .mint.opacity(0.32),
+                    Color(red: 0.12, green: 0.52, blue: 0.34).opacity(0.42)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(.mint.opacity(0.36), lineWidth: 1)
+        )
+        .shadow(color: .green.opacity(0.18), radius: 10, x: 0, y: 4)
+        .contentShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+    }
+}
+
+private struct IntelligenceGlyph: View {
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.black.opacity(0.18))
+                .frame(width: 22, height: 22)
+
+            Circle()
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            .mint,
+                            .green,
+                            Color(red: 0.70, green: 0.96, blue: 0.56),
+                            .mint
+                        ],
+                        center: .center
+                    ),
+                    lineWidth: 1.5
+                )
+                .frame(width: 21, height: 21)
+
+            Image(systemName: "sparkles")
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(.white.opacity(0.94))
+        }
+        .frame(width: 23, height: 23)
+    }
+}
+
 private struct SuggestionButtonStyle: ButtonStyle {
     let isSelected: Bool
+    let isAccepted: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -264,6 +495,10 @@ private struct SuggestionButtonStyle: ButtonStyle {
             return .white.opacity(0.18)
         }
 
+        if isAccepted {
+            return .green.opacity(0.24)
+        }
+
         if isSelected {
             return .green.opacity(0.16)
         }
@@ -272,11 +507,61 @@ private struct SuggestionButtonStyle: ButtonStyle {
     }
 
     private func borderColor(isPressed: Bool) -> Color {
-        if isPressed || isSelected {
+        if isPressed || isSelected || isAccepted {
             return .green.opacity(0.36)
         }
 
         return .white.opacity(0.11)
+    }
+}
+
+private struct AdjustmentButtonStyle: ButtonStyle {
+    let isSelected: Bool
+    let isUsed: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(foregroundColor)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(backgroundColor(isPressed: configuration.isPressed))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(borderColor(isPressed: configuration.isPressed), lineWidth: 1)
+            )
+    }
+
+    private var foregroundColor: Color {
+        if isUsed {
+            return .secondary.opacity(0.52)
+        }
+
+        return isSelected ? .primary : .secondary
+    }
+
+    private func backgroundColor(isPressed: Bool) -> Color {
+        if isPressed {
+            return .white.opacity(0.18)
+        }
+
+        if isUsed {
+            return .white.opacity(0.035)
+        }
+
+        return isSelected ? .green.opacity(0.14) : .white.opacity(0.06)
+    }
+
+    private func borderColor(isPressed: Bool) -> Color {
+        if isUsed {
+            return .white.opacity(0.07)
+        }
+
+        if isPressed || isSelected {
+            return .green.opacity(0.3)
+        }
+
+        return .white.opacity(0.1)
     }
 }
 
@@ -297,17 +582,19 @@ private struct GlassBackground: View {
 struct VisualEffectView: NSViewRepresentable {
     let material: NSVisualEffectView.Material
     let blendingMode: NSVisualEffectView.BlendingMode
+    var state: NSVisualEffectView.State = .active
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
         view.material = material
         view.blendingMode = blendingMode
-        view.state = .active
+        view.state = state
         return view
     }
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
         nsView.material = material
         nsView.blendingMode = blendingMode
+        nsView.state = state
     }
 }
