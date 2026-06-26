@@ -46,10 +46,10 @@ struct ContentView: View {
                     .foregroundStyle(
                         LinearGradient(
                             colors: [
-                                Color(red: 0.78, green: 1.0, blue: 0.44),
-                                Color(red: 0.34, green: 0.95, blue: 0.43),
-                                Color(red: 0.06, green: 0.78, blue: 0.38),
-                                Color(red: 0.0, green: 0.58, blue: 0.32)
+                                Color(red: 0.68, green: 0.8, blue: 0.84),
+                                Color(red: 0.73, green: 0.89, blue: 0.53),
+                                Color(red: 0.69, green: 1.0, blue: 0.49),
+                                Color(red: 0.5, green: 1.0, blue: 0.62)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
