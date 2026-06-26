@@ -28,6 +28,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       request.log.info(
         {
           chatRoomPresent: Boolean(input.chatRoom),
+          draftTextPresent: Boolean(input.draftText),
           intent: input.intent?.kind ?? 'initial',
           messageCount: input.messages.length,
           mode: config.suggestionMode,

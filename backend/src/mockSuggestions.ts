@@ -3,8 +3,19 @@ import type { SuggestionRequest, SuggestionResponse } from './schemas.js';
 export function createMockSuggestions(input: SuggestionRequest): SuggestionResponse {
   const lastMessage = input.messages.at(-1)?.texts.at(-1) ?? '';
   const kind = input.intent?.kind ?? 'initial';
+  const draftText = input.draftText?.trim() ?? '';
 
   if (kind === 'shorter') {
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '짧게 다듬기', text: draftText.length > 12 ? draftText.slice(0, 12) : draftText },
+          { id: 's2', label: '툭 보내기', text: draftText.replace(/[.!?。！？]+$/u, '') },
+          { id: 's3', label: '한마디', text: draftText.split(/\s+/u).slice(0, 4).join(' ') || draftText }
+        ]
+      };
+    }
+
     return {
       suggestions: [
         { id: 's1', label: '한마디', text: '좋아' },
@@ -15,6 +26,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'softer') {
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '부드럽게', text: `${draftText} 괜찮으면 그렇게 하자` },
+          { id: 's2', label: '덜 딱딱하게', text: `${draftText} 편하게 생각해도 돼` },
+          { id: 's3', label: '조심스럽게', text: `나는 ${draftText} 쪽도 괜찮아` }
+        ]
+      };
+    }
+
     return {
       suggestions: [
         { id: 's1', label: '천천히', text: '응 좋아. 편한 시간에 맞춰보자' },
@@ -25,6 +46,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'wittier') {
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '센스있게', text: `${draftText} ㅋㅋ 이 정도면 꽤 괜찮지` },
+          { id: 's2', label: '장난 섞어서', text: `${draftText} 나 지금 말 잘한 듯` },
+          { id: 's3', label: '가볍게', text: `${draftText} 아무튼 결론은 이거임` }
+        ]
+      };
+    }
+
     return {
       suggestions: [
         { id: 's1', label: '센스있게', text: '좋아 ㅋㅋ 어디로 출동하면 됨?' },
@@ -35,6 +66,17 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'custom') {
+    if (draftText) {
+      const instruction = input.intent?.instruction ?? '원하는 느낌';
+      return {
+        suggestions: [
+          { id: 's1', label: '요청 반영', text: `${draftText} (${instruction})` },
+          { id: 's2', label: '다른 방향', text: `다르게 가면 ${draftText}` },
+          { id: 's3', label: '대안', text: `${instruction} 느낌으로는 이렇게도 가능해` }
+        ]
+      };
+    }
+
     return {
       suggestions: [
         { id: 's1', label: '요청 톤', text: '좋아. 그 느낌으로 말해볼게' },

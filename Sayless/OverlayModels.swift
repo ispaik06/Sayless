@@ -136,7 +136,6 @@ final class OverlayState: ObservableObject {
     @Published var content: OverlayContent = .notice(title: "", message: "", buttonTitle: nil)
     @Published var keyboardFocus: OverlayKeyboardFocus = .suggestions
     @Published var selectedIndex: Int?
-    @Published var acceptedSuggestionID: UUID?
     @Published var selectedAdjustmentIndex: Int?
     @Published var usedAdjustmentOptions: Set<SuggestionAdjustmentOption> = []
     @Published var isGeneratingMore = false

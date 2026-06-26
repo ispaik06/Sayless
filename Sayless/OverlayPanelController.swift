@@ -13,7 +13,7 @@ final class OverlayPanelController {
     private var latestMessageCheckTime: CFAbsoluteTime = 0
     var onSuggestionGenerationRequested: ((FocusedTextContext, SuggestionIntent) -> Void)?
     var onContextResetRequested: ((FocusedTextContext) -> Void)?
-    var onSuggestionAccepted: ((Suggestion) -> Void)?
+    var onSuggestionAccepted: (() -> Void)?
     var onSourceWindowInvalidated: (() -> Void)?
 
     var isVisible: Bool {
@@ -30,10 +30,6 @@ final class OverlayPanelController {
 
     var suggestionBatches: [SuggestionBatch] {
         state.content.suggestionBatches
-    }
-
-    var acceptedSuggestionID: UUID? {
-        state.acceptedSuggestionID
     }
 
     func configureRefreshShortcut(_: RefreshShortcutOption, customShortcut _: KeyboardShortcutSpec?) {
@@ -70,10 +66,9 @@ final class OverlayPanelController {
     func showSuggestions(
         context: FocusedTextContext,
         batches: [SuggestionBatch],
-        near axFrame: CGRect?,
-        acceptedSuggestionID: UUID? = nil
+        near axFrame: CGRect?
     ) -> Int {
-        let generation = show(
+        show(
             content: .suggestions(
                 context: context,
                 batches: batches,
@@ -81,8 +76,6 @@ final class OverlayPanelController {
             ),
             near: axFrame
         )
-        state.acceptedSuggestionID = acceptedSuggestionID
-        return generation
     }
 
     @discardableResult
@@ -114,7 +107,6 @@ final class OverlayPanelController {
     }
 
     func resetSuggestionState() {
-        state.acceptedSuggestionID = nil
         state.hasNewerVisibleMessages = false
         state.keyboardFocus = .suggestions
         state.selectedAdjustmentIndex = nil
@@ -333,9 +325,8 @@ final class OverlayPanelController {
     }
 
     private func accept(suggestion: Suggestion, context: FocusedTextContext) {
-        state.acceptedSuggestionID = suggestion.id
         insertionService.insert(suggestion.text, into: context)
-        onSuggestionAccepted?(suggestion)
+        onSuggestionAccepted?()
         hide()
     }
 

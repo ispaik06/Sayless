@@ -74,9 +74,8 @@ final class AppModel: ObservableObject {
         overlayController.onContextResetRequested = { [weak self] context in
             self?.resetAndRegenerateSuggestions(for: context)
         }
-        overlayController.onSuggestionAccepted = { [weak self] suggestion in
+        overlayController.onSuggestionAccepted = { [weak self] in
             self?.suggestionTask?.cancel()
-            self?.recordAcceptedSuggestion(suggestion)
         }
         overlayController.onSourceWindowInvalidated = { [weak self] in
             self?.suggestionCache = nil
@@ -105,8 +104,7 @@ final class AppModel: ObservableObject {
                 overlayController.showSuggestions(
                     context: context,
                     batches: cached.batches,
-                    near: context.frame,
-                    acceptedSuggestionID: cached.acceptedSuggestionID
+                    near: context.frame
                 )
                 return
             }
@@ -215,6 +213,7 @@ final class AppModel: ObservableObject {
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
                 messages: messages,
+                draftText: context.value,
                 intent: intent,
                 previousSuggestions: previousSuggestions
             )
@@ -228,7 +227,6 @@ final class AppModel: ObservableObject {
             suggestionCache = SuggestionCache(
                 key: cacheKey(for: context),
                 batches: batches,
-                acceptedSuggestionID: overlayController.acceptedSuggestionID,
                 windowElement: context.windowElement,
                 timelineSignature: timelineSignature,
                 messages: messages,
@@ -291,22 +289,6 @@ final class AppModel: ObservableObject {
         }
 
         return suggestionCache
-    }
-
-    private func recordAcceptedSuggestion(_ suggestion: Suggestion) {
-        guard let suggestionCache else {
-            return
-        }
-
-        self.suggestionCache = SuggestionCache(
-            key: suggestionCache.key,
-            batches: suggestionCache.batches,
-            acceptedSuggestionID: suggestion.id,
-            windowElement: suggestionCache.windowElement,
-            timelineSignature: suggestionCache.timelineSignature,
-            messages: suggestionCache.messages,
-            createdAt: suggestionCache.createdAt
-        )
     }
 
     private func cacheKey(for context: FocusedTextContext) -> String {
@@ -373,7 +355,6 @@ final class AppModel: ObservableObject {
 private struct SuggestionCache {
     let key: String
     let batches: [SuggestionBatch]
-    let acceptedSuggestionID: UUID?
     let windowElement: AXUIElement?
     let timelineSignature: ChatTimelineSignature?
     let messages: [ChatMessage]

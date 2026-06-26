@@ -3,6 +3,7 @@ import Foundation
 private struct SuggestionRequest: Encodable {
     let chatRoom: String?
     let locale: String
+    let draftText: String?
     let intent: SuggestionIntentPayload
     let previousSuggestions: [PreviousSuggestionPayload]
     let messages: [SuggestionMessageGroup]
@@ -46,6 +47,7 @@ final class BackendSuggestionService {
     func suggestions(
         chatRoom: String,
         messages: [ChatMessage],
+        draftText: String,
         intent: SuggestionIntent = .initial,
         previousSuggestions: [Suggestion] = []
     ) async throws -> [Suggestion] {
@@ -62,6 +64,7 @@ final class BackendSuggestionService {
             SuggestionRequest(
                 chatRoom: chatRoom.isEmpty ? nil : chatRoom,
                 locale: locale,
+                draftText: normalizedDraftText(draftText),
                 intent: SuggestionIntentPayload(intent: intent),
                 previousSuggestions: previousSuggestions.suffix(18).map {
                     PreviousSuggestionPayload(label: $0.label, text: $0.text)
@@ -82,6 +85,11 @@ final class BackendSuggestionService {
         }
 
         return suggestions.count == 3 ? suggestions : Suggestion.fixed
+    }
+
+    private func normalizedDraftText(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func normalizedLabel(_ label: String, index: Int, intent: SuggestionIntent) -> String {

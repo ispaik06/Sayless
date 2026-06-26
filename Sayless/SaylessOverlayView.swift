@@ -195,8 +195,7 @@ struct SaylessOverlayView: View {
                     }
                     .buttonStyle(
                         SuggestionButtonStyle(
-                            isSelected: state.keyboardFocus == .suggestions && state.selectedIndex == index,
-                            isAccepted: state.acceptedSuggestionID == item.id
+                            isSelected: state.keyboardFocus == .suggestions && state.selectedIndex == index
                         )
                     )
                     .onHover { isHovering in
@@ -476,7 +475,6 @@ private struct IntelligenceGlyph: View {
 
 private struct SuggestionButtonStyle: ButtonStyle {
     let isSelected: Bool
-    let isAccepted: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -495,10 +493,6 @@ private struct SuggestionButtonStyle: ButtonStyle {
             return .white.opacity(0.18)
         }
 
-        if isAccepted {
-            return .green.opacity(0.24)
-        }
-
         if isSelected {
             return .green.opacity(0.16)
         }
@@ -507,7 +501,7 @@ private struct SuggestionButtonStyle: ButtonStyle {
     }
 
     private func borderColor(isPressed: Bool) -> Color {
-        if isPressed || isSelected || isAccepted {
+        if isPressed || isSelected {
             return .green.opacity(0.36)
         }
 

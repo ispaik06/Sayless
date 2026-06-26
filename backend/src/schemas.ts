@@ -9,6 +9,7 @@ export const ChatMessageGroupSchema = z.object({
 export const SuggestionRequestSchema = z.object({
   chatRoom: z.string().trim().max(120).optional(),
   locale: z.string().trim().max(20).optional(),
+  draftText: z.string().trim().max(1000).optional(),
   messages: z.array(ChatMessageGroupSchema).min(1).max(24),
   intent: z
     .object({
