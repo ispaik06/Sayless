@@ -55,7 +55,7 @@ final class OverlayPanelController {
             return
         }
 
-        let timer = Timer(timeInterval: 0.35, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self else {
                 return
             }

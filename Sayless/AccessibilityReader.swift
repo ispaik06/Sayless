@@ -26,6 +26,35 @@ private struct MessageTextCandidate {
     let frame: CGRect
 }
 
+private struct RowScanResult {
+    let messageCandidates: [MessageTextCandidate]
+    let senderCandidates: [(text: String, frame: CGRect)]
+    let hasSystemFeedMarker: Bool
+}
+
+private struct VisibleRowsResult {
+    let rows: [AXUIElement]
+    let source: String
+}
+
+private struct PerfTimer {
+    private let start = CFAbsoluteTimeGetCurrent()
+
+    func elapsedMilliseconds() -> Double {
+        (CFAbsoluteTimeGetCurrent() - start) * 1000
+    }
+}
+
+private struct AXElementSnapshot {
+    let role: String
+    let value: String?
+    let title: String?
+    let description: String?
+    let help: String?
+    let frame: CGRect?
+    let children: [AXUIElement]
+}
+
 private enum ParsedChatRow {
     case system(text: String, frame: CGRect)
     case message(ChatMessage)
@@ -49,6 +78,8 @@ enum SummonResult {
 
 final class AccessibilityReader {
     private let logPrefix = "[Sayless][AX]"
+    private let perfPrefix = "[Sayless][Perf]"
+    private let verboseMessageLog = false
     private let incomingMessageXOffset: CGFloat = 60
     private let incomingMessageXTolerance: CGFloat = 22
     private let senderNameXTolerance: CGFloat = 28
@@ -108,33 +139,63 @@ final class AccessibilityReader {
     }
 
     func collectVisibleKakaoMessages(in focusedWindow: AXUIElement, limit: Int = 20) -> [ChatMessage] {
+        let totalTimer = PerfTimer()
+        var findTableMs = 0.0
+        var visibleRowsMs = 0.0
+        var parseRowsMs = 0.0
+        var printRowsMs = 0.0
+
         guard isAccessibilityTrusted() else {
             return []
         }
 
-        guard let chatTable = findChatTable(in: focusedWindow) else {
+        guard isWindowUsable(focusedWindow) else {
             return []
         }
 
+        let findTableTimer = PerfTimer()
+        guard let chatTable = findChatTable(in: focusedWindow) else {
+            return []
+        }
+        findTableMs = findTableTimer.elapsedMilliseconds()
+
         let tableFrame = frame(of: chatTable)
-        let parseLimit = min(limit + 6, 26)
-        let rows = Array(visibleRows(in: chatTable).suffix(parseLimit))
+        let visibleRowsTimer = PerfTimer()
+        var visibleRowsResult = visibleRows(in: chatTable)
+        if visibleRowsResult.rows.isEmpty {
+            invalidateCachedChatTable()
+            if let refreshedTable = findChatTable(in: focusedWindow) {
+                visibleRowsResult = visibleRows(in: refreshedTable)
+            }
+        }
+        visibleRowsMs = visibleRowsTimer.elapsedMilliseconds()
+
+        let parseLimit = min(limit + 4, 28)
+        let rows = Array(visibleRowsResult.rows.suffix(parseLimit))
         var parsedRows: [ParsedChatRow] = []
         var inheritedSender = "Unknown"
 
-        for row in rows {
-            let messageCandidates = messageTextCandidates(in: row)
+        let parseRowsTimer = PerfTimer()
+        for (index, row) in rows.enumerated() {
+            if index % 4 == 0,
+               !isWindowUsable(focusedWindow) {
+                return []
+            }
+
+            let rowScan = scanRowOnce(row)
+            let messageCandidates = rowScan.messageCandidates
             guard !messageCandidates.isEmpty else { continue }
 
             let text = messageCandidates.map(\.text).joined(separator: "\n")
-            if isSystemFeedRow(row) {
+            let messageFrame = unionFrame(messageCandidates.map(\.frame))
+
+            if rowScan.hasSystemFeedMarker {
                 parsedRows.append(.system(text: text, frame: unionFrame(messageCandidates.map(\.frame))))
                 continue
             }
 
-            let messageFrame = unionFrame(messageCandidates.map(\.frame))
             let isMine = isOutgoingMessage(messageCandidates, tableFrame: tableFrame, row: row)
-            let explicitSender = isMine ? nil : senderCandidate(in: row, messageFrame: messageFrame, tableFrame: tableFrame)
+            let explicitSender = isMine ? nil : senderCandidate(from: rowScan, messageFrame: messageFrame, tableFrame: tableFrame)
             if let explicitSender {
                 inheritedSender = explicitSender
             }
@@ -152,18 +213,59 @@ final class AccessibilityReader {
                 )
             )
         }
+        parseRowsMs = parseRowsTimer.elapsedMilliseconds()
 
         let finalRows = trimParsedRows(parsedRows, messageLimit: limit)
         let finalMessages = finalRows.compactMap(\.message)
 
-        print("\(logPrefix) Latest visible messages:")
-        if finalRows.isEmpty {
-            print("\(logPrefix)   <none>")
-        } else {
-            printParsedRows(finalRows)
+        let printRowsTimer = PerfTimer()
+        if verboseMessageLog {
+            print("\(logPrefix) Latest visible messages:")
+            if finalRows.isEmpty {
+                print("\(logPrefix)   <none>")
+            } else {
+                printParsedRows(finalRows)
+            }
         }
+        printRowsMs = printRowsTimer.elapsedMilliseconds()
+
+        print(
+            String(
+                format: "\(perfPrefix) rows=%d source=%@ parsed=%d final=%d find=%.1fms visible=%.1fms parse=%.1fms print=%.1fms total=%.1fms",
+                visibleRowsResult.rows.count,
+                visibleRowsResult.source,
+                parsedRows.count,
+                finalMessages.count,
+                findTableMs,
+                visibleRowsMs,
+                parseRowsMs,
+                printRowsMs,
+                totalTimer.elapsedMilliseconds()
+            )
+        )
 
         return finalMessages
+    }
+
+    func isWindowUsable(_ window: AXUIElement) -> Bool {
+        var roleValue: CFTypeRef?
+        let roleResult = AXUIElementCopyAttributeValue(window, kAXRoleAttribute as CFString, &roleValue)
+        guard roleResult == .success,
+              (roleValue as? String) == kAXWindowRole as String else {
+            return false
+        }
+
+        var minimizedValue: CFTypeRef?
+        if AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimizedValue) == .success,
+           let minimized = minimizedValue as? Bool,
+           minimized {
+            return false
+        }
+
+        var positionValue: CFTypeRef?
+        var sizeValue: CFTypeRef?
+        return AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionValue) == .success
+            && AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeValue) == .success
     }
 
     func printKakaoAccessibilityTree(maxDepth: Int = 5) {
@@ -400,14 +502,13 @@ final class AccessibilityReader {
             return (role == kAXTableRole as String
                 || role == "AXTable"
                 || description.contains("fschattableview"))
-                && !rows(from: element).isEmpty
         }) {
             cachedChatTable = table
             cachedChatWindowID = elementID(window)
             return table
         }
 
-        if let table = elements.first(where: { rows(from: $0).count >= 2 }) {
+        if let table = elements.first(where: { !visibleRows(in: $0).rows.isEmpty }) {
             cachedChatTable = table
             cachedChatWindowID = elementID(window)
             return table
@@ -416,10 +517,20 @@ final class AccessibilityReader {
         return nil
     }
 
-    private func visibleRows(in table: AXUIElement) -> [AXUIElement] {
+    private func visibleRows(in table: AXUIElement) -> VisibleRowsResult {
+        if let visibleRows = copyAttribute(table, kAXVisibleRowsAttribute as String) as [AXUIElement]?,
+           !visibleRows.isEmpty {
+            return VisibleRowsResult(rows: visibleRows, source: "AXVisibleRows")
+        }
+
+        if let visibleRows = copyAttribute(table, "AXVisibleRows") as [AXUIElement]?,
+           !visibleRows.isEmpty {
+            return VisibleRowsResult(rows: visibleRows, source: "AXVisibleRows")
+        }
+
         let directRows = rows(from: table)
         if !directRows.isEmpty {
-            return directRows
+            return VisibleRowsResult(rows: directRows, source: "AXRows")
         }
 
         let tableFrame = frame(of: table)
@@ -428,7 +539,7 @@ final class AccessibilityReader {
             (copyStringAttribute($0, kAXRoleAttribute) ?? "") == "AXRow"
         }
 
-        return uniqueElements(fallbackRows)
+        let rows = uniqueElements(fallbackRows)
             .filter { row in
                 guard let rowFrame = frame(of: row), rowFrame.width > 20, rowFrame.height > 8 else {
                     return false
@@ -448,6 +559,8 @@ final class AccessibilityReader {
                 }
                 return lhsFrame.minX < rhsFrame.minX
             }
+
+        return VisibleRowsResult(rows: rows, source: "descendants")
     }
 
     private func rows(from element: AXUIElement) -> [AXUIElement] {
@@ -462,22 +575,26 @@ final class AccessibilityReader {
 
     private func cachedUsableChatTable(for window: AXUIElement) -> AXUIElement? {
         guard cachedChatWindowID == elementID(window),
-              let cachedChatTable,
-              !rows(from: cachedChatTable).isEmpty else {
-            cachedChatTable = nil
-            cachedChatWindowID = nil
+              let cachedChatTable else {
             return nil
         }
 
         return cachedChatTable
     }
 
-    private func messageTextCandidates(in row: AXUIElement) -> [MessageTextCandidate] {
+    private func invalidateCachedChatTable() {
+        cachedChatTable = nil
+        cachedChatWindowID = nil
+    }
+
+    private func scanRowOnce(_ row: AXUIElement) -> RowScanResult {
         var queue: [(element: AXUIElement, depth: Int)] = [(row, 0)]
         var visited = Set<AXElementID>()
-        var candidates: [MessageTextCandidate] = []
+        var messageCandidates: [MessageTextCandidate] = []
+        var senderCandidates: [(text: String, frame: CGRect)] = []
+        var hasSystemFeedMarker = false
 
-        while !queue.isEmpty, visited.count < 22, candidates.count < 2 {
+        while !queue.isEmpty, visited.count < 32, messageCandidates.count < 3 {
             let item = queue.removeFirst()
             let id = elementID(item.element)
             guard !visited.contains(id) else {
@@ -485,45 +602,58 @@ final class AccessibilityReader {
             }
 
             visited.insert(id)
+            let snapshot = snapshot(of: item.element)
+            let identity = [
+                snapshot.role,
+                snapshot.description,
+                snapshot.help
+            ]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
 
-            let role = copyStringAttribute(item.element, kAXRoleAttribute) ?? ""
-            if role == kAXTextAreaRole as String,
-               !isSettableTextArea(item.element),
-               let text = messageText(from: item.element),
-               let frame = frame(of: item.element) {
-                candidates.append(MessageTextCandidate(text: text, frame: frame))
+            if identity.contains("fschatlogfeedview") || identity.contains("blktextview") {
+                hasSystemFeedMarker = true
             }
 
-            guard item.depth < 3 else {
+            if snapshot.role == kAXTextAreaRole as String,
+               !isSettableTextArea(item.element),
+               let text = visibleText(from: snapshot),
+               isLikelyMessageText(text),
+               let frame = snapshot.frame {
+                messageCandidates.append(MessageTextCandidate(text: text, frame: frame))
+            }
+
+            if snapshot.role == kAXStaticTextRole as String,
+               let text = visibleText(from: snapshot),
+               isLikelySenderText(text),
+               let frame = snapshot.frame {
+                senderCandidates.append((text, frame))
+            }
+
+            guard item.depth < 4 else {
                 continue
             }
 
-            children(of: item.element).forEach {
+            snapshot.children.forEach {
                 queue.append(($0, item.depth + 1))
             }
         }
 
-        return uniqueMessageCandidates(candidates)
+        return RowScanResult(
+            messageCandidates: uniqueMessageCandidates(messageCandidates),
+            senderCandidates: uniqueSenderCandidates(senderCandidates),
+            hasSystemFeedMarker: hasSystemFeedMarker
+        )
     }
 
-    private func senderCandidate(in row: AXUIElement, messageFrame: CGRect, tableFrame: CGRect?) -> String? {
+    private func senderCandidate(from rowScan: RowScanResult, messageFrame: CGRect, tableFrame: CGRect?) -> String? {
         if let tableFrame,
            !isIncomingMessageFrame(messageFrame, tableFrame: tableFrame) {
             return nil
         }
 
-        return descendants(of: row, maxDepth: 4, maxVisited: 38)
-            .filter { (copyStringAttribute($0, kAXRoleAttribute) ?? "") == kAXStaticTextRole as String }
-            .compactMap { element -> (text: String, frame: CGRect)? in
-                guard let text = visibleText(from: element),
-                      let frame = frame(of: element),
-                      isLikelySenderText(text),
-                      isLikelySenderFrame(frame, messageFrame: messageFrame, tableFrame: tableFrame) else {
-                    return nil
-                }
-
-                return (text, frame)
-            }
+        return rowScan.senderCandidates
+            .filter { isLikelySenderFrame($0.frame, messageFrame: messageFrame, tableFrame: tableFrame) }
             .sorted { lhs, rhs in
                 if abs(lhs.frame.minY - rhs.frame.minY) > 2 {
                     return lhs.frame.minY < rhs.frame.minY
@@ -616,50 +746,67 @@ final class AccessibilityReader {
         }
     }
 
-    private func messageText(from element: AXUIElement) -> String? {
-        guard let text = visibleText(from: element),
-              isLikelyMessageText(text) else {
-            return nil
-        }
+    private func snapshot(of element: AXUIElement) -> AXElementSnapshot {
+        let attributes = [
+            kAXRoleAttribute as String,
+            kAXValueAttribute as String,
+            kAXTitleAttribute as String,
+            kAXDescriptionAttribute as String,
+            kAXHelpAttribute as String,
+            kAXPositionAttribute as String,
+            kAXSizeAttribute as String,
+            kAXChildrenAttribute as String
+        ]
+        let values = copyMultipleAttributes(element, attributes)
+        let positionValue = axValue(from: values[kAXPositionAttribute as String])
+        let sizeValue = axValue(from: values[kAXSizeAttribute as String])
 
-        return text
+        return AXElementSnapshot(
+            role: values[kAXRoleAttribute as String] as? String ?? "",
+            value: values[kAXValueAttribute as String] as? String,
+            title: values[kAXTitleAttribute as String] as? String,
+            description: values[kAXDescriptionAttribute as String] as? String,
+            help: values[kAXHelpAttribute as String] as? String,
+            frame: frame(positionValue: positionValue, sizeValue: sizeValue),
+            children: values[kAXChildrenAttribute as String] as? [AXUIElement] ?? []
+        )
     }
 
-    private func isSystemFeedRow(_ row: AXUIElement) -> Bool {
-        let markers = ["fschatlogfeedview", "blktextview"]
-        var queue: [(element: AXUIElement, depth: Int)] = [(row, 0)]
-        var visited = Set<AXElementID>()
+    private func copyMultipleAttributes(_ element: AXUIElement, _ attributes: [String]) -> [String: Any] {
+        var values: CFArray?
+        let result = AXUIElementCopyMultipleAttributeValues(
+            element,
+            attributes as CFArray,
+            AXCopyMultipleAttributeOptions(rawValue: 0),
+            &values
+        )
 
-        while !queue.isEmpty, visited.count < 18 {
-            let item = queue.removeFirst()
-            let id = elementID(item.element)
-            guard !visited.contains(id) else {
-                continue
-            }
-
-            visited.insert(id)
-            let identity = [
-                copyStringAttribute(item.element, kAXRoleAttribute),
-                copyStringAttribute(item.element, kAXDescriptionAttribute),
-                copyStringAttribute(item.element, kAXHelpAttribute)
-            ]
-            .compactMap { $0?.lowercased() }
-            .joined(separator: " ")
-
-            if markers.contains(where: { identity.contains($0) }) {
-                return true
-            }
-
-            guard item.depth < 3 else {
-                continue
-            }
-
-            children(of: item.element).forEach {
-                queue.append(($0, item.depth + 1))
+        guard result == .success,
+              let valueArray = values as? [Any],
+              valueArray.count == attributes.count else {
+            return attributes.reduce(into: [String: Any]()) { partialResult, attribute in
+                if let value: Any = copyAttribute(element, attribute) {
+                    partialResult[attribute] = value
+                }
             }
         }
 
-        return false
+        var resultValues: [String: Any] = [:]
+        for (index, attribute) in attributes.enumerated() {
+            let value = valueArray[index]
+            if CFGetTypeID(value as CFTypeRef) == AXValueGetTypeID() {
+                let axValue = value as! AXValue
+                var axError = AXError.success
+                if AXValueGetType(axValue) == .axError,
+                   AXValueGetValue(axValue, .axError, &axError) {
+                    continue
+                }
+            }
+
+            resultValues[attribute] = value
+        }
+
+        return resultValues
     }
 
     private func isSettableTextArea(_ element: AXUIElement) -> Bool {
@@ -674,6 +821,25 @@ final class AccessibilityReader {
             copyStringAttribute(element, kAXTitleAttribute),
             copyStringAttribute(element, kAXDescriptionAttribute),
             copyStringAttribute(element, kAXHelpAttribute)
+        ]
+
+        for candidate in candidates {
+            guard let text = visibleText(candidate) else {
+                continue
+            }
+
+            return text
+        }
+
+        return nil
+    }
+
+    private func visibleText(from snapshot: AXElementSnapshot) -> String? {
+        let candidates = [
+            snapshot.value,
+            snapshot.title,
+            snapshot.description,
+            snapshot.help
         ]
 
         for candidate in candidates {
@@ -883,6 +1049,19 @@ final class AccessibilityReader {
         }
     }
 
+    private func uniqueSenderCandidates(_ candidates: [(text: String, frame: CGRect)]) -> [(text: String, frame: CGRect)] {
+        var seen = Set<String>()
+        return candidates.filter {
+            let key = "\($0.text)-\(Int($0.frame.minX))-\(Int($0.frame.minY))"
+            guard !seen.contains(key) else {
+                return false
+            }
+
+            seen.insert(key)
+            return true
+        }
+    }
+
     private func elementID(_ element: AXUIElement) -> AXElementID {
         CFHash(element)
     }
@@ -897,6 +1076,14 @@ final class AccessibilityReader {
             return nil
         }
 
+        return frame(positionValue: positionValue, sizeValue: sizeValue)
+    }
+
+    private func frame(positionValue: AXValue?, sizeValue: AXValue?) -> CGRect? {
+        guard let positionValue, let sizeValue else {
+            return nil
+        }
+
         var position = CGPoint.zero
         var size = CGSize.zero
         AXValueGetValue(positionValue, .cgPoint, &position)
@@ -907,6 +1094,15 @@ final class AccessibilityReader {
         }
 
         return CGRect(origin: position, size: size)
+    }
+
+    private func axValue(from value: Any?) -> AXValue? {
+        guard let value,
+              CFGetTypeID(value as CFTypeRef) == AXValueGetTypeID() else {
+            return nil
+        }
+
+        return (value as! AXValue)
     }
 
     private func copyStringAttribute(_ element: AXUIElement, _ attribute: String) -> String? {
