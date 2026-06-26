@@ -10,11 +10,8 @@ final class OverlayPanelController {
     private var sourceWindowMonitor: Timer?
     var onRefreshRequested: ((FocusedTextContext) -> Void)?
     var onSuggestionAccepted: (() -> Void)?
-    var refreshShortcutOption: RefreshShortcutOption = .rightArrow {
-        didSet {
-            state.refreshShortcutTitle = refreshShortcutOption.title
-        }
-    }
+    private var refreshShortcutOption: RefreshShortcutOption = .rightArrow
+    private var customRefreshShortcut: KeyboardShortcutSpec?
 
     var isVisible: Bool {
         panel?.isVisible == true
@@ -22,6 +19,12 @@ final class OverlayPanelController {
 
     var currentFocusedContext: FocusedTextContext? {
         state.content.focusedContext
+    }
+
+    func configureRefreshShortcut(_ option: RefreshShortcutOption, customShortcut: KeyboardShortcutSpec?) {
+        refreshShortcutOption = option
+        customRefreshShortcut = customShortcut
+        state.refreshShortcutTitle = refreshShortcutTitle
     }
 
     @discardableResult
@@ -147,7 +150,7 @@ final class OverlayPanelController {
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
-        if refreshShortcutOption.matches(event),
+        if refreshShortcutMatches(event),
            let context = state.content.focusedContext {
             onRefreshRequested?(context)
             return true
@@ -181,6 +184,22 @@ final class OverlayPanelController {
         } else {
             state.selectedIndex = delta > 0 ? 0 : items.count - 1
         }
+    }
+
+    private func refreshShortcutMatches(_ event: NSEvent) -> Bool {
+        if refreshShortcutOption == .custom {
+            return customRefreshShortcut?.matches(event) == true
+        }
+
+        return refreshShortcutOption.matches(event)
+    }
+
+    private var refreshShortcutTitle: String {
+        if refreshShortcutOption == .custom {
+            return customRefreshShortcut?.title ?? "Custom"
+        }
+
+        return refreshShortcutOption.title
     }
 
     private func makePanelIfNeeded() -> KeyHandlingPanel {

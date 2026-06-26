@@ -80,7 +80,7 @@ final class HotKeyManager {
         }
     }
 
-    func configure(_ option: ShortcutOption) {
+    func configure(_ option: ShortcutOption, customShortcut: KeyboardShortcutSpec?) {
         unregister()
 
         switch option {
@@ -97,7 +97,9 @@ final class HotKeyManager {
         case .doubleTapRightCommand:
             installDoubleTapMonitor(acceptedKeyCodes: [54])
         case .custom:
-            break
+            if let customShortcut {
+                registerKey(keyCode: customShortcut.keyCode, modifiers: carbonModifiers(from: customShortcut.modifiers))
+            }
         }
     }
 
@@ -139,9 +141,13 @@ final class HotKeyManager {
     }
 
     private func registerSpace(modifiers: Int) {
+        registerKey(keyCode: UInt16(kVK_Space), modifiers: modifiers)
+    }
+
+    private func registerKey(keyCode: UInt16, modifiers: Int) {
         let hotKeyID = EventHotKeyID(signature: OSType("SLSH"), id: 1)
         let status = RegisterEventHotKey(
-            UInt32(kVK_Space),
+            UInt32(keyCode),
             UInt32(modifiers),
             hotKeyID,
             GetApplicationEventTarget(),
@@ -151,6 +157,15 @@ final class HotKeyManager {
         if status != noErr {
             hotKeyRef = nil
         }
+    }
+
+    private func carbonModifiers(from modifiers: NSEvent.ModifierFlags) -> Int {
+        var carbonModifiers = 0
+        if modifiers.contains(.option) { carbonModifiers |= optionKey }
+        if modifiers.contains(.shift) { carbonModifiers |= shiftKey }
+        if modifiers.contains(.command) { carbonModifiers |= cmdKey }
+        if modifiers.contains(.control) { carbonModifiers |= controlKey }
+        return carbonModifiers
     }
 
     private func installDoubleTapMonitor(acceptedKeyCodes: Set<UInt16>) {

@@ -8,7 +8,7 @@ final class AppModel: ObservableObject {
     @Published var shortcutOption: ShortcutOption {
         didSet {
             UserDefaults.standard.set(shortcutOption.rawValue, forKey: Self.shortcutDefaultsKey)
-            hotKeyManager?.configure(shortcutOption)
+            hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
         }
     }
     @Published var menuBarIconOption: MenuBarIconOption {
@@ -19,7 +19,21 @@ final class AppModel: ObservableObject {
     @Published var refreshShortcutOption: RefreshShortcutOption {
         didSet {
             UserDefaults.standard.set(refreshShortcutOption.rawValue, forKey: Self.refreshShortcutDefaultsKey)
-            overlayController.refreshShortcutOption = refreshShortcutOption
+            overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
+        }
+    }
+    @Published var customShortcut: KeyboardShortcutSpec? {
+        didSet {
+            save(customShortcut, key: Self.customShortcutDefaultsKey)
+            if shortcutOption == .custom {
+                hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
+            }
+        }
+    }
+    @Published var customRefreshShortcut: KeyboardShortcutSpec? {
+        didSet {
+            save(customRefreshShortcut, key: Self.customRefreshShortcutDefaultsKey)
+            overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
         }
     }
 
@@ -33,6 +47,8 @@ final class AppModel: ObservableObject {
     private static let shortcutDefaultsKey = "shortcutOption"
     private static let menuBarIconDefaultsKey = "menuBarIconOption"
     private static let refreshShortcutDefaultsKey = "refreshShortcutOption"
+    private static let customShortcutDefaultsKey = "customShortcut"
+    private static let customRefreshShortcutDefaultsKey = "customRefreshShortcut"
 
     init() {
         let savedShortcut = UserDefaults.standard.string(forKey: Self.shortcutDefaultsKey)
@@ -41,14 +57,16 @@ final class AppModel: ObservableObject {
         menuBarIconOption = savedMenuBarIcon.flatMap(MenuBarIconOption.init(rawValue:)) ?? .quoteBubble
         let savedRefreshShortcut = UserDefaults.standard.string(forKey: Self.refreshShortcutDefaultsKey)
         refreshShortcutOption = savedRefreshShortcut.flatMap(RefreshShortcutOption.init(rawValue:)) ?? .rightArrow
+        customShortcut = Self.loadShortcut(key: Self.customShortcutDefaultsKey)
+        customRefreshShortcut = Self.loadShortcut(key: Self.customRefreshShortcutDefaultsKey)
 
         hotKeyManager = HotKeyManager { [weak self] in
             DispatchQueue.main.async {
                 self?.handleSummon()
             }
         }
-        hotKeyManager?.configure(shortcutOption)
-        overlayController.refreshShortcutOption = refreshShortcutOption
+        hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
+        overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
         overlayController.onRefreshRequested = { [weak self] context in
             self?.refreshSuggestions(for: context)
         }
@@ -216,6 +234,23 @@ final class AppModel: ObservableObject {
         } else {
             openAccessibilitySettingsIfNeeded()
         }
+    }
+
+    private func save(_ shortcut: KeyboardShortcutSpec?, key: String) {
+        if let shortcut,
+           let data = try? JSONEncoder().encode(shortcut) {
+            UserDefaults.standard.set(data, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+    }
+
+    private static func loadShortcut(key: String) -> KeyboardShortcutSpec? {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(KeyboardShortcutSpec.self, from: data)
     }
 }
 

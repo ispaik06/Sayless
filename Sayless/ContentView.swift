@@ -8,7 +8,7 @@ struct ContentView: View {
             sidebar
             content
         }
-        .frame(width: 560, height: 520)
+        .frame(minWidth: 560, idealWidth: 640, minHeight: 520, idealHeight: 590)
         .background(WindowAccessor { window in
             WindowStyling.applyPreferencesGlass(to: window)
         })
@@ -45,29 +45,32 @@ struct ContentView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Preferences")
-                    .font(.system(size: 23, weight: .bold))
-                Text("Option-Space opens suggestions near the KakaoTalk input.")
-                    .font(.system(size: 13))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Preferences")
+                        .font(.system(size: 23, weight: .bold))
+                    Text("Tune how Sayless appears, refreshes, and listens for shortcuts.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+
+                shortcutCard
+                refreshShortcutCard
+                iconCard
+                accessibilityBlock
+
+                Text("MVP test flow: open a KakaoTalk chat, click the message input, then press your summon shortcut.")
+                    .font(.system(size: 12))
                     .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
             }
-
-            shortcutCard
-            refreshShortcutCard
-            iconCard
-            accessibilityBlock
-
-            Text("MVP test flow: open a KakaoTalk chat, click the message input, then press Option-Space.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 0)
+            .padding(.top, 44)
+            .padding(.horizontal, 22)
+            .padding(.bottom, 20)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(.top, 44)
-        .padding(.horizontal, 22)
-        .padding(.bottom, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
             ZStack {
@@ -92,9 +95,12 @@ struct ContentView: View {
             .pickerStyle(.menu)
 
             if appModel.shortcutOption == .custom {
-                Text("Custom shortcut recording will be added after the KakaoTalk flow is stable.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                ShortcutRecorderView(
+                    title: "No custom shortcut",
+                    subtitle: "Press Record, then use a modifier combo like ⌥ S or ⌘ ⇧ Space. Esc cancels.",
+                    requiresModifier: true,
+                    shortcut: $appModel.customShortcut
+                )
             }
         }
         .padding(14)
@@ -121,9 +127,12 @@ struct ContentView: View {
             .pickerStyle(.menu)
 
             if appModel.refreshShortcutOption == .custom {
-                Text("Custom refresh shortcut recording will be added later.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                ShortcutRecorderView(
+                    title: "No custom refresh shortcut",
+                    subtitle: "Press Record, then choose a key for refreshing while the overlay is open. Esc cancels.",
+                    requiresModifier: false,
+                    shortcut: $appModel.customRefreshShortcut
+                )
             }
         }
         .padding(14)

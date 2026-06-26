@@ -34,7 +34,9 @@ enum WindowStyling {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.styleMask.insert(.fullSizeContentView)
+        window.styleMask.insert(.resizable)
         window.toolbarStyle = .unifiedCompact
+        window.minSize = NSSize(width: 560, height: 520)
 
         if let contentView = window.contentView {
             contentView.wantsLayer = true
