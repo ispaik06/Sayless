@@ -11,16 +11,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_NAME="Sayless.app"
 DIST_DIR="$REPO_ROOT/dist"
-DIST_APP="$DIST_DIR/$APP_NAME"
 
 find_release_app() {
   if [[ -n "${APP_PATH:-}" ]]; then
     printf '%s\n' "$APP_PATH"
-    return
-  fi
-
-  if [[ -d "$DIST_APP" ]]; then
-    printf '%s\n' "$DIST_APP"
     return
   fi
 
