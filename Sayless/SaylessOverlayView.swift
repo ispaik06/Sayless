@@ -4,6 +4,7 @@ struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isCustomInstructionFocused: Bool
+    @State private var appeared = false
     let onSelect: (Suggestion, FocusedTextContext) -> Void
     let onClose: () -> Void
     let onRefresh: () -> Void
@@ -76,10 +77,19 @@ struct SaylessOverlayView: View {
         .padding(14)
         .frame(width: 470, alignment: .leading)
         .background(GlassBackground())
-        .opacity(state.isPresented ? 1 : 0)
+        .opacity(appeared ? 1 : 0)
         .scaleEffect(presentationScale, anchor: .center)
         .offset(y: presentationOffset)
-        .animation(presentationAnimation, value: state.isPresented)
+        .onAppear {
+            appeared = state.isPresented
+        }
+        .onChange(of: state.isPresented) { _, isPresented in
+            if isPresented {
+                startAppearanceAnimation()
+            } else {
+                hideAppearanceAnimation()
+            }
+        }
         .onExitCommand {
             if state.isCustomInstructionFocused {
                 state.isCustomInstructionFocused = false
@@ -100,11 +110,11 @@ struct SaylessOverlayView: View {
             return 1
         }
 
-        if state.isPresented {
+        if appeared {
             return 1
         }
 
-        return state.isDismissing ? 0.985 : 0.955
+        return state.isDismissing ? 0.985 : 0.95
     }
 
     private var presentationOffset: CGFloat {
@@ -112,21 +122,43 @@ struct SaylessOverlayView: View {
             return 0
         }
 
-        if state.isPresented {
+        if appeared {
             return 0
         }
 
-        return state.isDismissing ? -4 : -6
+        return -4
     }
 
-    private var presentationAnimation: Animation {
+    private var showAnimation: Animation {
         if reduceMotion {
             return .easeOut(duration: 0.1)
         }
 
-        return state.isPresented
-            ? .spring(response: 0.32, dampingFraction: 0.78, blendDuration: 0)
-            : .easeOut(duration: 0.14)
+        return .spring(response: 0.19, dampingFraction: 0.74, blendDuration: 0)
+    }
+
+    private var hideAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.08) : .easeOut(duration: 0.14)
+    }
+
+    private func startAppearanceAnimation() {
+        appeared = false
+
+        DispatchQueue.main.async {
+            guard state.isPresented else {
+                return
+            }
+
+            withAnimation(showAnimation) {
+                appeared = true
+            }
+        }
+    }
+
+    private func hideAppearanceAnimation() {
+        withAnimation(hideAnimation) {
+            appeared = false
+        }
     }
 
     private var header: some View {

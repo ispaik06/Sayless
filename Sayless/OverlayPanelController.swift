@@ -203,9 +203,25 @@ final class OverlayPanelController {
             return
         }
 
-        latestMessageSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: sourceWindow)
+        let generation = displayGeneration
+        latestMessageSignature = nil
         latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
         state.hasNewerVisibleMessages = false
+
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
+            let signature = AccessibilityReader().latestVisibleKakaoMessageSignature(in: sourceWindow)
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.displayGeneration == generation,
+                      self.isVisible else {
+                    return
+                }
+
+                self.latestMessageSignature = signature
+                self.latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
+            }
+        }
 
         let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self else {
@@ -692,6 +708,11 @@ final class OverlayPanelController {
 
         let cocoaWindowFrame = windowFrame.map { cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }
         let anchorFrame = cocoaWindowFrame ?? visibleFrame
+
+        if case .notice = content, axFrame == nil {
+            return upperFloatingFrame(size: size, visibleFrame: visibleFrame)
+        }
+
         return centeredFloatingFrame(size: size, anchorFrame: anchorFrame, visibleFrame: visibleFrame)
     }
 
@@ -708,6 +729,16 @@ final class OverlayPanelController {
         let topBias = min(max(usableAnchor.height * 0.14, 46), 96)
         let x = clamp(usableAnchor.midX - size.width / 2, min: safeFrame.minX, max: safeFrame.maxX - size.width)
         let y = clamp(usableAnchor.midY - size.height / 2 + topBias, min: safeFrame.minY, max: safeFrame.maxY - size.height)
+
+        return CGRect(origin: CGPoint(x: x, y: y), size: size)
+    }
+
+    private func upperFloatingFrame(size: CGSize, visibleFrame: CGRect) -> CGRect {
+        let margin: CGFloat = 18
+        let safeFrame = visibleFrame.insetBy(dx: margin, dy: margin)
+        let topGap = min(max(visibleFrame.height * 0.13, 84), 132)
+        let x = clamp(visibleFrame.midX - size.width / 2, min: safeFrame.minX, max: safeFrame.maxX - size.width)
+        let y = clamp(visibleFrame.maxY - size.height - topGap, min: safeFrame.minY, max: safeFrame.maxY - size.height)
 
         return CGRect(origin: CGPoint(x: x, y: y), size: size)
     }
