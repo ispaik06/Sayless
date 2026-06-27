@@ -4,6 +4,10 @@ backend/node_modules/
 backend/dist/
 backend/.turbo/
 npm-debug.log*
+build/
+dist/
+*.zip
+*.dmg
 
 # Env files
 .env

@@ -11,6 +11,7 @@ import SwiftUI
 struct SaylessApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appModel = AppModel()
+    @StateObject private var updateManager = UpdateManager.shared
 
     var body: some Scene {
         MenuBarExtra("Sayless", systemImage: appModel.menuBarIconOption.systemImage) {
@@ -24,6 +25,10 @@ struct SaylessApp: App {
 
             Button("Preferences...") {
                 appModel.openPreferences()
+            }
+
+            Button("Check for Updates...") {
+                updateManager.checkForUpdates()
             }
 
             Divider()

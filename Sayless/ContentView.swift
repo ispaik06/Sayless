@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var appModel: AppModel
+    @ObservedObject private var updateManager = UpdateManager.shared
 
     var body: some View {
         ZStack {
@@ -64,6 +65,7 @@ struct ContentView: View {
 
             SidebarItem(icon: "keyboard", title: "Shortcut", selected: true)
             SidebarItem(icon: "menubar.rectangle", title: "Icon", selected: false)
+            SidebarItem(icon: "arrow.triangle.2.circlepath", title: "Updates", selected: false)
             SidebarItem(icon: "lock.shield", title: "Privacy", selected: false)
 
             Spacer(minLength: 0)
@@ -90,6 +92,7 @@ struct ContentView: View {
                 shortcutCard
                 refreshShortcutCard
                 iconCard
+                updatesCard
                 accessibilityBlock
 
                 Text("MVP test flow: open a KakaoTalk chat, click the message input, then press your summon shortcut.")
@@ -184,6 +187,56 @@ struct ContentView: View {
             }
             .labelsHidden()
             .pickerStyle(.menu)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.085), lineWidth: 1)
+        )
+    }
+
+    private var updatesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Updates")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Text("Version")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                Text(updateManager.appVersionDisplay)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Toggle(
+                "Automatically check for updates",
+                isOn: Binding(
+                    get: { updateManager.automaticallyChecksForUpdates },
+                    set: { updateManager.automaticallyChecksForUpdates = $0 }
+                )
+            )
+            .toggleStyle(.switch)
+
+            HStack(spacing: 10) {
+                Button("Check for Updates...") {
+                    updateManager.checkForUpdates()
+                }
+
+                if !updateManager.canCheckForUpdates {
+                    Text(updateManager.isUsingPlaceholderPublicKey ? "Public key placeholder" : "Updater busy")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text("Sparkle installs updates in place and relaunches Sayless. The first install can still use a DMG; in-app updates use the ZIP archive from the public updates repo.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
