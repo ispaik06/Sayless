@@ -538,7 +538,7 @@ final class OverlayPanelController {
         if option == .custom {
             state.isCustomInstructionVisible = true
             state.isCustomInstructionFocused = false
-            relayoutPanel(for: state.content, animated: true)
+            relayoutPanel(for: state.content, animated: false)
             return
         }
 
@@ -580,7 +580,7 @@ final class OverlayPanelController {
         state.customInstructionDraft = ""
 
         if wasVisible {
-            relayoutPanel(for: state.content, animated: true)
+            relayoutPanel(for: state.content, animated: false)
         }
     }
 
@@ -686,9 +686,12 @@ final class OverlayPanelController {
         let visibleFrame = targetScreen?.visibleFrame ?? .zero
         let screenFrame = targetScreen?.frame ?? visibleFrame
 
+        if let inputFrame = axFrame.map({ cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }) {
+            return bestSuggestionFrame(size: size, inputFrame: inputFrame, visibleFrame: visibleFrame)
+        }
+
         let cocoaWindowFrame = windowFrame.map { cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }
         let anchorFrame = cocoaWindowFrame ?? visibleFrame
-
         return centeredFloatingFrame(size: size, anchorFrame: anchorFrame, visibleFrame: visibleFrame)
     }
 
@@ -712,7 +715,6 @@ final class OverlayPanelController {
     private func bestSuggestionFrame(
         size: CGSize,
         inputFrame: CGRect,
-        windowFrame: CGRect,
         visibleFrame: CGRect
     ) -> CGRect {
         let margin: CGFloat = 12
@@ -723,34 +725,35 @@ final class OverlayPanelController {
         let belowSpace = inputFrame.minY - placementArea.minY - margin
         let aboveSpace = placementArea.maxY - inputFrame.maxY - margin
 
-        var candidates: [(frame: CGRect, score: CGFloat, name: String)] = []
+        var orderedCandidates: [CGRect] = []
 
-        if rightSpace >= size.width * 0.72 {
-            let x = min(inputFrame.maxX + margin, placementArea.maxX - size.width)
-            let y = clamp(inputFrame.midY - size.height + 34, min: placementArea.minY, max: placementArea.maxY - size.height)
-            candidates.append((CGRect(origin: CGPoint(x: x, y: y), size: size), rightSpace + 1000, "right"))
-        }
-
-        if belowSpace >= min(size.height * 0.72, 120) {
+        if belowSpace >= size.height * 0.82 {
+            let belowGap = margin + 6
             let x = clamp(inputFrame.minX, min: placementArea.minX, max: placementArea.maxX - size.width)
-            let y = max(inputFrame.minY - size.height - margin, placementArea.minY)
-            candidates.append((CGRect(origin: CGPoint(x: x, y: y), size: size), belowSpace + 700, "below-input"))
+            let y = max(inputFrame.minY - size.height - belowGap, placementArea.minY)
+            orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
         }
 
-        if aboveSpace >= size.height * 0.74 {
-            let x = clamp(inputFrame.maxX - size.width, min: placementArea.minX, max: placementArea.maxX - size.width)
-            let y = min(inputFrame.maxY + margin, placementArea.maxY - size.height)
-            candidates.append((CGRect(origin: CGPoint(x: x, y: y), size: size), aboveSpace + 500, "above-input"))
-        }
-
-        if leftSpace >= size.width * 0.72 {
-            let x = max(inputFrame.minX - size.width - margin, placementArea.minX)
+        if rightSpace >= size.width {
+            let x = inputFrame.maxX + margin
             let y = clamp(inputFrame.midY - size.height + 34, min: placementArea.minY, max: placementArea.maxY - size.height)
-            candidates.append((CGRect(origin: CGPoint(x: x, y: y), size: size), leftSpace + 100, "left"))
+            orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
         }
 
-        if let best = candidates.max(by: { $0.score < $1.score }) {
-            return best.frame
+        if leftSpace >= size.width {
+            let x = inputFrame.minX - size.width - margin
+            let y = clamp(inputFrame.midY - size.height + 34, min: placementArea.minY, max: placementArea.maxY - size.height)
+            orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+        }
+
+        if aboveSpace >= size.height {
+            let x = clamp(inputFrame.maxX - size.width, min: placementArea.minX, max: placementArea.maxX - size.width)
+            let y = inputFrame.maxY + margin
+            orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+        }
+
+        if let frame = orderedCandidates.first(where: { placementArea.contains($0) }) {
+            return frame
         }
 
         let fallback = fallbackFrame(size: size, inputFrame: inputFrame, visibleFrame: visibleFrame)
