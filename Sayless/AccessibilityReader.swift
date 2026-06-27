@@ -151,6 +151,10 @@ final class AccessibilityReader {
         AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFTypeRef) == .success
     }
 
+    func textValue(of element: AXUIElement) -> String? {
+        copyStringAttribute(element, kAXValueAttribute as String)
+    }
+
     func collectVisibleKakaoMessages(limit: Int = 20) -> [ChatMessage] {
         guard isAccessibilityTrusted() else {
             return []

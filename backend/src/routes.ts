@@ -9,6 +9,32 @@ function elapsedMs(startedAt: bigint): number {
   return Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 }
 
+function loggableError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return {
+      message: 'unknown error',
+      valueType: typeof error
+    };
+  }
+
+  const maybeOpenAIError = error as Error & {
+    status?: number;
+    code?: string;
+    type?: string;
+    param?: string;
+  };
+
+  return {
+    name: error.name,
+    message: error.message,
+    status: maybeOpenAIError.status,
+    code: maybeOpenAIError.code,
+    type: maybeOpenAIError.type,
+    param: maybeOpenAIError.param,
+    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+  };
+}
+
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', async () => ({
     ok: true,
@@ -29,6 +55,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         {
           chatRoomPresent: Boolean(input.chatRoom),
           draftTextPresent: Boolean(input.draftText),
+          activeSuggestionsPresent: Boolean(input.activeSuggestions),
           intent: input.intent?.kind ?? 'initial',
           messageCount: input.messages.length,
           mode: config.suggestionMode,
@@ -51,6 +78,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
       request.log.error(
         {
+          error: loggableError(error),
           elapsedMs: Math.round(elapsedMs(startedAt))
         },
         'suggestions failed'

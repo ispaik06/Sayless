@@ -4,6 +4,7 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   const lastMessage = input.messages.at(-1)?.texts.at(-1) ?? '';
   const kind = input.intent?.kind ?? 'initial';
   const draftText = input.draftText?.trim() ?? '';
+  const activeSuggestions = input.activeSuggestions ?? [];
 
   if (kind === 'shorter') {
     if (draftText) {
@@ -13,6 +14,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           { id: 's2', label: '툭 보내기', text: draftText.replace(/[.!?。！？]+$/u, '') },
           { id: 's3', label: '한마디', text: draftText.split(/\s+/u).slice(0, 4).join(' ') || draftText }
         ]
+      };
+    }
+
+    if (activeSuggestions.length === 3) {
+      return {
+        suggestions: activeSuggestions.map((suggestion, index) => ({
+          id: `s${index + 1}`,
+          label: suggestion.label,
+          text: suggestion.text.length > 12 ? suggestion.text.slice(0, 12) : suggestion.text
+        }))
       };
     }
 
@@ -36,6 +47,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
       };
     }
 
+    if (activeSuggestions.length === 3) {
+      return {
+        suggestions: activeSuggestions.map((suggestion, index) => ({
+          id: `s${index + 1}`,
+          label: suggestion.label,
+          text: `${suggestion.text} 괜찮으면 그렇게 하자`
+        }))
+      };
+    }
+
     return {
       suggestions: [
         { id: 's1', label: '천천히', text: '응 좋아. 편한 시간에 맞춰보자' },
@@ -53,6 +74,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           { id: 's2', label: '장난 섞어서', text: `${draftText} 나 지금 말 잘한 듯` },
           { id: 's3', label: '가볍게', text: `${draftText} 아무튼 결론은 이거임` }
         ]
+      };
+    }
+
+    if (activeSuggestions.length === 3) {
+      return {
+        suggestions: activeSuggestions.map((suggestion, index) => ({
+          id: `s${index + 1}`,
+          label: suggestion.label,
+          text: `${suggestion.text} ㅋㅋ`
+        }))
       };
     }
 
@@ -74,6 +105,17 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           { id: 's2', label: '다른 방향', text: `다르게 가면 ${draftText}` },
           { id: 's3', label: '대안', text: `${instruction} 느낌으로는 이렇게도 가능해` }
         ]
+      };
+    }
+
+    if (activeSuggestions.length === 3) {
+      const instruction = input.intent?.instruction ?? '원하는 느낌';
+      return {
+        suggestions: activeSuggestions.map((suggestion, index) => ({
+          id: `s${index + 1}`,
+          label: suggestion.label,
+          text: `${suggestion.text} (${instruction})`
+        }))
       };
     }
 

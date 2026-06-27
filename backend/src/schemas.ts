@@ -6,10 +6,20 @@ export const ChatMessageGroupSchema = z.object({
   texts: z.array(z.string().trim().min(1).max(800)).min(1).max(8)
 });
 
+const OptionalDraftTextSchema = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().trim().max(500).optional()
+);
+
+const SuggestionPayloadSchema = z.object({
+  label: z.string().trim().min(1).max(24),
+  text: z.string().trim().min(1).max(240)
+});
+
 export const SuggestionRequestSchema = z.object({
   chatRoom: z.string().trim().max(120).optional(),
   locale: z.string().trim().max(20).optional(),
-  draftText: z.string().trim().max(1000).optional(),
+  draftText: OptionalDraftTextSchema,
   messages: z.array(ChatMessageGroupSchema).min(1).max(24),
   intent: z
     .object({
@@ -18,14 +28,10 @@ export const SuggestionRequestSchema = z.object({
     })
     .optional(),
   previousSuggestions: z
-    .array(
-      z.object({
-        label: z.string().trim().min(1).max(24),
-        text: z.string().trim().min(1).max(240)
-      })
-    )
+    .array(SuggestionPayloadSchema)
     .max(24)
-    .optional()
+    .optional(),
+  activeSuggestions: z.array(SuggestionPayloadSchema).length(3).optional()
 });
 
 export const ReplySuggestionSchema = z.object({

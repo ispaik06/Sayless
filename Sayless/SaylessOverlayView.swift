@@ -308,11 +308,11 @@ private struct GenerationFailedView: View {
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            Text("Backend unavailable")
+            Text("추천 생성에 실패했습니다")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            Text("Start the backend server and try again")
+            Text("다시 시도하거나 백엔드 연결을 확인해 주세요")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }

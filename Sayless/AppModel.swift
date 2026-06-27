@@ -121,6 +121,7 @@ final class AppModel: ObservableObject {
                     generation: generation,
                     intent: .initial,
                     previousSuggestions: [],
+                    activeSuggestions: nil,
                     existingBatches: [],
                     forceRefresh: false
                 )
@@ -155,6 +156,7 @@ final class AppModel: ObservableObject {
         suggestionTask?.cancel()
         let generation = overlayController.beginSuggestionRequest()
         let previousSuggestions = overlayController.suggestionHistory
+        let activeSuggestions = activeSuggestionsForRequest(intent: intent)
         let existingBatches = overlayController.suggestionBatches
         suggestionTask = Task(priority: .utility) { [weak self] in
             await self?.loadSuggestions(
@@ -162,6 +164,7 @@ final class AppModel: ObservableObject {
                 generation: generation,
                 intent: intent,
                 previousSuggestions: previousSuggestions,
+                activeSuggestions: activeSuggestions,
                 existingBatches: existingBatches,
                 forceRefresh: true
             )
@@ -179,6 +182,7 @@ final class AppModel: ObservableObject {
                 generation: generation,
                 intent: .initial,
                 previousSuggestions: [],
+                activeSuggestions: nil,
                 existingBatches: [],
                 forceRefresh: true
             )
@@ -190,6 +194,7 @@ final class AppModel: ObservableObject {
         generation: Int,
         intent: SuggestionIntent,
         previousSuggestions: [Suggestion],
+        activeSuggestions: [Suggestion]?,
         existingBatches: [SuggestionBatch],
         forceRefresh: Bool
     ) async {
@@ -210,12 +215,14 @@ final class AppModel: ObservableObject {
         let timelineSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window)
 
         do {
+            let draftText = currentDraftText(for: context)
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
                 messages: messages,
-                draftText: context.value,
+                draftText: draftText,
                 intent: intent,
-                previousSuggestions: previousSuggestions
+                previousSuggestions: previousSuggestions,
+                activeSuggestions: activeSuggestions
             )
 
             guard !Task.isCancelled else {
@@ -248,6 +255,22 @@ final class AppModel: ObservableObject {
                 overlayController.finishSuggestionRequest()
             }
             print("[Sayless][Backend] suggestions unavailable\(forceRefresh ? " during refresh" : "")")
+        }
+    }
+
+    private func currentDraftText(for context: FocusedTextContext) -> String? {
+        let currentValue = accessibilityReader.textValue(of: context.element) ?? context.value
+        let trimmedDraft = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedDraft.isEmpty ? nil : trimmedDraft
+    }
+
+    private func activeSuggestionsForRequest(intent: SuggestionIntent) -> [Suggestion]? {
+        switch intent {
+        case .shorter, .softer, .wittier, .custom:
+            let activeSuggestions = overlayController.activeSuggestions
+            return activeSuggestions.count == 3 ? activeSuggestions : nil
+        case .initial, .regenerate:
+            return nil
         }
     }
 

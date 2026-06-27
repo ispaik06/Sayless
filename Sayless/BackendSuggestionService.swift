@@ -6,6 +6,7 @@ private struct SuggestionRequest: Encodable {
     let draftText: String?
     let intent: SuggestionIntentPayload
     let previousSuggestions: [PreviousSuggestionPayload]
+    let activeSuggestions: [PreviousSuggestionPayload]?
     let messages: [SuggestionMessageGroup]
 }
 
@@ -47,13 +48,14 @@ final class BackendSuggestionService {
     func suggestions(
         chatRoom: String,
         messages: [ChatMessage],
-        draftText: String,
+        draftText: String?,
         intent: SuggestionIntent = .initial,
-        previousSuggestions: [Suggestion] = []
+        previousSuggestions: [Suggestion] = [],
+        activeSuggestions: [Suggestion]? = nil
     ) async throws -> [Suggestion] {
         let groups = groupedMessages(from: messages)
         guard !groups.isEmpty else {
-            return Suggestion.fixed
+            throw BackendSuggestionError.emptyMessages
         }
 
         var request = URLRequest(url: endpoint)
@@ -69,6 +71,7 @@ final class BackendSuggestionService {
                 previousSuggestions: previousSuggestions.suffix(18).map {
                     PreviousSuggestionPayload(label: $0.label, text: $0.text)
                 },
+                activeSuggestions: normalizedActiveSuggestions(activeSuggestions),
                 messages: groups
             )
         )
@@ -84,12 +87,27 @@ final class BackendSuggestionService {
             Suggestion(label: normalizedLabel(item.label, index: index, intent: intent), text: item.text)
         }
 
-        return suggestions.count == 3 ? suggestions : Suggestion.fixed
+        guard suggestions.count == 3 else {
+            throw BackendSuggestionError.invalidResponse
+        }
+
+        return suggestions
     }
 
-    private func normalizedDraftText(_ text: String) -> String? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func normalizedDraftText(_ text: String?) -> String? {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func normalizedActiveSuggestions(_ suggestions: [Suggestion]?) -> [PreviousSuggestionPayload]? {
+        guard let suggestions,
+              suggestions.count == 3 else {
+            return nil
+        }
+
+        return suggestions.map {
+            PreviousSuggestionPayload(label: $0.label, text: $0.text)
+        }
     }
 
     private func normalizedLabel(_ label: String, index: Int, intent: SuggestionIntent) -> String {
@@ -156,5 +174,7 @@ final class BackendSuggestionService {
 }
 
 private enum BackendSuggestionError: Error {
+    case emptyMessages
     case badStatus
+    case invalidResponse
 }

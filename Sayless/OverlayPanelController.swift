@@ -32,6 +32,10 @@ final class OverlayPanelController {
         state.content.suggestionBatches
     }
 
+    var activeSuggestions: [Suggestion] {
+        state.content.activeSuggestions
+    }
+
     func configureRefreshShortcut(_: RefreshShortcutOption, customShortcut _: KeyboardShortcutSpec?) {
         state.refreshShortcutTitle = "⌘ R"
     }

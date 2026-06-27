@@ -17,11 +17,38 @@ function getOpenAIClient(): OpenAI {
   return client;
 }
 
+function temperatureForIntent(kind?: string): number {
+  switch (kind) {
+    case 'regenerate':
+    case 'wittier':
+      return 0.9;
+    case 'custom':
+      return 0.75;
+    case 'shorter':
+    case 'softer':
+      return 0.55;
+    case 'initial':
+    default:
+      return 0.65;
+  }
+}
+
+function usesReasoningChatParameters(model: string): boolean {
+  return /^gpt-5(?:\.|-|$)/.test(model) || /^o\d/.test(model);
+}
+
 export async function createOpenAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
+  const usesReasoningParameters = usesReasoningChatParameters(config.openaiModel);
   const completion = await getOpenAIClient().chat.completions.create({
     model: config.openaiModel,
-    temperature: 0.85,
-    max_tokens: 360,
+    ...(usesReasoningParameters
+      ? {
+          max_completion_tokens: 1200
+        }
+      : {
+          temperature: temperatureForIntent(input.intent?.kind),
+          max_tokens: 360
+        }),
     messages: [
       {
         role: 'system',
@@ -43,5 +70,22 @@ export async function createOpenAISuggestions(input: SuggestionRequest): Promise
     throw new Error('OpenAI response was empty');
   }
 
-  return SuggestionResponseSchema.parse(JSON.parse(content));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown JSON parse error';
+    throw new Error(`OpenAI response was not valid JSON: ${message}`);
+  }
+
+  const result = SuggestionResponseSchema.safeParse(parsed);
+  if (!result.success) {
+    throw new Error(
+      `OpenAI response schema mismatch: ${result.error.issues
+        .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+        .join('; ')}`
+    );
+  }
+
+  return result.data;
 }

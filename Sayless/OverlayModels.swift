@@ -5,12 +5,6 @@ struct Suggestion: Identifiable {
     let id = UUID()
     let label: String
     let text: String
-
-    static let fixed: [Suggestion] = [
-        Suggestion(label: "가볍게", text: "오 좋아. 어디서 볼 건데?"),
-        Suggestion(label: "살짝 플러팅", text: "너가 보자고 하면 시간 만들어야지 ㅋㅋ"),
-        Suggestion(label: "부담 없이", text: "잠깐은 괜찮을 듯!")
-    ]
 }
 
 struct SuggestionBatch: Identifiable {
