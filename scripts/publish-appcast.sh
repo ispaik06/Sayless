@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Updates and publishes the Sparkle appcast in the sayless-updates repo.
-#
-# Expected flow:
-#   1. scripts/build-release.sh
-#   2. scripts/release-local.sh  # for Sparkle updates
-#   3. gh release create/upload the generated archive
-#   4. scripts/publish-appcast.sh
+# Generates appcast.xml with Sparkle and publishes it to the Sayless gh-pages branch.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-UPDATES_REPO_DIR="${UPDATES_REPO_DIR:-$HOME/Desktop/sayless-updates}"
-DIST_DIR="$UPDATES_REPO_DIR/dist"
-APPCAST_PATH="$UPDATES_REPO_DIR/appcast.xml"
+DIST_DIR="$REPO_ROOT/dist"
 BUILD_DIR="${BUILD_DIR:-/tmp/SaylessReleaseBuild}"
+GH_PAGES_DIR="${GH_PAGES_DIR:-/tmp/Sayless-gh-pages}"
+GH_PAGES_BRANCH="${GH_PAGES_BRANCH:-gh-pages}"
+APPCAST_PATH="$GH_PAGES_DIR/appcast.xml"
 
 ARCHIVE_PATH=""
 RELEASE_TAG=""
@@ -30,7 +25,7 @@ Usage:
 
 Options:
   --archive PATH            Archive to publish. Defaults to newest Sayless ZIP,
-                            then newest Sayless DMG under sayless-updates/dist.
+                            then newest Sayless DMG under Sayless/dist.
   --tag TAG                 GitHub Release tag. Defaults to v{shortVersion}
                             parsed from the archive filename.
   --download-url-prefix URL Override the GitHub Release download URL prefix.
@@ -39,17 +34,13 @@ Options:
   -h, --help                Show this help.
 
 Environment:
-  UPDATES_REPO_DIR          Defaults to ~/Desktop/sayless-updates.
   BUILD_DIR                 Defaults to /tmp/SaylessReleaseBuild.
+  GH_PAGES_DIR              Defaults to /tmp/Sayless-gh-pages.
+  GH_PAGES_BRANCH           Defaults to gh-pages.
   SPARKLE_KEYCHAIN_ACCOUNT  Defaults to ed25519.
   SPARKLE_ED_KEY_FILE       Private EdDSA key file for generate_appcast.
   SPARKLE_PRIVATE_KEY       Private EdDSA key value passed via stdin.
   MAXIMUM_VERSIONS          Defaults to 3.
-
-Examples:
-  scripts/publish-appcast.sh
-  scripts/publish-appcast.sh --archive ~/Desktop/sayless-updates/dist/Sayless-0.1.1-2.zip --tag v0.1.1
-  SPARKLE_ED_KEY_FILE=~/.sparkle/sayless_ed25519 scripts/publish-appcast.sh
 EOF
 }
 
@@ -152,7 +143,7 @@ infer_short_version() {
 
 infer_github_repo() {
   local remote
-  remote="$(git -C "$UPDATES_REPO_DIR" config --get remote.origin.url || true)"
+  remote="$(git -C "$REPO_ROOT" config --get remote.origin.url || true)"
 
   if [[ "$remote" =~ ^git@github.com:(.+)\.git$ ]]; then
     printf '%s\n' "${BASH_REMATCH[1]}"
@@ -169,13 +160,28 @@ infer_github_repo() {
     return
   fi
 
-  printf 'ispaik06/sayless-updates\n'
+  printf 'ispaik06/Sayless\n'
 }
 
-if [[ ! -d "$UPDATES_REPO_DIR/.git" ]]; then
-  printf 'error: updates repo not found: %s\n' "$UPDATES_REPO_DIR" >&2
-  exit 1
-fi
+ensure_gh_pages_worktree() {
+  if [[ -d "$GH_PAGES_DIR/.git" || -f "$GH_PAGES_DIR/.git" ]]; then
+    git -C "$GH_PAGES_DIR" fetch origin "$GH_PAGES_BRANCH" >/dev/null 2>&1 || true
+    git -C "$GH_PAGES_DIR" checkout "$GH_PAGES_BRANCH" >/dev/null
+    git -C "$GH_PAGES_DIR" pull --ff-only origin "$GH_PAGES_BRANCH" >/dev/null 2>&1 || true
+    return
+  fi
+
+  rm -rf "$GH_PAGES_DIR"
+
+  if git -C "$REPO_ROOT" ls-remote --exit-code --heads origin "$GH_PAGES_BRANCH" >/dev/null 2>&1; then
+    git -C "$REPO_ROOT" worktree add "$GH_PAGES_DIR" "origin/$GH_PAGES_BRANCH" >/dev/null
+    git -C "$GH_PAGES_DIR" checkout -B "$GH_PAGES_BRANCH" "origin/$GH_PAGES_BRANCH" >/dev/null
+  else
+    git -C "$REPO_ROOT" worktree add --detach "$GH_PAGES_DIR" >/dev/null
+    git -C "$GH_PAGES_DIR" checkout --orphan "$GH_PAGES_BRANCH" >/dev/null
+    git -C "$GH_PAGES_DIR" rm -rf . >/dev/null 2>&1 || true
+  fi
+}
 
 GENERATE_APPCAST="$(find_generate_appcast || true)"
 if [[ -z "$GENERATE_APPCAST" ]]; then
@@ -200,11 +206,9 @@ error: release archive was not found.
 Expected a Sayless ZIP or DMG under:
   $DIST_DIR
 
-For Sparkle updates, create a ZIP first:
-  scripts/release-local.sh
-
-For a first-install DMG:
+Create both release files first:
   scripts/create-dmg.sh
+  scripts/release-local.sh
 EOF
   exit 1
 fi
@@ -250,6 +254,8 @@ EOF
   fi
 fi
 
+ensure_gh_pages_worktree
+
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sayless-appcast.XXXXXX")"
 cleanup() {
   rm -rf "$WORK_DIR"
@@ -291,16 +297,16 @@ if command -v xmllint >/dev/null 2>&1; then
   xmllint --noout "$APPCAST_PATH"
 fi
 
-if git -C "$UPDATES_REPO_DIR" diff --quiet -- appcast.xml; then
+if git -C "$GH_PAGES_DIR" diff --quiet -- appcast.xml; then
   printf 'appcast.xml is already up to date.\n'
   exit 0
 fi
 
-git -C "$UPDATES_REPO_DIR" add appcast.xml
-git -C "$UPDATES_REPO_DIR" commit -m "Update appcast for $ARCHIVE_NAME"
+git -C "$GH_PAGES_DIR" add appcast.xml
+git -C "$GH_PAGES_DIR" commit -m "Update appcast for $ARCHIVE_NAME"
 
 if [[ "$NO_PUSH" == "0" ]]; then
-  git -C "$UPDATES_REPO_DIR" push
+  git -C "$GH_PAGES_DIR" push -u origin "$GH_PAGES_BRANCH"
 fi
 
 cat <<EOF

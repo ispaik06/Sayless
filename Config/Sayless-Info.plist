@@ -31,7 +31,7 @@
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://ispaik06.github.io/sayless-updates/appcast.xml</string>
+	<string>https://ispaik06.github.io/Sayless/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>d6akldjtq+cGAiMx7kNw6zO9883gOhsB15VJo/2eR+A=</string>
 </dict>

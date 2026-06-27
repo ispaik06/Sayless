@@ -5,72 +5,50 @@ Sayless uses Sparkle 2 for in-app updates on macOS.
 ## Repository Layout
 
 - App source code repo: `Sayless`
-- Public update distribution repo: `sayless-updates`
-- Local update repo path on this machine: `~/Desktop/sayless-updates`
-- GitHub Pages URL:
-  `https://ispaik06.github.io/sayless-updates/appcast.xml`
-- GitHub Releases asset URL example:
-  `https://github.com/ispaik06/sayless-updates/releases/download/v0.1.1/Sayless-0.1.1-2.zip`
+- GitHub Releases repo: `ispaik06/Sayless`
+- GitHub Pages branch: `gh-pages`
+- Appcast URL: `https://ispaik06.github.io/Sayless/appcast.xml`
+- Release asset URL example:
+  `https://github.com/ispaik06/Sayless/releases/download/v0.1.1/Sayless-0.1.1-2.zip`
 
-The Sayless source repo should only contain source code, scripts, and docs. Do not commit `.zip`, `.dmg`, or `dist/` release artifacts to this repo.
-Packaged release artifacts now live under `~/Desktop/sayless-updates/dist`.
+The `main` branch should contain source code, scripts, and docs. Release archives are generated locally under `dist/`, which is ignored by git.
+
+The `gh-pages` branch should contain the generated `appcast.xml` for Sparkle. GitHub Pages should be configured to serve from the `gh-pages` branch.
 
 ## How Sparkle Updates Work
 
-Sparkle reads `SUFeedURL` from the app's `Info.plist`. That URL points to an `appcast.xml` file. The appcast tells Sparkle what the latest version is and where to download its update archive.
+Sparkle reads `SUFeedURL` from the app's `Info.plist`. That URL points to `appcast.xml`. The appcast tells Sparkle what the latest version is and where to download its update archive.
 
 For Sayless:
 
-- GitHub Pages hosts the public `appcast.xml`.
+- GitHub Pages serves `appcast.xml` from the `gh-pages` branch.
 - GitHub Releases hosts the ZIP and DMG files.
 - Sparkle downloads the ZIP from the release asset URL.
 - Sparkle verifies the ZIP signature with `SUPublicEDKey`.
-- If verification passes, Sparkle shows its normal Update / Install and Relaunch flow and replaces the installed app automatically.
-
-Users should not need to download a new DMG and drag Sayless into Applications for every update. That manual DMG flow is only for the first install.
+- If verification passes, Sparkle shows its normal Update / Install and Relaunch flow.
 
 ## DMG vs ZIP
 
-Use a DMG for first installation:
+Create both files for each public version:
 
-- User downloads `Sayless.dmg`.
-- User drags `Sayless.app` into Applications.
-- This is a familiar macOS first-install UX.
+- `DMG`: for new users installing Sayless for the first time.
+- `ZIP`: for existing users updating through Sparkle.
 
-Use a ZIP for Sparkle updates:
-
-- Sparkle expects an update archive that contains `Sayless.app`.
-- The ZIP is downloaded and installed by Sparkle.
-- `scripts/release-local.sh` creates this update ZIP.
-
-Do not use the first-install DMG as the default Sparkle update archive unless you intentionally change the appcast and test that flow.
+The appcast should normally point at the ZIP.
 
 ## Info.plist Keys
 
-This project uses `Config/Sayless-Info.plist`, referenced from `Sayless.xcodeproj/project.pbxproj`.
+This project uses `Config/Sayless-Info.plist`.
 
 Current update keys:
 
-- `SUFeedURL`: `https://ispaik06.github.io/sayless-updates/appcast.xml`
+- `SUFeedURL`: `https://ispaik06.github.io/Sayless/appcast.xml`
 - `SUPublicEDKey`: configured in `Config/Sayless-Info.plist`
 - `SUEnableAutomaticChecks`: `true`
 
-Replace these before publishing real updates:
-
-1. Replace `ispaik06` if the GitHub account or Pages URL changes.
-2. Make sure `SUPublicEDKey` matches the private key used to sign Sparkle update archives.
-
-The placeholder public key is intentionally allowed for development builds so the app can compile and run. Real update verification will not work until the real Sparkle public key is configured.
-
-## SUPublicEDKey
-
-`SUPublicEDKey` is the public half of Sparkle's EdDSA signing key. Sparkle uses it to verify that a downloaded update ZIP was produced by the app maintainer and was not modified.
-
-The matching private key is used when generating appcast metadata for a release. Keep the private key secret. Only the public key belongs in the app.
+`SUPublicEDKey` is public and belongs in the app. Keep the matching private key out of the repo.
 
 ## Version Numbers
-
-Sparkle compares versions to decide whether an update is newer.
 
 Sayless uses:
 
@@ -79,116 +57,58 @@ Sayless uses:
 
 Always increase `CFBundleVersion` for every published update. If the build number does not increase, Sparkle may decide there is no newer update even if the ZIP changed.
 
-The local release script names update ZIPs like:
+Local release archives are named like:
 
 ```text
+Sayless-{CFBundleShortVersionString}-{CFBundleVersion}.dmg
 Sayless-{CFBundleShortVersionString}-{CFBundleVersion}.zip
 ```
 
-Example:
+## Release Flow
 
-```text
-Sayless-0.1.1-2.zip
-```
-
-## Creating A Local Sparkle ZIP
-
-Build Release first:
+Build Release:
 
 ```sh
+cd ~/Desktop/Sayless
 scripts/build-release.sh
 ```
 
-Avoid putting `-derivedDataPath` inside this repo when building from a synced Desktop/iCloud/File Provider folder. macOS can attach Finder/resource-fork metadata to `.app` bundles there, which makes codesign fail with `resource fork, Finder information, or similar detritus not allowed`.
-
-Then create the Sparkle update ZIP:
-
-```sh
-scripts/release-local.sh
-```
-
-The ZIP is written to `~/Desktop/sayless-updates/dist/`, which is ignored by git in the updates repo.
-
-Upload the ZIP to a GitHub Release in the public `sayless-updates` repo. Do not commit the ZIP to either repo.
-
-Then generate, commit, and push `appcast.xml`:
-
-```sh
-scripts/publish-appcast.sh
-```
-
-## Creating A First-Install DMG
-
-After building Release, run:
+Create both archives:
 
 ```sh
 scripts/create-dmg.sh
+scripts/release-local.sh
 ```
 
-The DMG is written to `~/Desktop/sayless-updates/dist/`. It contains:
-
-- `Sayless.app`
-- an `Applications` folder shortcut
-
-This DMG is for first install only. Sparkle updates should normally use the ZIP.
-
-## Updating appcast.xml
-
-The appcast lives in:
-
-```text
-~/Desktop/sayless-updates/appcast.xml
-```
-
-GitHub Pages publishes that file at:
-
-```text
-https://ispaik06.github.io/sayless-updates/appcast.xml
-```
-
-GitHub Releases hosts downloadable files like:
-
-```text
-https://github.com/ispaik06/sayless-updates/releases/download/v0.1.1/Sayless-0.1.1-2.zip
-```
-
-The appcast item must point to the release asset URL and include Sparkle metadata such as version, short version, file length, and signature. `scripts/publish-appcast.sh` runs Sparkle's `generate_appcast` against `~/Desktop/sayless-updates/dist`, updates `~/Desktop/sayless-updates/appcast.xml`, commits it, and pushes it.
-
-For update releases, the practical order is:
+Upload both files to the Sayless GitHub Release:
 
 ```sh
-cd ~/Desktop/Sayless
-scripts/build-release.sh
-scripts/release-local.sh
+gh release create v0.1.1 \
+  dist/Sayless-0.1.1-2.dmg \
+  dist/Sayless-0.1.1-2.zip \
+  --title "Sayless 0.1.1" \
+  --notes "Update release"
+```
 
-cd ~/Desktop/sayless-updates
-gh release create v0.1.1 dist/Sayless-0.1.1-2.zip --title "Sayless 0.1.1" --notes "Update release"
+If the release already exists:
 
-cd ~/Desktop/Sayless
+```sh
+gh release upload v0.1.1 \
+  dist/Sayless-0.1.1-2.dmg \
+  dist/Sayless-0.1.1-2.zip \
+  --clobber
+```
+
+Generate and publish appcast.xml to `gh-pages`:
+
+```sh
 scripts/publish-appcast.sh
 ```
 
-For first-install DMG releases, `appcast.xml` is not required for the first download. You can still run `scripts/publish-appcast.sh` after uploading the DMG if you want the feed to include that release.
-
-## Why The Updates Repo Is Separate
-
-The public `sayless-updates` repo exists so the app has a stable, public update feed and release asset location. The source repo can stay focused on code review and development history, while the updates repo exposes only what Sparkle needs:
-
-- `appcast.xml` through GitHub Pages
-- ZIP/DMG files through GitHub Releases
-
-This also prevents large binary release files from entering the app source history.
+`publish-appcast.sh` runs Sparkle's `generate_appcast`, updates `appcast.xml` in a local `gh-pages` worktree, commits it, and pushes the `gh-pages` branch.
 
 ## Unsigned Builds And Gatekeeper
 
 Sparkle verifies update archives with its own EdDSA key, but Sparkle does not replace Apple's Developer ID signing or notarization.
 
-If Sayless is distributed unsigned, macOS Gatekeeper may still show warnings when users first install or launch the app. Developer ID signing and notarization should be added later for better installation trust and fewer warnings.
-
-For local development, unsigned DMGs and ZIPs are fine for testing the packaging flow. For public distribution, plan to add Developer ID signing and notarization.
-
-## Failure Behavior
-
-If the appcast URL is missing, private, or incorrect, Sparkle should show/update-fail gracefully instead of crashing the app.
-
-If `SUPublicEDKey` is still `PLACEHOLDER_PUBLIC_ED_KEY`, Sayless keeps the updater from starting real checks and shows that updates are not configured yet. Replace the placeholder key before testing real update verification.
+If Sayless is distributed unsigned, macOS Gatekeeper may show warnings when users first install or launch the app. Developer ID signing and notarization should be added later for better installation trust.
