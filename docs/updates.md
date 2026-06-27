@@ -13,6 +13,7 @@ Sayless uses Sparkle 2 for in-app updates on macOS.
   `https://github.com/ispaik06/sayless-updates/releases/download/v0.1.1/Sayless-0.1.1-2.zip`
 
 The Sayless source repo should only contain source code, scripts, and docs. Do not commit `.zip`, `.dmg`, or `dist/` release artifacts to this repo.
+Packaged release artifacts now live under `~/Desktop/sayless-updates/dist`.
 
 ## How Sparkle Updates Work
 
@@ -106,7 +107,7 @@ Then create the Sparkle update ZIP:
 scripts/release-local.sh
 ```
 
-The ZIP is written to `dist/`, which is ignored by git.
+The ZIP is written to `~/Desktop/sayless-updates/dist/`, which is ignored by git in the updates repo.
 
 Upload the ZIP to a GitHub Release in the public `sayless-updates` repo. Do not commit the ZIP to either repo.
 
@@ -118,7 +119,7 @@ After building Release, run:
 scripts/create-dmg.sh
 ```
 
-The DMG is written to `dist/`. It contains:
+The DMG is written to `~/Desktop/sayless-updates/dist/`. It contains:
 
 - `Sayless.app`
 - an `Applications` folder shortcut

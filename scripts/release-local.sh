@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Creates a local Sparkle update archive.
+# Creates a local Sparkle update archive in the sayless-updates repo.
 #
 # This ZIP is for Sparkle in-app updates. It is not the first-install DMG.
 # Do not commit files from dist/ to the Sayless source repository.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+UPDATES_REPO_DIR="${UPDATES_REPO_DIR:-$HOME/Desktop/sayless-updates}"
 APP_NAME="Sayless.app"
-DIST_DIR="$REPO_ROOT/dist"
+DIST_DIR="$UPDATES_REPO_DIR/dist"
 DIST_APP="$DIST_DIR/$APP_NAME"
 
 find_release_app() {
@@ -87,7 +88,7 @@ Copied Release app:
 
 Next steps:
   1. Upload $ZIP_NAME to the public sayless-updates GitHub Release.
-  2. Update ~/Desktop/sayless-updates/appcast.xml to point at that release asset.
+  2. Update $UPDATES_REPO_DIR/appcast.xml to point at that release asset.
   3. Commit and publish appcast.xml from the sayless-updates repo.
 
 Do not commit dist/, ZIP, or DMG files to the Sayless source repository.

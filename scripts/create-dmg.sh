@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Creates a local first-install DMG.
+# Creates a local first-install DMG in the sayless-updates repo.
 #
 # Sparkle in-app updates should use the ZIP produced by release-local.sh.
 # This DMG is for initial installation and can be built without Developer ID
@@ -9,8 +9,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+UPDATES_REPO_DIR="${UPDATES_REPO_DIR:-$HOME/Desktop/sayless-updates}"
 APP_NAME="Sayless.app"
-DIST_DIR="$REPO_ROOT/dist"
+DIST_DIR="$UPDATES_REPO_DIR/dist"
 
 find_release_app() {
   if [[ -n "${APP_PATH:-}" ]]; then
@@ -97,4 +98,5 @@ This DMG contains:
 
 Sparkle in-app updates should still use the ZIP from scripts/release-local.sh.
 Do not commit dist/, ZIP, or DMG files to the Sayless source repository.
+The packaging output now lives under the sayless-updates repo.
 EOF
