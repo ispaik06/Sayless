@@ -111,6 +111,12 @@ The ZIP is written to `~/Desktop/sayless-updates/dist/`, which is ignored by git
 
 Upload the ZIP to a GitHub Release in the public `sayless-updates` repo. Do not commit the ZIP to either repo.
 
+Then generate, commit, and push `appcast.xml`:
+
+```sh
+scripts/publish-appcast.sh
+```
+
 ## Creating A First-Install DMG
 
 After building Release, run:
@@ -146,7 +152,23 @@ GitHub Releases hosts downloadable files like:
 https://github.com/ispaik06/sayless-updates/releases/download/v0.1.1/Sayless-0.1.1-2.zip
 ```
 
-The appcast item must point to the release asset URL and include Sparkle metadata such as version, short version, file length, and signature. The exact signature must be generated with the Sparkle signing tool for the ZIP you upload.
+The appcast item must point to the release asset URL and include Sparkle metadata such as version, short version, file length, and signature. `scripts/publish-appcast.sh` runs Sparkle's `generate_appcast` against `~/Desktop/sayless-updates/dist`, updates `~/Desktop/sayless-updates/appcast.xml`, commits it, and pushes it.
+
+For update releases, the practical order is:
+
+```sh
+cd ~/Desktop/Sayless
+scripts/build-release.sh
+scripts/release-local.sh
+
+cd ~/Desktop/sayless-updates
+gh release create v0.1.1 dist/Sayless-0.1.1-2.zip --title "Sayless 0.1.1" --notes "Update release"
+
+cd ~/Desktop/Sayless
+scripts/publish-appcast.sh
+```
+
+For first-install DMG releases, `appcast.xml` is not required for the first download. You can still run `scripts/publish-appcast.sh` after uploading the DMG if you want the feed to include that release.
 
 ## Why The Updates Repo Is Separate
 

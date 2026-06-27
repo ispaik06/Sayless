@@ -88,8 +88,7 @@ Copied Release app:
 
 Next steps:
   1. Upload $ZIP_NAME to the public sayless-updates GitHub Release.
-  2. Update $UPDATES_REPO_DIR/appcast.xml to point at that release asset.
-  3. Commit and publish appcast.xml from the sayless-updates repo.
+  2. Run scripts/publish-appcast.sh to update and push the Sparkle appcast.
 
 Do not commit dist/, ZIP, or DMG files to the Sayless source repository.
 EOF

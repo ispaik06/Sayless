@@ -99,4 +99,5 @@ This DMG contains:
 Sparkle in-app updates should still use the ZIP from scripts/release-local.sh.
 Do not commit dist/, ZIP, or DMG files to the Sayless source repository.
 The packaging output now lives under the sayless-updates repo.
+If you want this DMG in the appcast after uploading it to a GitHub Release, run scripts/publish-appcast.sh.
 EOF
