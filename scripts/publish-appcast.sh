@@ -17,6 +17,7 @@ DOWNLOAD_URL_PREFIX=""
 SKIP_RELEASE_CHECK=0
 NO_PUSH=0
 MAXIMUM_VERSIONS="${MAXIMUM_VERSIONS:-3}"
+SPARKLE_KEYCHAIN_ACCOUNT="${SPARKLE_KEYCHAIN_ACCOUNT:-ispaik06.sayless}"
 
 usage() {
   cat <<'EOF'
@@ -37,7 +38,7 @@ Environment:
   BUILD_DIR                 Defaults to /tmp/SaylessReleaseBuild.
   GH_PAGES_DIR              Defaults to /tmp/Sayless-gh-pages.
   GH_PAGES_BRANCH           Defaults to gh-pages.
-  SPARKLE_KEYCHAIN_ACCOUNT  Defaults to ed25519.
+  SPARKLE_KEYCHAIN_ACCOUNT  Defaults to ispaik06.sayless.
   SPARKLE_ED_KEY_FILE       Private EdDSA key file for generate_appcast.
   SPARKLE_PRIVATE_KEY       Private EdDSA key value passed via stdin.
   MAXIMUM_VERSIONS          Defaults to 3.
@@ -103,6 +104,85 @@ find_generate_appcast() {
 
   if [[ -n "$discovered" ]]; then
     printf '%s\n' "$discovered"
+  fi
+}
+
+find_generate_keys() {
+  local generate_appcast_path="$1"
+  local generate_keys_path
+
+  generate_keys_path="$(dirname "$generate_appcast_path")/generate_keys"
+  if [[ -x "$generate_keys_path" ]]; then
+    printf '%s\n' "$generate_keys_path"
+    return
+  fi
+
+  local discovered
+  discovered="$(
+    find "$HOME/Library/Developer/Xcode/DerivedData" "$BUILD_DIR" \
+      -path '*/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys' \
+      -type f \
+      -perm -111 \
+      -print 2>/dev/null | sort | tail -n 1
+  )"
+
+  if [[ -n "$discovered" ]]; then
+    printf '%s\n' "$discovered"
+  fi
+}
+
+check_signing_key() {
+  local generate_keys_path="$1"
+  local account="$SPARKLE_KEYCHAIN_ACCOUNT"
+  local configured_public_key keychain_public_key
+
+  if [[ -n "${SPARKLE_PRIVATE_KEY:-}" || -n "${SPARKLE_ED_KEY_FILE:-}" ]]; then
+    return
+  fi
+
+  if [[ -z "$generate_keys_path" ]]; then
+    return
+  fi
+
+  configured_public_key="$(
+    /usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$REPO_ROOT/Config/Sayless-Info.plist" 2>/dev/null || true
+  )"
+
+  if ! keychain_public_key="$("$generate_keys_path" --account "$account" -p 2>/dev/null)"; then
+    cat >&2 <<EOF
+error: Sparkle private EdDSA key was not found in Keychain.
+
+The app has SUPublicEDKey configured, but generate_appcast needs the matching
+private key to sign update archives.
+
+If you still have the original private key file, import it:
+  "$generate_keys_path" --account "$account" -f /path/to/private_ed25519_key
+
+If this app has not been distributed yet, generate a new keypair:
+  "$generate_keys_path" --account "$account"
+
+Then copy the printed SUPublicEDKey into:
+  Config/Sayless-Info.plist
+
+After changing SUPublicEDKey, rebuild and recreate DMG/ZIP before publishing.
+EOF
+    exit 1
+  fi
+
+  if [[ -n "$configured_public_key" && "$keychain_public_key" != *"$configured_public_key"* ]]; then
+    cat >&2 <<EOF
+error: Keychain Sparkle key does not match Config/Sayless-Info.plist.
+
+Configured SUPublicEDKey:
+  $configured_public_key
+
+Keychain public key output:
+  $keychain_public_key
+
+Use the private key that matches the app's SUPublicEDKey, or update
+SUPublicEDKey to the public key printed by generate_keys and rebuild the app.
+EOF
+    exit 1
   fi
 }
 
@@ -195,6 +275,9 @@ EOF
   exit 1
 fi
 
+GENERATE_KEYS="$(find_generate_keys "$GENERATE_APPCAST" || true)"
+check_signing_key "$GENERATE_KEYS"
+
 if [[ -z "$ARCHIVE_PATH" ]]; then
   ARCHIVE_PATH="$(find_latest_archive || true)"
 fi
@@ -272,9 +355,7 @@ APPCAST_ARGS=(
   "--maximum-versions" "$MAXIMUM_VERSIONS"
 )
 
-if [[ -n "${SPARKLE_KEYCHAIN_ACCOUNT:-}" ]]; then
-  APPCAST_ARGS+=("--account" "$SPARKLE_KEYCHAIN_ACCOUNT")
-fi
+APPCAST_ARGS+=("--account" "$SPARKLE_KEYCHAIN_ACCOUNT")
 
 if [[ -z "${SPARKLE_PRIVATE_KEY:-}" && -n "${SPARKLE_ED_KEY_FILE:-}" ]]; then
   APPCAST_ARGS+=("--ed-key-file" "$SPARKLE_ED_KEY_FILE")
