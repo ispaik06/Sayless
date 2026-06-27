@@ -43,17 +43,41 @@ final class OverlayPanelController {
     @discardableResult
     func show(content: OverlayContent, near axFrame: CGRect?) -> Int {
         displayGeneration += 1
+        let generation = displayGeneration
+        let panel = makePanelIfNeeded()
+        let shouldAnimateAppearance = !panel.isVisible
+
+        if shouldAnimateAppearance {
+            state.isDismissing = false
+            state.isPresented = false
+        }
+
         state.update(content: content)
 
-        let panel = makePanelIfNeeded()
         panel.keyHandler = { [weak self] event in
             self?.handleKey(event) == true
         }
 
         let targetFrame = frameForPanel(content: content, near: axFrame)
         panel.setFrame(targetFrame, display: true)
+        panel.alphaValue = 1
         panel.orderFrontRegardless()
         panel.makeKey()
+
+        if shouldAnimateAppearance {
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.displayGeneration == generation,
+                      self.panel?.isVisible == true else {
+                    return
+                }
+
+                self.state.isPresented = true
+            }
+        } else {
+            state.isPresented = true
+        }
+
         startSourceWindowMonitor(for: content)
         return displayGeneration
     }
@@ -62,6 +86,7 @@ final class OverlayPanelController {
     func refresh(content: OverlayContent) -> Int {
         displayGeneration += 1
         state.update(content: content)
+        relayoutPanel(for: content, animated: false)
         startSourceWindowMonitor(for: content)
         return displayGeneration
     }
@@ -103,6 +128,7 @@ final class OverlayPanelController {
                 activeBatchIndex: batches.count - 1
             )
         )
+        relayoutPanel(for: state.content, animated: false)
         startSourceWindowMonitor(for: state.content)
     }
 
@@ -126,6 +152,7 @@ final class OverlayPanelController {
         }
 
         state.update(content: content)
+        relayoutPanel(for: content, animated: false)
         startSourceWindowMonitor(for: content)
     }
 
@@ -143,8 +170,29 @@ final class OverlayPanelController {
 
     func hide() {
         displayGeneration += 1
+        let generation = displayGeneration
         stopSourceWindowMonitor()
-        panel?.orderOut(nil)
+
+        guard let panel,
+              panel.isVisible else {
+            state.isPresented = false
+            state.isDismissing = false
+            panel?.orderOut(nil)
+            return
+        }
+
+        state.isDismissing = true
+        state.isPresented = false
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + hideAnimationDuration) { [weak self] in
+            guard let self,
+                  self.displayGeneration == generation else {
+                return
+            }
+
+            panel.orderOut(nil)
+            self.state.isDismissing = false
+        }
     }
 
     private func startSourceWindowMonitor(for content: OverlayContent) {
@@ -250,7 +298,7 @@ final class OverlayPanelController {
         }
 
         if commandRMatches(event) {
-            requestSuggestions(intent: .regenerate)
+            requestRefreshSuggestions()
             return true
         }
 
@@ -490,6 +538,7 @@ final class OverlayPanelController {
         if option == .custom {
             state.isCustomInstructionVisible = true
             state.isCustomInstructionFocused = false
+            relayoutPanel(for: state.content, animated: true)
             return
         }
 
@@ -510,7 +559,6 @@ final class OverlayPanelController {
             return
         }
 
-        state.isCustomInstructionVisible = false
         clearCustomInstruction()
         requestSuggestions(intent: .custom(instruction))
     }
@@ -526,9 +574,14 @@ final class OverlayPanelController {
     }
 
     private func clearCustomInstruction() {
+        let wasVisible = state.isCustomInstructionVisible
         state.isCustomInstructionVisible = false
         state.isCustomInstructionFocused = false
         state.customInstructionDraft = ""
+
+        if wasVisible {
+            relayoutPanel(for: state.content, animated: true)
+        }
     }
 
     private func requestSuggestions(intent: SuggestionIntent) {
@@ -538,6 +591,14 @@ final class OverlayPanelController {
 
         state.isGeneratingMore = true
         onSuggestionGenerationRequested?(context, intent)
+    }
+
+    private func requestRefreshSuggestions() {
+        requestSuggestions(intent: .refresh(nextRefreshIndex()))
+    }
+
+    private func nextRefreshIndex() -> Int {
+        state.content.suggestionBatches.filter { $0.intent.isRefreshRequest }.count + 1
     }
 
     private func commandRMatches(_ event: NSEvent) -> Bool {
@@ -580,11 +641,7 @@ final class OverlayPanelController {
                     self?.hide()
                 },
                 onRefresh: { [weak self] in
-                    guard let context = self?.state.content.focusedContext else {
-                        return
-                    }
-                    self?.state.isGeneratingMore = true
-                    self?.onSuggestionGenerationRequested?(context, .regenerate)
+                    self?.requestRefreshSuggestions()
                 },
                 onAdjustment: { [weak self] option in
                     self?.activateAdjustment(option)
@@ -596,13 +653,28 @@ final class OverlayPanelController {
         )
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = false
+        panel.hasShadow = true
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.animationBehavior = .none
+        panel.contentView?.wantsLayer = true
+        panel.contentView?.layer?.backgroundColor = NSColor.clear.cgColor
+        panel.contentView?.layer?.masksToBounds = false
+        panel.invalidateShadow()
         self.panel = panel
         return panel
+    }
+
+    private func relayoutPanel(for content: OverlayContent, animated: Bool) {
+        guard let panel,
+              panel.isVisible else {
+            return
+        }
+
+        let targetFrame = frameForPanel(content: content, near: content.focusedContext?.frame)
+        panel.setFrame(targetFrame, display: true, animate: animated)
     }
 
     private func frameForPanel(content: OverlayContent, near axFrame: CGRect?) -> CGRect {
@@ -614,28 +686,27 @@ final class OverlayPanelController {
         let visibleFrame = targetScreen?.visibleFrame ?? .zero
         let screenFrame = targetScreen?.frame ?? visibleFrame
 
-        guard let axFrame else {
-            return CGRect(
-                x: visibleFrame.midX - size.width / 2,
-                y: visibleFrame.maxY - size.height - 86,
-                width: size.width,
-                height: size.height
-            )
-        }
-
-        let inputFrame = cocoaFrame(fromAXFrame: axFrame, screenFrame: screenFrame)
         let cocoaWindowFrame = windowFrame.map { cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }
+        let anchorFrame = cocoaWindowFrame ?? visibleFrame
 
-        if let cocoaWindowFrame {
-            return bestSuggestionFrame(
-                size: size,
-                inputFrame: inputFrame,
-                windowFrame: cocoaWindowFrame,
-                visibleFrame: visibleFrame
-            )
-        } else {
-            return fallbackFrame(size: size, inputFrame: inputFrame, visibleFrame: visibleFrame)
-        }
+        return centeredFloatingFrame(size: size, anchorFrame: anchorFrame, visibleFrame: visibleFrame)
+    }
+
+    private var hideAnimationDuration: TimeInterval {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0.08 : 0.14
+    }
+
+    private func centeredFloatingFrame(size: CGSize, anchorFrame: CGRect, visibleFrame: CGRect) -> CGRect {
+        let margin: CGFloat = 18
+        let safeFrame = visibleFrame.insetBy(dx: margin, dy: margin)
+        let usableAnchor = anchorFrame.intersection(visibleFrame).isNull
+            ? visibleFrame
+            : anchorFrame.intersection(visibleFrame)
+        let topBias = min(max(usableAnchor.height * 0.14, 46), 96)
+        let x = clamp(usableAnchor.midX - size.width / 2, min: safeFrame.minX, max: safeFrame.maxX - size.width)
+        let y = clamp(usableAnchor.midY - size.height / 2 + topBias, min: safeFrame.minY, max: safeFrame.maxY - size.height)
+
+        return CGRect(origin: CGPoint(x: x, y: y), size: size)
     }
 
     private func bestSuggestionFrame(
@@ -714,12 +785,19 @@ final class OverlayPanelController {
     private func panelSize(for content: OverlayContent) -> CGSize {
         switch content {
         case .generating, .generationFailed:
-            CGSize(width: 470, height: 258)
+            return CGSize(width: 470, height: hasComposingPreview(content) ? 316 : 258)
         case .suggestions:
-            CGSize(width: 470, height: 342)
+            let previewHeight: CGFloat = hasComposingPreview(content) ? 58 : 0
+            let customInputHeight: CGFloat = state.isCustomInstructionVisible ? 44 : 0
+            return CGSize(width: 470, height: 342 + previewHeight + customInputHeight)
         case .notice(_, _, let buttonTitle):
-            buttonTitle == nil ? CGSize(width: 330, height: 118) : CGSize(width: 430, height: 248)
+            return buttonTitle == nil ? CGSize(width: 330, height: 118) : CGSize(width: 430, height: 248)
         }
+    }
+
+    private func hasComposingPreview(_ content: OverlayContent) -> Bool {
+        let draft = content.focusedContext?.value.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !draft.isEmpty
     }
 
     private func screen(for axFrame: CGRect?) -> NSScreen? {

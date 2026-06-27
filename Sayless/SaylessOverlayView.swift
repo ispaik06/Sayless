@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isCustomInstructionFocused: Bool
     let onSelect: (Suggestion, FocusedTextContext) -> Void
     let onClose: () -> Void
@@ -23,12 +24,12 @@ struct SaylessOverlayView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
-            case .generationFailed(let context):
+            case .generationFailed(let context, let message):
                 if !context.value.isEmpty {
                     composingPreview(context.value)
                 }
 
-                GenerationFailedView()
+                GenerationFailedView(message: message)
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
@@ -75,6 +76,10 @@ struct SaylessOverlayView: View {
         .padding(14)
         .frame(width: 470, alignment: .leading)
         .background(GlassBackground())
+        .opacity(state.isPresented ? 1 : 0)
+        .scaleEffect(presentationScale, anchor: .center)
+        .offset(y: presentationOffset)
+        .animation(presentationAnimation, value: state.isPresented)
         .onExitCommand {
             if state.isCustomInstructionFocused {
                 state.isCustomInstructionFocused = false
@@ -88,6 +93,40 @@ struct SaylessOverlayView: View {
         .onChange(of: isCustomInstructionFocused) { _, isFocused in
             state.isCustomInstructionFocused = isFocused
         }
+    }
+
+    private var presentationScale: CGFloat {
+        if reduceMotion {
+            return 1
+        }
+
+        if state.isPresented {
+            return 1
+        }
+
+        return state.isDismissing ? 0.985 : 0.955
+    }
+
+    private var presentationOffset: CGFloat {
+        if reduceMotion {
+            return 0
+        }
+
+        if state.isPresented {
+            return 0
+        }
+
+        return state.isDismissing ? -4 : -6
+    }
+
+    private var presentationAnimation: Animation {
+        if reduceMotion {
+            return .easeOut(duration: 0.1)
+        }
+
+        return state.isPresented
+            ? .spring(response: 0.32, dampingFraction: 0.78, blendDuration: 0)
+            : .easeOut(duration: 0.14)
     }
 
     private var header: some View {
@@ -302,6 +341,8 @@ struct SaylessOverlayView: View {
 }
 
 private struct GenerationFailedView: View {
+    let message: String?
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "bolt.horizontal.circle")
@@ -312,7 +353,7 @@ private struct GenerationFailedView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            Text("다시 시도하거나 백엔드 연결을 확인해 주세요")
+            Text(message ?? "다시 시도하거나 백엔드 연결을 확인해 주세요")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -560,16 +601,34 @@ private struct AdjustmentButtonStyle: ButtonStyle {
 }
 
 private struct GlassBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+    private let cornerRadius: CGFloat = 26
+
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+
         ZStack {
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.black.opacity(0.14))
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            shape
+                .fill(.regularMaterial)
+            shape
+                .fill(panelTint)
+            shape
+                .strokeBorder(borderColor, lineWidth: 1)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.24), radius: 28, x: 0, y: 18)
+        .clipShape(shape)
+        .shadow(color: shadowColor, radius: 36, x: 0, y: 14)
+    }
+
+    private var panelTint: Color {
+        colorScheme == .dark ? .black.opacity(0.10) : .white.opacity(0.20)
+    }
+
+    private var borderColor: Color {
+        colorScheme == .dark ? .white.opacity(0.10) : .black.opacity(0.06)
+    }
+
+    private var shadowColor: Color {
+        colorScheme == .dark ? .black.opacity(0.30) : .black.opacity(0.16)
     }
 }
 

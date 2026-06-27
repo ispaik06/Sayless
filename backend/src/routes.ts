@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { config } from './config.js';
 import { createMockSuggestions } from './mockSuggestions.js';
-import { createOpenAISuggestions } from './openaiSuggestions.js';
+import { UnsafeSuggestionGuardError, createOpenAISuggestions } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
 
 function elapsedMs(startedAt: bigint): number {
@@ -54,9 +54,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       request.log.info(
         {
           chatRoomPresent: Boolean(input.chatRoom),
+          participantCount: input.chatRoom?.participantCount ?? null,
           draftTextPresent: Boolean(input.draftText),
           activeSuggestionsPresent: Boolean(input.activeSuggestions),
           intent: input.intent?.kind ?? 'initial',
+          refreshIndex: input.intent?.refreshIndex ?? null,
           messageCount: input.messages.length,
           mode: config.suggestionMode,
           elapsedMs: Math.round(elapsedMs(startedAt))
@@ -73,6 +75,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
             path: issue.path.join('.'),
             message: issue.message
           }))
+        });
+      }
+
+      if (error instanceof UnsafeSuggestionGuardError) {
+        return reply.code(422).send({
+          error: 'unsafe_suggestions',
+          message: '추천 생성 실패: 대화 당사자 판단이 불확실합니다'
         });
       }
 

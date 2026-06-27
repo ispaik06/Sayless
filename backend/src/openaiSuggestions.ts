@@ -1,6 +1,13 @@
 import OpenAI from 'openai';
 import { config } from './config.js';
-import { buildSuggestionPrompt } from './prompt.js';
+import { buildNoveltyPayload, buildSuggestionPrompt, type NoveltyPayload } from './prompt.js';
+import { logOpenAIUsage } from './openaiUsage.js';
+import {
+  inferConversationState,
+  validateSuggestionsForConversationState,
+  type ConversationState,
+  type SuggestionGuardResult
+} from './conversationState.js';
 import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionResponse } from './schemas.js';
 
 let client: OpenAI | undefined;
@@ -19,9 +26,11 @@ function getOpenAIClient(): OpenAI {
 
 function temperatureForIntent(kind?: string): number {
   switch (kind) {
+    case 'refresh':
     case 'regenerate':
+      return 0.95;
     case 'wittier':
-      return 0.9;
+      return 0.85;
     case 'custom':
       return 0.75;
     case 'shorter':
@@ -33,12 +42,64 @@ function temperatureForIntent(kind?: string): number {
   }
 }
 
+function topPForIntent(kind?: string): number {
+  return kind === 'refresh' || kind === 'regenerate' ? 0.95 : 0.9;
+}
+
+function frequencyPenaltyForIntent(kind?: string): number {
+  return kind === 'refresh' || kind === 'regenerate' ? 0.3 : 0;
+}
+
+function presencePenaltyForIntent(kind?: string): number {
+  return kind === 'refresh' || kind === 'regenerate' ? 0.35 : 0;
+}
+
 function usesReasoningChatParameters(model: string): boolean {
   return /^gpt-5(?:\.|-|$)/.test(model) || /^o\d/.test(model);
 }
 
+export class UnsafeSuggestionGuardError extends Error {
+  constructor(readonly guardResult: Exclude<SuggestionGuardResult, { ok: true }>) {
+    super('OpenAI suggestions failed safety/novelty guard');
+    this.name = 'UnsafeSuggestionGuardError';
+  }
+}
+
 export async function createOpenAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
+  const conversationState = inferConversationState(input);
+  const novelty = buildNoveltyPayload(input);
+  const firstResult = await requestOpenAISuggestions(input, conversationState, novelty, undefined, 'initial');
+  const firstGuard = validateSuggestionsForConversationState(firstResult, conversationState, input);
+
+  if (firstGuard.ok) {
+    return firstResult;
+  }
+
+  const retryResult = await requestOpenAISuggestions(
+    input,
+    conversationState,
+    novelty,
+    buildGuardRetryInstruction(firstGuard),
+    'retry'
+  );
+  const retryGuard = validateSuggestionsForConversationState(retryResult, conversationState, input);
+
+  if (retryGuard.ok) {
+    return retryResult;
+  }
+
+  throw new UnsafeSuggestionGuardError(retryGuard);
+}
+
+async function requestOpenAISuggestions(
+  input: SuggestionRequest,
+  conversationState: ConversationState,
+  novelty: NoveltyPayload | null,
+  additionalInstruction?: string,
+  attempt: 'initial' | 'retry' = 'initial'
+): Promise<SuggestionResponse> {
   const usesReasoningParameters = usesReasoningChatParameters(config.openaiModel);
+  const startedAt = performance.now();
   const completion = await getOpenAIClient().chat.completions.create({
     model: config.openaiModel,
     ...(usesReasoningParameters
@@ -47,6 +108,9 @@ export async function createOpenAISuggestions(input: SuggestionRequest): Promise
         }
       : {
           temperature: temperatureForIntent(input.intent?.kind),
+          top_p: topPForIntent(input.intent?.kind),
+          frequency_penalty: frequencyPenaltyForIntent(input.intent?.kind),
+          presence_penalty: presencePenaltyForIntent(input.intent?.kind),
           max_tokens: 360
         }),
     messages: [
@@ -57,12 +121,23 @@ export async function createOpenAISuggestions(input: SuggestionRequest): Promise
       },
       {
         role: 'user',
-        content: buildSuggestionPrompt(input)
+        content: buildSuggestionPrompt(input, {
+          conversationState,
+          novelty,
+          additionalInstruction
+        })
       }
     ],
     response_format: {
       type: 'json_object'
     }
+  });
+  const latencyMs = performance.now() - startedAt;
+  logOpenAIUsage({
+    model: config.openaiModel,
+    usage: completion.usage,
+    latencyMs,
+    attempt
   });
 
   const content = completion.choices[0]?.message.content;
@@ -88,4 +163,16 @@ export async function createOpenAISuggestions(input: SuggestionRequest): Promise
   }
 
   return result.data;
+}
+
+function buildGuardRetryInstruction(guardResult: Exclude<SuggestionGuardResult, { ok: true }>): string {
+  return `The previous response was rejected by the safety/novelty guard.
+Rejected text: "${guardResult.suggestion.text}"
+Matched previous/sibling text: "${guardResult.matchedSuggestion?.text ?? ''}"
+Reason: ${guardResult.reason}
+Return exactly 3 valid suggestions that pass both safety and novelty checks.
+If the conversation state says the user is a bystander, use only low-intrusion reactions or silence-like comments.
+Do not include ownership, permission, confirmation, responsibility, memory, action, or "me too" claims.
+Do not repeat previousSuggestions semantically, tonally, structurally, or socially.
+Avoid: "내 거", "내꺼", "내가", "나도", "써도 됨", "응 맞아", "맞음".`;
 }

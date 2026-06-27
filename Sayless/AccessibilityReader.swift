@@ -7,6 +7,7 @@ struct FocusedTextContext {
     let element: AXUIElement
     let windowElement: AXUIElement?
     let windowTitle: String
+    let participantCount: Int?
     let role: String
     let value: String
     let frame: CGRect
@@ -69,12 +70,9 @@ private struct VisibleRowsResult {
     let source: String
 }
 
-private struct PerfTimer {
-    private let start = CFAbsoluteTimeGetCurrent()
-
-    func elapsedMilliseconds() -> Double {
-        (CFAbsoluteTimeGetCurrent() - start) * 1000
-    }
+private struct ChatRoomMetadata {
+    let title: String
+    let participantCount: Int?
 }
 
 private struct AXElementSnapshot {
@@ -109,9 +107,6 @@ enum SummonResult {
 }
 
 final class AccessibilityReader {
-    private let logPrefix = "[Sayless][AX]"
-    private let perfPrefix = "[Sayless][Perf]"
-    private let verboseMessageLog = false
     private let incomingMessageXOffset: CGFloat = 60
     private let incomingMessageXTolerance: CGFloat = 22
     private let senderNameXTolerance: CGFloat = 28
@@ -175,12 +170,6 @@ final class AccessibilityReader {
     }
 
     func collectVisibleKakaoMessages(in focusedWindow: AXUIElement, limit: Int = 20) -> [ChatMessage] {
-        let totalTimer = PerfTimer()
-        var findTableMs = 0.0
-        var visibleRowsMs = 0.0
-        var parseRowsMs = 0.0
-        var printRowsMs = 0.0
-
         guard isAccessibilityTrusted() else {
             return []
         }
@@ -189,14 +178,11 @@ final class AccessibilityReader {
             return []
         }
 
-        let findTableTimer = PerfTimer()
         guard let chatTable = findChatTable(in: focusedWindow) else {
             return []
         }
-        findTableMs = findTableTimer.elapsedMilliseconds()
 
         let tableFrame = frame(of: chatTable)
-        let visibleRowsTimer = PerfTimer()
         var visibleRowsResult = visibleRows(in: chatTable)
         if visibleRowsResult.rows.isEmpty {
             invalidateCachedChatTable()
@@ -204,14 +190,12 @@ final class AccessibilityReader {
                 visibleRowsResult = visibleRows(in: refreshedTable)
             }
         }
-        visibleRowsMs = visibleRowsTimer.elapsedMilliseconds()
 
         let parseLimit = min(limit + 4, 28)
         let rows = Array(visibleRowsResult.rows.suffix(parseLimit))
         var parsedRows: [ParsedChatRow] = []
         var inheritedSender = "Unknown"
 
-        let parseRowsTimer = PerfTimer()
         for (index, row) in rows.enumerated() {
             if index % 4 == 0,
                !isWindowUsable(focusedWindow) {
@@ -249,38 +233,9 @@ final class AccessibilityReader {
                 )
             )
         }
-        parseRowsMs = parseRowsTimer.elapsedMilliseconds()
 
         let finalRows = trimParsedRows(parsedRows, messageLimit: limit)
-        let finalMessages = finalRows.compactMap(\.message)
-
-        let printRowsTimer = PerfTimer()
-        if verboseMessageLog {
-            print("\(logPrefix) Latest visible messages:")
-            if finalRows.isEmpty {
-                print("\(logPrefix)   <none>")
-            } else {
-                printParsedRows(finalRows)
-            }
-        }
-        printRowsMs = printRowsTimer.elapsedMilliseconds()
-
-        print(
-            String(
-                format: "\(perfPrefix) rows=%d source=%@ parsed=%d final=%d find=%.1fms visible=%.1fms parse=%.1fms print=%.1fms total=%.1fms",
-                visibleRowsResult.rows.count,
-                visibleRowsResult.source,
-                parsedRows.count,
-                finalMessages.count,
-                findTableMs,
-                visibleRowsMs,
-                parseRowsMs,
-                printRowsMs,
-                totalTimer.elapsedMilliseconds()
-            )
-        )
-
-        return finalMessages
+        return finalRows.compactMap(\.message)
     }
 
     func latestVisibleKakaoMessageSignature(in focusedWindow: AXUIElement) -> ChatTimelineSignature? {
@@ -351,29 +306,6 @@ final class AccessibilityReader {
         var sizeValue: CFTypeRef?
         return AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &positionValue) == .success
             && AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &sizeValue) == .success
-    }
-
-    func printKakaoAccessibilityTree(maxDepth: Int = 5) {
-        guard isAccessibilityTrusted() else {
-            print("\(logPrefix) Accessibility permission missing")
-            return
-        }
-
-        guard let app = NSWorkspace.shared.frontmostApplication,
-              isKakaoTalk(app) else {
-            print("\(logPrefix) Cannot print tree because frontmost app is not KakaoTalk")
-            return
-        }
-
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        guard let focusedWindow = copyAttribute(appElement, kAXFocusedWindowAttribute) as AXUIElement? else {
-            print("\(logPrefix) Cannot print tree because focused KakaoTalk window is missing")
-            return
-        }
-
-        print("\(logPrefix) Accessibility tree:")
-        var visited = Set<AXElementID>()
-        printTree(focusedWindow, depth: 0, maxDepth: maxDepth, visited: &visited)
     }
 
     private func isKakaoTalk(_ app: NSRunningApplication) -> Bool {
@@ -537,13 +469,16 @@ final class AccessibilityReader {
 
         let value = copyStringAttribute(element, kAXValueAttribute) ?? ""
         let window = owningWindow(for: element)
+        let metadata = window.map { chatRoomMetadata(for: $0) } ?? ChatRoomMetadata(title: "", participantCount: nil)
+
         return .ready(
             FocusedTextContext(
                 appName: app.localizedName ?? "KakaoTalk",
                 bundleIdentifier: app.bundleIdentifier ?? "",
                 element: element,
                 windowElement: window,
-                windowTitle: window.map { chatRoomTitle(for: $0) } ?? "",
+                windowTitle: metadata.title,
+                participantCount: metadata.participantCount,
                 role: role,
                 value: value,
                 frame: inputFrame,
@@ -877,29 +812,6 @@ final class AccessibilityReader {
         return Array(rows[startIndex...])
     }
 
-    private func printParsedRows(_ rows: [ParsedChatRow]) {
-        var currentSender: String?
-
-        for row in rows {
-            switch row {
-            case let .system(text, _):
-                currentSender = nil
-                print("\(logPrefix) [System] \(text)")
-            case let .message(message):
-                if currentSender != message.sender {
-                    currentSender = message.sender
-                    print("\(logPrefix) \(message.sender):")
-                }
-
-                message.text
-                    .split(separator: "\n", omittingEmptySubsequences: false)
-                    .forEach { line in
-                        print("\(logPrefix) \(line)")
-                    }
-            }
-        }
-    }
-
     private func snapshot(of element: AXUIElement) -> AXElementSnapshot {
         let attributes = [
             kAXRoleAttribute as String,
@@ -1032,6 +944,93 @@ final class AccessibilityReader {
         return withoutRoleSuffix.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private func chatRoomMetadata(for window: AXUIElement) -> ChatRoomMetadata {
+        ChatRoomMetadata(
+            title: chatRoomTitle(for: window),
+            participantCount: participantCount(in: window)
+        )
+    }
+
+    private func participantCount(in window: AXUIElement) -> Int? {
+        let windowFrame = frame(of: window)
+        let chatTableFrame = findChatTable(in: window).flatMap { frame(of: $0) }
+        let candidates = descendants(of: window, maxDepth: 5, maxVisited: 180)
+            .compactMap { element -> (count: Int, frame: CGRect)? in
+                guard let count = participantCountCandidate(from: element),
+                      let candidateFrame = frame(of: element),
+                      isHeaderElementFrame(candidateFrame, windowFrame: windowFrame, chatTableFrame: chatTableFrame) else {
+                    return nil
+                }
+
+                return (count: count, frame: candidateFrame)
+            }
+            .sorted { lhs, rhs in
+                if abs(lhs.frame.minY - rhs.frame.minY) > 4 {
+                    return lhs.frame.minY < rhs.frame.minY
+                }
+
+                return lhs.frame.minX < rhs.frame.minX
+            }
+
+        return candidates.first?.count
+    }
+
+    private func participantCountCandidate(from element: AXUIElement) -> Int? {
+        let role = copyStringAttribute(element, kAXRoleAttribute) ?? ""
+        guard role == kAXButtonRole as String || role == "AXButton" else {
+            return nil
+        }
+
+        let textCandidates = uniqueStrings([
+            visibleText(copyStringAttribute(element, kAXTitleAttribute)),
+            visibleText(copyStringAttribute(element, kAXValueAttribute))
+        ].compactMap { $0 })
+
+        for text in textCandidates {
+            if let count = participantCount(from: text) {
+                return count
+            }
+        }
+
+        return nil
+    }
+
+    private func participantCount(from text: String) -> Int? {
+        let normalized = text
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard normalized.range(of: #"^\d{1,4}$"#, options: .regularExpression) != nil,
+              let count = Int(normalized),
+              count > 1 else {
+            return nil
+        }
+
+        return count
+    }
+
+    private func isHeaderElementFrame(_ frame: CGRect, windowFrame: CGRect?, chatTableFrame: CGRect?) -> Bool {
+        if let windowFrame {
+            guard frame.midX >= windowFrame.minX - 8,
+                  frame.midX <= windowFrame.maxX + 8 else {
+                return false
+            }
+
+            let headerHeight = min(max(windowFrame.height * 0.18, 84), 150)
+            guard frame.midY >= windowFrame.minY - 8,
+                  frame.midY <= windowFrame.minY + headerHeight else {
+                return false
+            }
+        }
+
+        if let chatTableFrame,
+           frame.maxY > chatTableFrame.minY + 12 {
+            return false
+        }
+
+        return true
+    }
+
     private func isLikelyMessageText(_ text: String) -> Bool {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty, !isLikelyChromeText(normalized) else {
@@ -1109,25 +1108,6 @@ final class AccessibilityReader {
         }
 
         return results
-    }
-
-    private func printTree(_ element: AXUIElement, depth: Int, maxDepth: Int, visited: inout Set<AXElementID>) {
-        let id = elementID(element)
-        guard !visited.contains(id) else {
-            print("\(String(repeating: "  ", count: depth))<cycle>")
-            return
-        }
-
-        visited.insert(id)
-        print("\(String(repeating: "  ", count: depth))\(treeLine(for: element))")
-
-        guard depth < maxDepth else {
-            return
-        }
-
-        children(of: element).prefix(80).forEach {
-            printTree($0, depth: depth + 1, maxDepth: maxDepth, visited: &visited)
-        }
     }
 
     private func treeLine(for element: AXUIElement) -> String {

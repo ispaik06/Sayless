@@ -15,6 +15,7 @@ struct SuggestionBatch: Identifiable {
 
 enum SuggestionIntent: Equatable {
     case initial
+    case refresh(Int)
     case regenerate
     case shorter
     case softer
@@ -24,11 +25,29 @@ enum SuggestionIntent: Equatable {
     var backendKind: String {
         switch self {
         case .initial: "initial"
+        case .refresh: "refresh"
         case .regenerate: "regenerate"
         case .shorter: "shorter"
         case .softer: "softer"
         case .wittier: "wittier"
         case .custom: "custom"
+        }
+    }
+
+    var refreshIndex: Int? {
+        if case .refresh(let index) = self {
+            return max(index, 1)
+        }
+
+        return nil
+    }
+
+    var isRefreshRequest: Bool {
+        switch self {
+        case .refresh(_), .regenerate:
+            return true
+        case .initial, .shorter, .softer, .wittier, .custom:
+            return false
         }
     }
 
@@ -86,13 +105,13 @@ enum OverlayKeyboardFocus {
 
 enum OverlayContent {
     case generating(context: FocusedTextContext)
-    case generationFailed(context: FocusedTextContext)
+    case generationFailed(context: FocusedTextContext, message: String?)
     case suggestions(context: FocusedTextContext, batches: [SuggestionBatch], activeBatchIndex: Int)
     case notice(title: String, message: String, buttonTitle: String?)
 
     var focusedContext: FocusedTextContext? {
         switch self {
-        case .generating(let context), .generationFailed(let context):
+        case .generating(let context), .generationFailed(let context, _):
             return context
         case .suggestions(let context, _, _):
             return context
@@ -138,6 +157,8 @@ final class OverlayState: ObservableObject {
     @Published var isCustomInstructionFocused = false
     @Published var customInstructionDraft = ""
     @Published var refreshShortcutTitle = "⌘ R"
+    @Published var isPresented = false
+    @Published var isDismissing = false
 
     func update(content: OverlayContent) {
         self.content = content

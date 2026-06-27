@@ -1,3 +1,4 @@
+import { inferConversationState } from './conversationState.js';
 import type { SuggestionRequest, SuggestionResponse } from './schemas.js';
 
 export function createMockSuggestions(input: SuggestionRequest): SuggestionResponse {
@@ -5,6 +6,28 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   const kind = input.intent?.kind ?? 'initial';
   const draftText = input.draftText?.trim() ?? '';
   const activeSuggestions = input.activeSuggestions ?? [];
+  const conversationState = inferConversationState(input);
+
+  if (
+    !draftText &&
+    (conversationState.replyPosture === 'observe_or_light_reaction' ||
+      conversationState.activeExchangeType === 'others_talking')
+  ) {
+    const bystanderPool = [
+      { label: '리액션만', text: 'ㅋㅋㅋㅋ' },
+      { label: '살짝 끼기', text: '뭐야 ㅋㅋ' },
+      { label: '안 끼기', text: '걍 보고만 있어야겠다 ㅋㅋ' },
+      { label: '관전', text: '구경만 해야겠다 ㅋㅋ' },
+      { label: '짧게', text: '아니 ㅋㅋ' }
+    ].sort(() => Math.random() - 0.5);
+
+    return {
+      suggestions: bystanderPool.slice(0, 3).map((suggestion, index) => ({
+        id: `s${index + 1}`,
+        ...suggestion
+      }))
+    };
+  }
 
   if (kind === 'shorter') {
     if (draftText) {
@@ -128,13 +151,21 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
     };
   }
 
-  if (kind === 'regenerate') {
+  if (kind === 'refresh' || kind === 'regenerate') {
+    const refreshPool = [
+      { label: '다른 각도', text: '그건 또 뭔 흐름이야 ㅋㅋ' },
+      { label: '받아치기', text: '잠깐만 이 대화 어디로 가는 중임' },
+      { label: '가볍게', text: '오케이 일단 상황 파악부터 ㅋㅋ' },
+      { label: '짧게', text: 'ㅋㅋ 뭐야' },
+      { label: '흘리기', text: '난 일단 조용히 보고 있을게' },
+      { label: '이어가기', text: '그럼 지금 뭐부터 하면 됨?' }
+    ].sort(() => Math.random() - 0.5);
+
     return {
-      suggestions: [
-        { id: 's1', label: '다른 각도', text: '그럼 이렇게 해보자' },
-        { id: 's2', label: '가볍게', text: '오케이 그걸로 가자 ㅋㅋ' },
-        { id: 's3', label: '정리해서', text: '좋아. 그럼 시간만 맞추면 되겠다' }
-      ]
+      suggestions: refreshPool.slice(0, 3).map((suggestion, index) => ({
+        id: `s${index + 1}`,
+        ...suggestion
+      }))
     };
   }
 

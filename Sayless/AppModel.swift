@@ -205,7 +205,7 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let messages = accessibilityReader.collectVisibleKakaoMessages(in: window, limit: 20)
+        let messages = await collectVisibleMessages(in: window, limit: 20)
         guard !Task.isCancelled,
               !messages.isEmpty,
               accessibilityReader.isWindowUsable(window) else {
@@ -218,6 +218,7 @@ final class AppModel: ObservableObject {
             let draftText = currentDraftText(for: context)
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
+                participantCount: context.participantCount,
                 messages: messages,
                 draftText: draftText,
                 intent: intent,
@@ -248,13 +249,12 @@ final class AppModel: ObservableObject {
 
             if existingBatches.isEmpty {
                 overlayController.update(
-                    content: .generationFailed(context: context),
+                    content: .generationFailed(context: context, message: failureMessage(for: error)),
                     for: generation
                 )
             } else {
                 overlayController.finishSuggestionRequest()
             }
-            print("[Sayless][Backend] suggestions unavailable\(forceRefresh ? " during refresh" : "")")
         }
     }
 
@@ -264,12 +264,41 @@ final class AppModel: ObservableObject {
         return trimmedDraft.isEmpty ? nil : trimmedDraft
     }
 
+    private func collectVisibleMessages(in window: AXUIElement, limit: Int) async -> [ChatMessage] {
+        let retryDelaysNanoseconds: [UInt64] = [0, 120_000_000, 280_000_000]
+
+        for delay in retryDelaysNanoseconds {
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+            }
+
+            guard !Task.isCancelled,
+                  accessibilityReader.isWindowUsable(window) else {
+                return []
+            }
+
+            let messages = accessibilityReader.collectVisibleKakaoMessages(in: window, limit: limit)
+            if !messages.isEmpty {
+                return messages
+            }
+        }
+
+        return []
+    }
+
+    private func failureMessage(for error: Error) -> String? {
+        let message = (error as? LocalizedError)?.errorDescription?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return message?.isEmpty == false ? message : nil
+    }
+
     private func activeSuggestionsForRequest(intent: SuggestionIntent) -> [Suggestion]? {
         switch intent {
         case .shorter, .softer, .wittier, .custom:
             let activeSuggestions = overlayController.activeSuggestions
             return activeSuggestions.count == 3 ? activeSuggestions : nil
-        case .initial, .regenerate:
+        case .initial, .refresh(_), .regenerate:
             return nil
         }
     }
@@ -281,7 +310,7 @@ final class AppModel: ObservableObject {
     ) {
         if existingBatches.isEmpty {
             overlayController.update(
-                content: .generationFailed(context: context),
+                content: .generationFailed(context: context, message: nil),
                 for: generation
             )
         } else {
