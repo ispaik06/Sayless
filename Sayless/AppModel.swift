@@ -97,9 +97,9 @@ final class AppModel: ObservableObject {
             return
         }
 
-        switch accessibilityReader.focusedKakaoTextContext() {
+        switch accessibilityReader.focusedKakaoTextContext(includeParticipantCount: false) {
         case .ready(let context):
-            if let cached = cachedSuggestions(for: context) {
+            if let cached = cachedSuggestions(for: context, validateTimeline: false) {
                 suggestionTask?.cancel()
                 overlayController.showSuggestions(
                     context: context,
@@ -216,9 +216,10 @@ final class AppModel: ObservableObject {
 
         do {
             let draftText = currentDraftText(for: context)
+            let participantCount = context.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
-                participantCount: context.participantCount,
+                participantCount: participantCount,
                 messages: messages,
                 draftText: draftText,
                 intent: intent,
@@ -318,7 +319,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func cachedSuggestions(for context: FocusedTextContext) -> SuggestionCache? {
+    private func cachedSuggestions(for context: FocusedTextContext, validateTimeline: Bool = true) -> SuggestionCache? {
         guard let suggestionCache,
               suggestionCache.key == cacheKey(for: context) else {
             return nil
@@ -329,6 +330,10 @@ final class AppModel: ObservableObject {
             self.suggestionCache = nil
             overlayController.resetSuggestionState()
             return nil
+        }
+
+        guard validateTimeline else {
+            return suggestionCache
         }
 
         if let cachedSignature = suggestionCache.timelineSignature,

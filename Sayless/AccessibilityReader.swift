@@ -123,7 +123,7 @@ final class AccessibilityReader {
         AXIsProcessTrusted()
     }
 
-    func focusedKakaoTextContext() -> SummonResult {
+    func focusedKakaoTextContext(includeParticipantCount: Bool = true) -> SummonResult {
         guard isAccessibilityTrusted() else {
             return .accessibilityMissing
         }
@@ -139,7 +139,7 @@ final class AccessibilityReader {
         }
 
         focus(input)
-        return context(for: input, app: app)
+        return context(for: input, app: app, includeParticipantCount: includeParticipantCount)
     }
 
     func setValue(_ text: String, into element: AXUIElement) -> Bool {
@@ -461,7 +461,11 @@ final class AccessibilityReader {
         return "role=\(role), subrole=\(subrole), title=\(title), frame=\(frameText)"
     }
 
-    private func context(for element: AXUIElement, app: NSRunningApplication) -> SummonResult {
+    func participantCount(inChatWindow window: AXUIElement) -> Int? {
+        participantCount(in: window)
+    }
+
+    private func context(for element: AXUIElement, app: NSRunningApplication, includeParticipantCount: Bool) -> SummonResult {
         let role = copyStringAttribute(element, kAXRoleAttribute) ?? ""
         guard let inputFrame = frame(of: element) else {
             return .noTextFocus
@@ -469,7 +473,9 @@ final class AccessibilityReader {
 
         let value = copyStringAttribute(element, kAXValueAttribute) ?? ""
         let window = owningWindow(for: element)
-        let metadata = window.map { chatRoomMetadata(for: $0) } ?? ChatRoomMetadata(title: "", participantCount: nil)
+        let metadata = window.map {
+            chatRoomMetadata(for: $0, includeParticipantCount: includeParticipantCount)
+        } ?? ChatRoomMetadata(title: "", participantCount: nil)
 
         return .ready(
             FocusedTextContext(
@@ -944,10 +950,10 @@ final class AccessibilityReader {
         return withoutRoleSuffix.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private func chatRoomMetadata(for window: AXUIElement) -> ChatRoomMetadata {
+    private func chatRoomMetadata(for window: AXUIElement, includeParticipantCount: Bool = true) -> ChatRoomMetadata {
         ChatRoomMetadata(
             title: chatRoomTitle(for: window),
-            participantCount: participantCount(in: window)
+            participantCount: includeParticipantCount ? participantCount(in: window) : nil
         )
     }
 
