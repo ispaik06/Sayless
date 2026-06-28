@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 import { config } from './config.js';
 import { buildNoveltyPayload, buildSuggestionPrompt, type NoveltyPayload } from './prompt.js';
 import { logAIUsage } from './openaiUsage.js';
@@ -59,10 +60,21 @@ function usesReasoningChatParameters(model: string): boolean {
   return /^gpt-5(?:\.|-|$)/.test(model) || /^o\d/.test(model);
 }
 
+function supportsStrictJsonResponseFormat(): boolean {
+  return config.suggestionProvider === 'openai' || config.suggestionProvider === 'groq';
+}
+
 export class UnsafeSuggestionGuardError extends Error {
   constructor(readonly guardResult: Exclude<SuggestionGuardResult, { ok: true }>) {
     super('AI suggestions failed safety/novelty guard');
     this.name = 'UnsafeSuggestionGuardError';
+  }
+}
+
+export class InvalidAIResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidAIResponseError';
   }
 }
 
@@ -101,7 +113,7 @@ async function requestAISuggestions(
 ): Promise<SuggestionResponse> {
   const usesReasoningParameters = config.suggestionProvider === 'openai' && usesReasoningChatParameters(config.aiModel);
   const startedAt = performance.now();
-  const completion = await getAIClient().chat.completions.create({
+  const params: ChatCompletionCreateParamsNonStreaming = {
     model: config.aiModel,
     ...(usesReasoningParameters
       ? {
@@ -129,14 +141,26 @@ async function requestAISuggestions(
         content: buildSuggestionPrompt(input, {
           conversationState,
           novelty,
-          additionalInstruction
+          additionalInstruction: [
+            additionalInstruction,
+            config.suggestionProvider === 'gemini'
+              ? 'Return raw JSON only. Do not wrap the JSON in markdown code fences.'
+              : null
+          ]
+            .filter((line): line is string => Boolean(line))
+            .join('\n')
         })
       }
-    ],
-    response_format: {
+    ]
+  };
+
+  if (supportsStrictJsonResponseFormat()) {
+    params.response_format = {
       type: 'json_object'
-    }
-  });
+    };
+  }
+
+  const completion = await getAIClient().chat.completions.create(params);
   const latencyMs = performance.now() - startedAt;
   logAIUsage({
     provider: config.suggestionProvider,
@@ -146,22 +170,16 @@ async function requestAISuggestions(
     attempt
   });
 
-  const content = completion.choices[0]?.message.content;
+  const content = normalizeMessageContent(completion.choices[0]?.message.content);
   if (!content) {
     throw new Error('AI response was empty');
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'unknown JSON parse error';
-    throw new Error(`AI response was not valid JSON: ${message}`);
-  }
+  const parsed = parseAIJson(content);
 
   const result = SuggestionResponseSchema.safeParse(parsed);
   if (!result.success) {
-    throw new Error(
+    throw new InvalidAIResponseError(
       `AI response schema mismatch: ${result.error.issues
         .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
         .join('; ')}`
@@ -169,6 +187,101 @@ async function requestAISuggestions(
   }
 
   return result.data;
+}
+
+function normalizeMessageContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === 'string') {
+          return part;
+        }
+
+        if (part && typeof part === 'object' && 'text' in part) {
+          const text = (part as { text?: unknown }).text;
+          return typeof text === 'string' ? text : '';
+        }
+
+        return '';
+      })
+      .join('');
+  }
+
+  return '';
+}
+
+function parseAIJson(content: string): unknown {
+  const candidates = [
+    content,
+    stripMarkdownJsonFence(content),
+    extractFirstJsonObject(content)
+  ].filter((candidate): candidate is string => Boolean(candidate?.trim()));
+
+  let lastMessage = 'unknown JSON parse error';
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastMessage = error instanceof Error ? error.message : lastMessage;
+    }
+  }
+
+  throw new InvalidAIResponseError(`AI response was not valid JSON: ${lastMessage}`);
+}
+
+function stripMarkdownJsonFence(content: string): string {
+  const trimmed = content.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  return fenced?.[1]?.trim() ?? trimmed;
+}
+
+function extractFirstJsonObject(content: string): string | null {
+  const start = content.indexOf('{');
+  if (start === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < content.length; index += 1) {
+    const character = content[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (character === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (character === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (character === '{') {
+      depth += 1;
+    } else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return content.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 function buildGuardRetryInstruction(guardResult: Exclude<SuggestionGuardResult, { ok: true }>): string {

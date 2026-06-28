@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { config } from './config.js';
 import { createMockSuggestions } from './mockSuggestions.js';
-import { UnsafeSuggestionGuardError, createAISuggestions } from './openaiSuggestions.js';
+import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestions } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
 
 function elapsedMs(startedAt: bigint): number {
@@ -18,6 +18,10 @@ function isAIConfigurationError(error: unknown): boolean {
 }
 
 function isAIRequestError(error: unknown): boolean {
+  if (error instanceof InvalidAIResponseError) {
+    return true;
+  }
+
   if (!(error instanceof Error)) {
     return false;
   }
