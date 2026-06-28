@@ -242,7 +242,7 @@ final class AppModel: ObservableObject {
         let timelineSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window)
 
         do {
-            let draftText = currentDraftText(for: context)
+            let draftText = draftTextForRequest(intent: intent, activeSuggestions: activeSuggestions, context: context)
             let participantCount = context.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
@@ -290,6 +290,23 @@ final class AppModel: ObservableObject {
         let currentValue = accessibilityReader.textValue(of: context.element) ?? context.value
         let trimmedDraft = currentValue.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedDraft.isEmpty ? nil : trimmedDraft
+    }
+
+    private func draftTextForRequest(
+        intent: SuggestionIntent,
+        activeSuggestions: [Suggestion]?,
+        context: FocusedTextContext
+    ) -> String? {
+        switch intent {
+        case .shorter, .softer, .wittier:
+            if activeSuggestions?.count == 3 {
+                return nil
+            }
+        case .initial, .refresh(_), .regenerate, .custom:
+            break
+        }
+
+        return currentDraftText(for: context)
     }
 
     private func collectVisibleMessages(in window: AXUIElement, limit: Int) async -> [ChatMessage] {

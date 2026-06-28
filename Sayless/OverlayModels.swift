@@ -161,7 +161,6 @@ final class OverlayState: ObservableObject {
     @Published var keyboardFocus: OverlayKeyboardFocus = .suggestions
     @Published var selectedIndex: Int?
     @Published var selectedAdjustmentIndex: Int?
-    @Published var usedAdjustmentOptions: Set<SuggestionAdjustmentOption> = []
     @Published var isGeneratingMore = false
     @Published var hasNewerVisibleMessages = false
     @Published var isCustomInstructionVisible = false

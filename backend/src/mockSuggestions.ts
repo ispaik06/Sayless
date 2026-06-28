@@ -30,16 +30,6 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'shorter') {
-    if (draftText) {
-      return {
-        suggestions: [
-          { id: 's1', label: '짧게 다듬기', text: draftText.length > 12 ? draftText.slice(0, 12) : draftText },
-          { id: 's2', label: '툭 보내기', text: draftText.replace(/[.!?。！？]+$/u, '') },
-          { id: 's3', label: '한마디', text: draftText.split(/\s+/u).slice(0, 4).join(' ') || draftText }
-        ]
-      };
-    }
-
     if (activeSuggestions.length === 3) {
       return {
         suggestions: activeSuggestions.map((suggestion, index) => ({
@@ -47,6 +37,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           label: suggestion.label,
           text: suggestion.text.length > 12 ? suggestion.text.slice(0, 12) : suggestion.text
         }))
+      };
+    }
+
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '짧게 다듬기', text: draftText.length > 12 ? draftText.slice(0, 12) : draftText },
+          { id: 's2', label: '툭 보내기', text: draftText.replace(/[.!?。！？]+$/u, '') },
+          { id: 's3', label: '한마디', text: draftText.split(/\s+/u).slice(0, 4).join(' ') || draftText }
+        ]
       };
     }
 
@@ -60,16 +60,6 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'softer') {
-    if (draftText) {
-      return {
-        suggestions: [
-          { id: 's1', label: '부드럽게', text: `${draftText} 괜찮으면 그렇게 하자` },
-          { id: 's2', label: '덜 딱딱하게', text: `${draftText} 편하게 생각해도 돼` },
-          { id: 's3', label: '조심스럽게', text: `나는 ${draftText} 쪽도 괜찮아` }
-        ]
-      };
-    }
-
     if (activeSuggestions.length === 3) {
       return {
         suggestions: activeSuggestions.map((suggestion, index) => ({
@@ -77,6 +67,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           label: suggestion.label,
           text: `${suggestion.text} 괜찮으면 그렇게 하자`
         }))
+      };
+    }
+
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '부드럽게', text: `${draftText} 괜찮으면 그렇게 하자` },
+          { id: 's2', label: '덜 딱딱하게', text: `${draftText} 편하게 생각해도 돼` },
+          { id: 's3', label: '조심스럽게', text: `나는 ${draftText} 쪽도 괜찮아` }
+        ]
       };
     }
 
@@ -90,16 +90,6 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
   }
 
   if (kind === 'wittier') {
-    if (draftText) {
-      return {
-        suggestions: [
-          { id: 's1', label: '센스있게', text: `${draftText} ㅋㅋ 이 정도면 꽤 괜찮지` },
-          { id: 's2', label: '장난 섞어서', text: `${draftText} 나 지금 말 잘한 듯` },
-          { id: 's3', label: '가볍게', text: `${draftText} 아무튼 결론은 이거임` }
-        ]
-      };
-    }
-
     if (activeSuggestions.length === 3) {
       return {
         suggestions: activeSuggestions.map((suggestion, index) => ({
@@ -107,6 +97,16 @@ export function createMockSuggestions(input: SuggestionRequest): SuggestionRespo
           label: suggestion.label,
           text: `${suggestion.text} ㅋㅋ`
         }))
+      };
+    }
+
+    if (draftText) {
+      return {
+        suggestions: [
+          { id: 's1', label: '센스있게', text: `${draftText} ㅋㅋ 이 정도면 꽤 괜찮지` },
+          { id: 's2', label: '장난 섞어서', text: `${draftText} 나 지금 말 잘한 듯` },
+          { id: 's3', label: '가볍게', text: `${draftText} 아무튼 결론은 이거임` }
+        ]
       };
     }
 

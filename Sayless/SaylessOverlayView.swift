@@ -293,17 +293,12 @@ struct SaylessOverlayView: View {
     private var adjustmentBar: some View {
         HStack(spacing: 6) {
             ForEach(Array(SuggestionAdjustmentOption.allCases.enumerated()), id: \.element.id) { index, option in
-                let isUsed = option != .custom && state.usedAdjustmentOptions.contains(option)
                 Button {
-                    guard !isUsed else {
-                        return
-                    }
-
                     state.keyboardFocus = .adjustments
                     onAdjustment(option)
                 } label: {
                     HStack(spacing: 5) {
-                        Image(systemName: isUsed ? "checkmark" : option.systemImage)
+                        Image(systemName: option.systemImage)
                             .font(.system(size: 10, weight: .bold))
                         Text(option.title)
                             .font(.system(size: 11, weight: .bold))
@@ -316,10 +311,9 @@ struct SaylessOverlayView: View {
                 .buttonStyle(
                     AdjustmentButtonStyle(
                         isSelected: state.keyboardFocus == .adjustments && state.selectedAdjustmentIndex == index,
-                        isUsed: isUsed
+                        isUsed: false
                     )
                 )
-                .disabled(isUsed)
             }
         }
     }
