@@ -12,6 +12,42 @@ import {
 import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionResponse } from './schemas.js';
 
 let client: OpenAI | undefined;
+const systemInstruction =
+  'You are Sayless, a Korean chat reply judgment and recommendation engine. Return only valid JSON matching the requested schema.';
+
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    cachedContentTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+  };
+};
+
+class AIProviderRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string,
+    readonly type?: string
+  ) {
+    super(message);
+    this.name = 'AIProviderRequestError';
+  }
+}
 
 function getAIClient(): OpenAI {
   if (!config.aiApiKey) {
@@ -111,8 +147,17 @@ async function requestAISuggestions(
   additionalInstruction?: string,
   attempt: 'initial' | 'retry' = 'initial'
 ): Promise<SuggestionResponse> {
+  if (config.suggestionProvider === 'gemini') {
+    return requestGeminiSuggestions(input, conversationState, novelty, additionalInstruction, attempt);
+  }
+
   const usesReasoningParameters = config.suggestionProvider === 'openai' && usesReasoningChatParameters(config.aiModel);
   const startedAt = performance.now();
+  const prompt = buildSuggestionPrompt(input, {
+    conversationState,
+    novelty,
+    additionalInstruction
+  });
   const params: ChatCompletionCreateParamsNonStreaming = {
     model: config.aiModel,
     ...(usesReasoningParameters
@@ -133,23 +178,11 @@ async function requestAISuggestions(
     messages: [
       {
         role: 'system',
-        content:
-          'You are Sayless, a Korean chat reply judgment and recommendation engine. Return only valid JSON matching the requested schema.'
+        content: systemInstruction
       },
       {
         role: 'user',
-        content: buildSuggestionPrompt(input, {
-          conversationState,
-          novelty,
-          additionalInstruction: [
-            additionalInstruction,
-            config.suggestionProvider === 'gemini'
-              ? 'Return raw JSON only. Do not wrap the JSON in markdown code fences.'
-              : null
-          ]
-            .filter((line): line is string => Boolean(line))
-            .join('\n')
-        })
+        content: prompt
       }
     ]
   };
@@ -175,8 +208,87 @@ async function requestAISuggestions(
     throw new Error('AI response was empty');
   }
 
-  const parsed = parseAIJson(content);
+  return parseSuggestionResponse(content);
+}
 
+async function requestGeminiSuggestions(
+  input: SuggestionRequest,
+  conversationState: ConversationState,
+  novelty: NoveltyPayload | null,
+  additionalInstruction?: string,
+  attempt: 'initial' | 'retry' = 'initial'
+): Promise<SuggestionResponse> {
+  if (!config.aiApiKey) {
+    throw new Error('AI_PROVIDER=gemini requires GEMINI_API_KEY');
+  }
+
+  const prompt = buildSuggestionPrompt(input, {
+    conversationState,
+    novelty,
+    additionalInstruction: [
+      additionalInstruction,
+      'Return raw JSON only. Do not wrap the JSON in markdown code fences.'
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n')
+  });
+  const startedAt = performance.now();
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.aiModel)}:generateContent?key=${encodeURIComponent(config.aiApiKey)}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: systemInstruction }]
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: temperatureForIntent(input.intent?.kind),
+          topP: topPForIntent(input.intent?.kind),
+          maxOutputTokens: 900,
+          responseMimeType: 'application/json'
+        }
+      })
+    }
+  );
+  const latencyMs = performance.now() - startedAt;
+  const payload = (await response.json().catch(() => null)) as GeminiGenerateContentResponse | null;
+
+  if (!response.ok) {
+    throw new AIProviderRequestError(
+      payload?.error?.message ?? `Gemini request failed with status ${response.status}`,
+      response.status,
+      payload?.error?.status,
+      'gemini_error'
+    );
+  }
+
+  logAIUsage({
+    provider: config.suggestionProvider,
+    model: config.aiModel,
+    usage: geminiUsageToOpenAIUsage(payload?.usageMetadata),
+    latencyMs,
+    attempt
+  });
+
+  const content = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('') ?? '';
+  if (!content) {
+    throw new InvalidAIResponseError(`Gemini response was empty${payload?.candidates?.[0]?.finishReason ? ` (${payload.candidates[0].finishReason})` : ''}`);
+  }
+
+  return parseSuggestionResponse(content);
+}
+
+function parseSuggestionResponse(content: string): SuggestionResponse {
+  const parsed = parseAIJson(content);
   const result = SuggestionResponseSchema.safeParse(parsed);
   if (!result.success) {
     throw new InvalidAIResponseError(
@@ -187,6 +299,21 @@ async function requestAISuggestions(
   }
 
   return result.data;
+}
+
+function geminiUsageToOpenAIUsage(usage: GeminiGenerateContentResponse['usageMetadata']): unknown {
+  if (!usage) {
+    return null;
+  }
+
+  return {
+    prompt_tokens: usage.promptTokenCount,
+    completion_tokens: usage.candidatesTokenCount,
+    total_tokens: usage.totalTokenCount,
+    prompt_tokens_details: {
+      cached_tokens: usage.cachedContentTokenCount
+    }
+  };
 }
 
 function normalizeMessageContent(content: unknown): string {
