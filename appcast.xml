@@ -6,6 +6,15 @@
         <description>Most recent changes with links to updates for Sayless.</description>
         <language>en</language>
         <item>
+            <title>0.1.1</title>
+            <pubDate>Sun, 28 Jun 2026 20:52:22 +0900</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.1/Sayless-0.1.1-2.zip" length="3580929" type="application/octet-stream" sparkle:edSignature="V+AIPREAxy0GAM2OO7ZyeGJ+7BYs+a+yhjhDRkOGrFobMXXuyXR7TgojeLmocXX6GrJUYCUukoFBPVxHbIVYBg=="/>
+        </item>
+        <item>
             <title>0.1.0</title>
             <pubDate>Sat, 27 Jun 2026 18:58:16 +0900</pubDate>
             <sparkle:version>1</sparkle:version>
