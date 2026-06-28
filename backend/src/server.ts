@@ -1,6 +1,6 @@
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import { assertOpenAIConfigured, config } from './config.js';
 import { registerRoutes } from './routes.js';
 
@@ -29,6 +29,67 @@ async function buildServer() {
   return app;
 }
 
+function installShutdownHandlers(app: FastifyInstance) {
+  let isShuttingDown = false;
+
+  async function shutdown(signal: NodeJS.Signals) {
+    if (isShuttingDown) {
+      return;
+    }
+
+    isShuttingDown = true;
+
+    console.log(
+      JSON.stringify({
+        event: 'sayless_backend_shutdown_started',
+        signal
+      })
+    );
+
+    const forceExit = setTimeout(() => {
+      console.error(
+        JSON.stringify({
+          event: 'sayless_backend_shutdown_forced',
+          signal
+        })
+      );
+      process.exit(1);
+    }, 8000);
+    forceExit.unref();
+
+    try {
+      await app.close();
+      clearTimeout(forceExit);
+      console.log(
+        JSON.stringify({
+          event: 'sayless_backend_shutdown_complete',
+          signal
+        })
+      );
+      process.exit(0);
+    } catch (error) {
+      clearTimeout(forceExit);
+      const message = error instanceof Error ? error.message : 'unknown shutdown error';
+      console.error(
+        JSON.stringify({
+          event: 'sayless_backend_shutdown_failed',
+          signal,
+          message
+        })
+      );
+      process.exit(1);
+    }
+  }
+
+  process.once('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+
+  process.once('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
+}
+
 async function main() {
   const app = await buildServer();
 
@@ -46,6 +107,8 @@ async function main() {
       mode: config.suggestionMode
     })
   );
+
+  installShutdownHandlers(app);
 
   app.log.info(
     {
