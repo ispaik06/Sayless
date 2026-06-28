@@ -1,16 +1,22 @@
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
-import { assertOpenAIConfigured, config } from './config.js';
+import { assertAIConfigured, config } from './config.js';
 import { registerRoutes } from './routes.js';
 
 async function buildServer() {
-  assertOpenAIConfigured();
+  assertAIConfigured();
 
   const app = Fastify({
     logger: {
       level: config.nodeEnv === 'development' ? 'info' : 'warn',
-      redact: ['req.headers.authorization', 'req.headers.x-sayless-client-key', 'OPENAI_API_KEY']
+      redact: [
+        'req.headers.authorization',
+        'req.headers.x-sayless-client-key',
+        'OPENAI_API_KEY',
+        'GEMINI_API_KEY',
+        'GROQ_API_KEY'
+      ]
     },
     bodyLimit: 64 * 1024
   });
@@ -104,7 +110,8 @@ async function main() {
       host: config.host,
       port: config.port,
       nodeEnv: config.nodeEnv,
-      mode: config.suggestionMode
+      provider: config.suggestionProvider,
+      model: config.aiModel
     })
   );
 
@@ -115,7 +122,8 @@ async function main() {
       host: config.host,
       port: config.port,
       nodeEnv: config.nodeEnv,
-      mode: config.suggestionMode
+      provider: config.suggestionProvider,
+      model: config.aiModel
     },
     'sayless backend listening'
   );

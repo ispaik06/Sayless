@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { config } from './config.js';
 import { createMockSuggestions } from './mockSuggestions.js';
-import { UnsafeSuggestionGuardError, createOpenAISuggestions } from './openaiSuggestions.js';
+import { UnsafeSuggestionGuardError, createAISuggestions } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
 
 function elapsedMs(startedAt: bigint): number {
@@ -13,11 +13,11 @@ function readSingleHeader(value: string | string[] | undefined): string | undefi
   return Array.isArray(value) ? value[0] : value;
 }
 
-function isOpenAIConfigurationError(error: unknown): boolean {
-  return error instanceof Error && error.message.includes('OPENAI_API_KEY');
+function isAIConfigurationError(error: unknown): boolean {
+  return error instanceof Error && /(?:OPENAI|GEMINI|GROQ|AI_PROVIDER|API key|API_KEY)/i.test(error.message);
 }
 
-function isOpenAIRequestError(error: unknown): boolean {
+function isAIRequestError(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
   }
@@ -60,7 +60,9 @@ function loggableError(error: unknown): Record<string, unknown> {
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', async () => ({
     ok: true,
-    service: 'sayless-backend'
+    service: 'sayless-backend',
+    provider: config.suggestionProvider,
+    model: config.aiModel
   }));
 
   app.post('/suggestions', async (request, reply) => {
@@ -88,8 +90,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
       const input = SuggestionRequestSchema.parse(request.body);
       const result =
-        config.suggestionMode === 'openai'
-          ? await createOpenAISuggestions(input)
+        config.suggestionProvider !== 'mock'
+          ? await createAISuggestions(input)
           : createMockSuggestions(input);
 
       request.log.info(
@@ -101,7 +103,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           intent: input.intent?.kind ?? 'initial',
           refreshIndex: input.intent?.refreshIndex ?? null,
           messageCount: input.messages.length,
-          mode: config.suggestionMode,
+          provider: config.suggestionProvider,
+          model: config.aiModel,
           elapsedMs: Math.round(elapsedMs(startedAt))
         },
         'suggestions generated'
@@ -130,7 +133,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      if (isOpenAIConfigurationError(error)) {
+      if (isAIConfigurationError(error)) {
         request.log.error(
           {
             error: loggableError(error),
@@ -157,11 +160,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           error: loggableError(error),
           elapsedMs: Math.round(elapsedMs(startedAt))
         },
-        isOpenAIRequestError(error) ? 'suggestions openai request failed' : 'suggestions failed'
+        isAIRequestError(error) ? 'suggestions ai request failed' : 'suggestions failed'
       );
 
-      return reply.code(isOpenAIRequestError(error) ? 502 : 500).send({
-        error: isOpenAIRequestError(error) ? 'openai_request_failed' : 'suggestions_failed',
+      return reply.code(isAIRequestError(error) ? 502 : 500).send({
+        error: isAIRequestError(error) ? 'ai_request_failed' : 'suggestions_failed',
         message: 'Suggestion generation failed'
       });
     }

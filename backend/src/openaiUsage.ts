@@ -44,7 +44,8 @@ export function parseOpenAIUsage(usage: unknown): ParsedOpenAIUsage {
   };
 }
 
-export function logOpenAIUsage(params: {
+export function logAIUsage(params: {
+  provider: string;
   model: string;
   usage: unknown;
   latencyMs: number;
@@ -56,7 +57,8 @@ export function logOpenAIUsage(params: {
 
     console.log(
       JSON.stringify({
-        event: 'openai_usage',
+        event: 'ai_usage',
+        provider: params.provider,
         model: params.model,
         attempt: params.attempt,
         inputTokens: usage.inputTokens,

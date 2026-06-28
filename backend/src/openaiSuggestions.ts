@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { config } from './config.js';
 import { buildNoveltyPayload, buildSuggestionPrompt, type NoveltyPayload } from './prompt.js';
-import { logOpenAIUsage } from './openaiUsage.js';
+import { logAIUsage } from './openaiUsage.js';
 import {
   inferConversationState,
   validateSuggestionsForConversationState,
@@ -12,13 +12,14 @@ import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionRespon
 
 let client: OpenAI | undefined;
 
-function getOpenAIClient(): OpenAI {
-  if (!config.openaiApiKey) {
-    throw new Error('OPENAI_API_KEY is not configured');
+function getAIClient(): OpenAI {
+  if (!config.aiApiKey) {
+    throw new Error(`AI_PROVIDER=${config.suggestionProvider} is not configured with an API key`);
   }
 
   client ??= new OpenAI({
-    apiKey: config.openaiApiKey
+    apiKey: config.aiApiKey,
+    baseURL: config.aiBaseUrl
   });
 
   return client;
@@ -60,22 +61,22 @@ function usesReasoningChatParameters(model: string): boolean {
 
 export class UnsafeSuggestionGuardError extends Error {
   constructor(readonly guardResult: Exclude<SuggestionGuardResult, { ok: true }>) {
-    super('OpenAI suggestions failed safety/novelty guard');
+    super('AI suggestions failed safety/novelty guard');
     this.name = 'UnsafeSuggestionGuardError';
   }
 }
 
-export async function createOpenAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
+export async function createAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
   const conversationState = inferConversationState(input);
   const novelty = buildNoveltyPayload(input);
-  const firstResult = await requestOpenAISuggestions(input, conversationState, novelty, undefined, 'initial');
+  const firstResult = await requestAISuggestions(input, conversationState, novelty, undefined, 'initial');
   const firstGuard = validateSuggestionsForConversationState(firstResult, conversationState, input);
 
   if (firstGuard.ok) {
     return firstResult;
   }
 
-  const retryResult = await requestOpenAISuggestions(
+  const retryResult = await requestAISuggestions(
     input,
     conversationState,
     novelty,
@@ -91,17 +92,17 @@ export async function createOpenAISuggestions(input: SuggestionRequest): Promise
   throw new UnsafeSuggestionGuardError(retryGuard);
 }
 
-async function requestOpenAISuggestions(
+async function requestAISuggestions(
   input: SuggestionRequest,
   conversationState: ConversationState,
   novelty: NoveltyPayload | null,
   additionalInstruction?: string,
   attempt: 'initial' | 'retry' = 'initial'
 ): Promise<SuggestionResponse> {
-  const usesReasoningParameters = usesReasoningChatParameters(config.openaiModel);
+  const usesReasoningParameters = config.suggestionProvider === 'openai' && usesReasoningChatParameters(config.aiModel);
   const startedAt = performance.now();
-  const completion = await getOpenAIClient().chat.completions.create({
-    model: config.openaiModel,
+  const completion = await getAIClient().chat.completions.create({
+    model: config.aiModel,
     ...(usesReasoningParameters
       ? {
           max_completion_tokens: 1200
@@ -109,8 +110,12 @@ async function requestOpenAISuggestions(
       : {
           temperature: temperatureForIntent(input.intent?.kind),
           top_p: topPForIntent(input.intent?.kind),
-          frequency_penalty: frequencyPenaltyForIntent(input.intent?.kind),
-          presence_penalty: presencePenaltyForIntent(input.intent?.kind),
+          ...(config.suggestionProvider === 'openai'
+            ? {
+                frequency_penalty: frequencyPenaltyForIntent(input.intent?.kind),
+                presence_penalty: presencePenaltyForIntent(input.intent?.kind)
+              }
+            : {}),
           max_tokens: 360
         }),
     messages: [
@@ -133,8 +138,9 @@ async function requestOpenAISuggestions(
     }
   });
   const latencyMs = performance.now() - startedAt;
-  logOpenAIUsage({
-    model: config.openaiModel,
+  logAIUsage({
+    provider: config.suggestionProvider,
+    model: config.aiModel,
     usage: completion.usage,
     latencyMs,
     attempt
@@ -142,7 +148,7 @@ async function requestOpenAISuggestions(
 
   const content = completion.choices[0]?.message.content;
   if (!content) {
-    throw new Error('OpenAI response was empty');
+    throw new Error('AI response was empty');
   }
 
   let parsed: unknown;
@@ -150,13 +156,13 @@ async function requestOpenAISuggestions(
     parsed = JSON.parse(content);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown JSON parse error';
-    throw new Error(`OpenAI response was not valid JSON: ${message}`);
+    throw new Error(`AI response was not valid JSON: ${message}`);
   }
 
   const result = SuggestionResponseSchema.safeParse(parsed);
   if (!result.success) {
     throw new Error(
-      `OpenAI response schema mismatch: ${result.error.issues
+      `AI response schema mismatch: ${result.error.issues
         .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
         .join('; ')}`
     );
