@@ -142,6 +142,41 @@ final class AccessibilityReader {
         return context(for: input, app: app, includeParticipantCount: includeParticipantCount)
     }
 
+    func fastFocusedKakaoTextContext() -> SummonResult {
+        guard isAccessibilityTrusted() else {
+            return .accessibilityMissing
+        }
+
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              isKakaoTalk(app) else {
+            return .unsupportedApp
+        }
+
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        guard let focusedElement = copyAttribute(appElement, kAXFocusedUIElementAttribute) as AXUIElement? else {
+            return .noTextFocus
+        }
+
+        var input: AXUIElement?
+        if isKakaoChatInput(focusedElement) {
+            input = focusedElement
+        } else {
+            input = inputAncestor(of: focusedElement)
+        }
+
+        if input == nil,
+           let focusedWindow = copyAttribute(appElement, kAXFocusedWindowAttribute) as AXUIElement? {
+            input = bestInput(from: chatInputs(in: focusedWindow, maxVisited: 140))
+        }
+
+        guard let input else {
+            return .noChatInput
+        }
+
+        focus(input)
+        return context(for: input, app: app, includeParticipantCount: false)
+    }
+
     func setValue(_ text: String, into element: AXUIElement) -> Bool {
         AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFTypeRef) == .success
     }

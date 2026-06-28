@@ -143,6 +143,17 @@ enum OverlayContent {
 
         return suggestionBatches[activeBatchIndex].suggestions
     }
+
+    var displayTitle: String? {
+        switch self {
+        case .generating(let context), .generationFailed(let context, _):
+            return context.windowTitle
+        case .suggestions(let context, _, _):
+            return context.windowTitle
+        case .notice:
+            return nil
+        }
+    }
 }
 
 final class OverlayState: ObservableObject {

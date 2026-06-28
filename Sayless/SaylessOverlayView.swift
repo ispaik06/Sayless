@@ -21,7 +21,10 @@ struct SaylessOverlayView: View {
                     composingPreview(context.value)
                 }
 
-                GeneratingSuggestionsView()
+                GeneratingSuggestionsView(
+                    title: "Generating replies",
+                    subtitle: "Reading the latest visible messages"
+                )
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
@@ -206,7 +209,7 @@ struct SaylessOverlayView: View {
     }
 
     private var roomTitle: String? {
-        state.content.focusedContext?.windowTitle
+        state.content.displayTitle
     }
 
     private func suggestionsView(
@@ -400,31 +403,19 @@ private struct GenerationFailedView: View {
 }
 
 private struct GeneratingSuggestionsView: View {
-    @State private var isAnimating = false
+    let title: String
+    let subtitle: String
 
     var body: some View {
         VStack(spacing: 16) {
-            HStack(spacing: 9) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(.green.opacity(isAnimating ? 0.95 : 0.48))
-                        .frame(width: 8, height: 8)
-                        .offset(y: isAnimating ? -8 : 8)
-                        .animation(
-                            .easeInOut(duration: 0.58)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.14),
-                            value: isAnimating
-                        )
-                }
-            }
-            .frame(height: 28)
+            LoadingDotsView()
+                .frame(height: 28)
 
-            Text("Generating replies")
+            Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            Text("Reading the latest visible messages")
+            Text(subtitle)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -435,9 +426,30 @@ private struct GeneratingSuggestionsView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(.white.opacity(0.11), lineWidth: 1)
         )
-        .onAppear {
-            isAnimating = true
+    }
+}
+
+private struct LoadingDotsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            HStack(spacing: 9) {
+                ForEach(0..<3, id: \.self) { index in
+                    let progress = dotProgress(at: timeline.date, index: index)
+                    Circle()
+                        .fill(.green.opacity(reduceMotion ? 0.72 : 0.42 + 0.52 * progress))
+                        .frame(width: 8, height: 8)
+                        .offset(y: reduceMotion ? 0 : CGFloat(7 - 14 * progress))
+                }
+            }
         }
+    }
+
+    private func dotProgress(at date: Date, index: Int) -> Double {
+        let interval = date.timeIntervalSinceReferenceDate
+        let shifted = interval * 1.85 - Double(index) * 0.22
+        return (sin(shifted * Double.pi * 2) + 1) / 2
     }
 }
 

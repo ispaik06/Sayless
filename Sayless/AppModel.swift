@@ -97,35 +97,25 @@ final class AppModel: ObservableObject {
             return
         }
 
-        switch accessibilityReader.focusedKakaoTextContext(includeParticipantCount: false) {
-        case .ready(let context):
-            if let cached = cachedSuggestions(for: context, validateTimeline: false) {
-                suggestionTask?.cancel()
-                overlayController.showSuggestions(
-                    context: context,
-                    batches: cached.batches,
-                    near: context.frame
-                )
-                return
-            }
+        if !accessibilityTrusted {
+            overlayController.show(
+                content: .notice(
+                    title: "Allow Accessibility Access",
+                    message: """
+                    Sayless needs Accessibility permission to find the KakaoTalk message input.
 
-            overlayController.resetSuggestionState()
-            let generation = overlayController.show(
-                content: .generating(context: context),
-                near: context.frame
+                    Click Open System Settings, turn Sayless on in Privacy & Security > Accessibility, then quit and run Sayless again. If Sayless is already on, turn it off and on again, or remove it from the list and add the current build again.
+                    """,
+                    buttonTitle: "Open System Settings"
+                ),
+                near: nil
             )
-            suggestionTask?.cancel()
-            suggestionTask = Task(priority: .utility) { [weak self] in
-                await self?.loadSuggestions(
-                    for: context,
-                    generation: generation,
-                    intent: .initial,
-                    previousSuggestions: [],
-                    activeSuggestions: nil,
-                    existingBatches: [],
-                    forceRefresh: false
-                )
-            }
+            return
+        }
+
+        switch accessibilityReader.fastFocusedKakaoTextContext() {
+        case .ready(let context):
+            showCachedSuggestionsOrStartLoading(for: context)
 
         case .accessibilityMissing:
             overlayController.show(
@@ -144,11 +134,48 @@ final class AppModel: ObservableObject {
         case .unsupportedApp:
             overlayController.hide()
 
-        case .noTextFocus:
+        case .noTextFocus, .noChatInput:
             overlayController.hide()
+        }
+    }
 
-        case .noChatInput:
-            overlayController.hide()
+    private func showCachedSuggestionsOrStartLoading(for context: FocusedTextContext) {
+        suggestionTask?.cancel()
+        overlayController.resetSuggestionState()
+
+        if let cached = cachedSuggestions(for: context, validateTimeline: false) {
+            overlayController.showSuggestions(
+                context: context,
+                batches: cached.batches,
+                near: context.frame
+            )
+            return
+        }
+
+        let generation = overlayController.show(
+            content: .generating(context: context),
+            near: context.frame
+        )
+
+        startInitialSuggestionLoad(for: context, generation: generation)
+    }
+
+    private func startInitialSuggestionLoad(for context: FocusedTextContext, generation: Int) {
+        suggestionTask = Task(priority: .utility) { [weak self] in
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await self?.loadSuggestions(
+                for: context,
+                generation: generation,
+                intent: .initial,
+                previousSuggestions: [],
+                activeSuggestions: nil,
+                existingBatches: [],
+                forceRefresh: false
+            )
         }
     }
 

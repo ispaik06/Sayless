@@ -121,6 +121,7 @@ final class OverlayPanelController {
 
         let currentBatches = state.content.suggestionBatches
         let batches = currentBatches + [batch]
+        let previousContent = state.content
         state.update(
             content: .suggestions(
                 context: context,
@@ -128,7 +129,9 @@ final class OverlayPanelController {
                 activeBatchIndex: batches.count - 1
             )
         )
-        relayoutPanel(for: state.content, animated: false)
+        if shouldRelayoutAfterAppendingSuggestions(from: previousContent) {
+            relayoutPanel(for: state.content, animated: false)
+        }
         startSourceWindowMonitor(for: state.content)
     }
 
@@ -146,13 +149,19 @@ final class OverlayPanelController {
     }
 
     func update(content: OverlayContent, for generation: Int) {
+        update(content: content, for: generation, relayout: true)
+    }
+
+    func update(content: OverlayContent, for generation: Int, relayout: Bool) {
         guard displayGeneration == generation,
               isVisible else {
             return
         }
 
         state.update(content: content)
-        relayoutPanel(for: content, animated: false)
+        if relayout {
+            relayoutPanel(for: content, animated: false)
+        }
         startSourceWindowMonitor(for: content)
     }
 
@@ -647,7 +656,7 @@ final class OverlayPanelController {
             backing: .buffered,
             defer: false
         )
-        panel.contentView = DraggableHostingView(
+        let hostingView = DraggableHostingView(
             rootView: SaylessOverlayView(
                 state: state,
                 onSelect: { [weak self] suggestion, context in
@@ -667,9 +676,13 @@ final class OverlayPanelController {
                 }
             )
         )
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        hostingView.layer?.masksToBounds = false
+        panel.contentView = hostingView
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = true
         panel.level = .floating
@@ -693,6 +706,15 @@ final class OverlayPanelController {
         panel.setFrame(targetFrame, display: true, animate: animated)
     }
 
+    private func shouldRelayoutAfterAppendingSuggestions(from previousContent: OverlayContent) -> Bool {
+        switch previousContent {
+        case .generating:
+            return hasComposingPreview(state.content)
+        case .generationFailed, .suggestions, .notice:
+            return true
+        }
+    }
+
     private func frameForPanel(content: OverlayContent, near axFrame: CGRect?) -> CGRect {
         let size = panelSize(for: content)
         let windowFrame: CGRect?
@@ -709,11 +731,21 @@ final class OverlayPanelController {
         let cocoaWindowFrame = windowFrame.map { cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }
         let anchorFrame = cocoaWindowFrame ?? visibleFrame
 
-        if case .notice = content, axFrame == nil {
+        if axFrame == nil,
+           isUpperFloatingContent(content) {
             return upperFloatingFrame(size: size, visibleFrame: visibleFrame)
         }
 
         return centeredFloatingFrame(size: size, anchorFrame: anchorFrame, visibleFrame: visibleFrame)
+    }
+
+    private func isUpperFloatingContent(_ content: OverlayContent) -> Bool {
+        switch content {
+        case .notice:
+            return true
+        case .generating, .generationFailed, .suggestions:
+            return false
+        }
     }
 
     private var hideAnimationDuration: TimeInterval {
@@ -819,7 +851,7 @@ final class OverlayPanelController {
     private func panelSize(for content: OverlayContent) -> CGSize {
         switch content {
         case .generating, .generationFailed:
-            return CGSize(width: 470, height: hasComposingPreview(content) ? 316 : 258)
+            return CGSize(width: 470, height: 342)
         case .suggestions:
             let previewHeight: CGFloat = hasComposingPreview(content) ? 58 : 0
             let customInputHeight: CGFloat = state.isCustomInstructionVisible ? 44 : 0
@@ -882,6 +914,10 @@ final class KeyHandlingPanel: NSPanel {
 }
 
 final class DraggableHostingView<Content: View>: NSHostingView<Content> {
+    override var isOpaque: Bool {
+        false
+    }
+
     override var mouseDownCanMoveWindow: Bool {
         true
     }
