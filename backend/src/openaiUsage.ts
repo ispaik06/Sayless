@@ -54,22 +54,24 @@ export function logOpenAIUsage(params: {
     const usage = parseOpenAIUsage(params.usage);
     const cost = usage.usagePresent ? estimateOpenAICostUsd(params.model, usage) : null;
 
-    console.log('[OpenAI Usage]');
-    console.table({
-      model: params.model,
-      attempt: params.attempt,
-      inputTokens: usage.inputTokens,
-      cachedInputTokens: usage.cachedInputTokens,
-      uncachedInputTokens: usage.uncachedInputTokens,
-      outputTokens: usage.outputTokens,
-      totalTokens: usage.totalTokens,
-      cacheHitRatio: formatPercent(usage.cacheHitRatio),
-      estimatedCostUsd: cost ? formatUsd(cost.estimatedCostUsd) : null,
-      pricingSource: cost?.pricing?.source ?? null,
-      pricingLastChecked: cost?.pricing?.lastChecked ?? null,
-      latencyMs: Math.round(params.latencyMs),
-      usagePresent: usage.usagePresent
-    });
+    console.log(
+      JSON.stringify({
+        event: 'openai_usage',
+        model: params.model,
+        attempt: params.attempt,
+        inputTokens: usage.inputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        uncachedInputTokens: usage.uncachedInputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+        cacheHitRatio: usage.cacheHitRatio,
+        estimatedCostUsd: cost?.estimatedCostUsd ?? null,
+        pricingSource: cost?.pricing?.source ?? null,
+        pricingLastChecked: cost?.pricing?.lastChecked ?? null,
+        latencyMs: Math.round(params.latencyMs),
+        usagePresent: usage.usagePresent
+      })
+    );
   } catch {
     // Usage logging must never break reply generation.
   }
@@ -89,12 +91,4 @@ function emptyUsage(usagePresent: boolean): ParsedOpenAIUsage {
 
 function nonNegativeInteger(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-}
-
-function formatPercent(value: number | null): string | null {
-  return value === null ? null : `${(value * 100).toFixed(1)}%`;
-}
-
-function formatUsd(value: number | null): string | null {
-  return value === null ? null : `$${value.toFixed(6)}`;
 }

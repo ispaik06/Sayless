@@ -9,6 +9,28 @@ function elapsedMs(startedAt: bigint): number {
   return Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 }
 
+function readSingleHeader(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function isOpenAIConfigurationError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('OPENAI_API_KEY');
+}
+
+function isOpenAIRequestError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const maybeOpenAIError = error as Error & {
+    status?: number;
+    code?: string;
+    type?: string;
+  };
+
+  return Boolean(maybeOpenAIError.status || maybeOpenAIError.code || maybeOpenAIError.type);
+}
+
 function loggableError(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) {
     return {
@@ -38,13 +60,32 @@ function loggableError(error: unknown): Record<string, unknown> {
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/health', async () => ({
     ok: true,
-    mode: config.suggestionMode
+    service: 'sayless-backend'
   }));
 
   app.post('/suggestions', async (request, reply) => {
     const startedAt = process.hrtime.bigint();
 
     try {
+      if (config.saylessClientKey) {
+        const clientKey = readSingleHeader(request.headers['x-sayless-client-key']);
+
+        if (clientKey !== config.saylessClientKey) {
+          request.log.warn(
+            {
+              clientKeyPresent: Boolean(clientKey),
+              elapsedMs: Math.round(elapsedMs(startedAt))
+            },
+            'suggestions unauthorized'
+          );
+
+          return reply.code(401).send({
+            error: 'unauthorized',
+            message: 'Invalid Sayless client key'
+          });
+        }
+      }
+
       const input = SuggestionRequestSchema.parse(request.body);
       const result =
         config.suggestionMode === 'openai'
@@ -69,12 +110,38 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       return result;
     } catch (error) {
       if (error instanceof ZodError) {
+        request.log.warn(
+          {
+            issues: error.issues.map((issue) => ({
+              path: issue.path.join('.'),
+              message: issue.message
+            })),
+            elapsedMs: Math.round(elapsedMs(startedAt))
+          },
+          'suggestions invalid request'
+        );
+
         return reply.code(400).send({
           error: 'invalid_request',
           details: error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message
           }))
+        });
+      }
+
+      if (isOpenAIConfigurationError(error)) {
+        request.log.error(
+          {
+            error: loggableError(error),
+            elapsedMs: Math.round(elapsedMs(startedAt))
+          },
+          'suggestions configuration error'
+        );
+
+        return reply.code(500).send({
+          error: 'configuration_error',
+          message: 'Suggestion service is not configured'
         });
       }
 
@@ -90,11 +157,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           error: loggableError(error),
           elapsedMs: Math.round(elapsedMs(startedAt))
         },
-        'suggestions failed'
+        isOpenAIRequestError(error) ? 'suggestions openai request failed' : 'suggestions failed'
       );
 
-      return reply.code(500).send({
-        error: 'suggestions_failed'
+      return reply.code(isOpenAIRequestError(error) ? 502 : 500).send({
+        error: isOpenAIRequestError(error) ? 'openai_request_failed' : 'suggestions_failed',
+        message: 'Suggestion generation failed'
       });
     }
   });

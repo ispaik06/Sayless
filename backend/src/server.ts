@@ -10,7 +10,7 @@ async function buildServer() {
   const app = Fastify({
     logger: {
       level: config.nodeEnv === 'development' ? 'info' : 'warn',
-      redact: ['req.headers.authorization', 'OPENAI_API_KEY']
+      redact: ['req.headers.authorization', 'req.headers.x-sayless-client-key', 'OPENAI_API_KEY']
     },
     bodyLimit: 64 * 1024
   });
@@ -41,6 +41,7 @@ async function main() {
     {
       host: config.host,
       port: config.port,
+      nodeEnv: config.nodeEnv,
       mode: config.suggestionMode
     },
     'sayless backend listening'

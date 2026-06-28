@@ -13,16 +13,21 @@ function readNumber(name: string, fallback: number): number {
 }
 
 function readSuggestionMode(): SuggestionMode {
-  return process.env.SUGGESTION_MODE === 'openai' ? 'openai' : 'mock';
+  if (process.env.SUGGESTION_MODE) {
+    return process.env.SUGGESTION_MODE === 'openai' ? 'openai' : 'mock';
+  }
+
+  return process.env.OPENAI_API_KEY ? 'openai' : 'mock';
 }
 
 export const config = {
-  host: process.env.HOST ?? '127.0.0.1',
-  port: readNumber('PORT', 8787),
+  host: '0.0.0.0',
+  port: readNumber('PORT', 3000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   suggestionMode: readSuggestionMode(),
   openaiModel: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
-  openaiApiKey: process.env.OPENAI_API_KEY
+  openaiApiKey: process.env.OPENAI_API_KEY,
+  saylessClientKey: process.env.SAYLESS_CLIENT_KEY
 } as const;
 
 export function assertOpenAIConfigured(): void {
