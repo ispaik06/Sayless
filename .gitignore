@@ -21,3 +21,6 @@ dist/
 .DS_Store
 *.xcuserstate
 *.xcuserdatad/
+
+# Local docs
+docs/
