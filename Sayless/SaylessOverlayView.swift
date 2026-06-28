@@ -341,6 +341,11 @@ struct SaylessOverlayView: View {
                 .onExitCommand {
                     state.isCustomInstructionFocused = false
                 }
+                .onAppear {
+                    if state.isCustomInstructionFocused {
+                        isCustomInstructionFocused = true
+                    }
+                }
 
             Button {
                 onCustomInstructionSubmit()

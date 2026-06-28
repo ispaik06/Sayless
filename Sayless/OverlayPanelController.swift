@@ -562,8 +562,8 @@ final class OverlayPanelController {
 
         if option == .custom {
             state.isCustomInstructionVisible = true
-            state.isCustomInstructionFocused = false
             relayoutPanel(for: state.content, animated: false)
+            state.isCustomInstructionFocused = true
             return
         }
 
@@ -780,7 +780,7 @@ final class OverlayPanelController {
         inputFrame: CGRect,
         visibleFrame: CGRect
     ) -> CGRect {
-        let margin: CGFloat = 12
+        let margin: CGFloat = 8
         let placementArea = visibleFrame.insetBy(dx: margin, dy: margin)
 
         let rightSpace = placementArea.maxX - inputFrame.maxX - margin
@@ -791,7 +791,7 @@ final class OverlayPanelController {
         var orderedCandidates: [CGRect] = []
 
         if belowSpace >= size.height * 0.82 {
-            let belowGap = margin + 6
+            let belowGap: CGFloat = 8
             let x = clamp(inputFrame.minX, min: placementArea.minX, max: placementArea.maxX - size.width)
             let y = max(inputFrame.minY - size.height - belowGap, placementArea.minY)
             orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
@@ -799,19 +799,19 @@ final class OverlayPanelController {
 
         if rightSpace >= size.width {
             let x = inputFrame.maxX + margin
-            let y = clamp(inputFrame.midY - size.height + 34, min: placementArea.minY, max: placementArea.maxY - size.height)
+            let y = clamp(inputFrame.midY - size.height + 14, min: placementArea.minY, max: placementArea.maxY - size.height)
             orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
         }
 
         if leftSpace >= size.width {
             let x = inputFrame.minX - size.width - margin
-            let y = clamp(inputFrame.midY - size.height + 34, min: placementArea.minY, max: placementArea.maxY - size.height)
+            let y = clamp(inputFrame.midY - size.height + 14, min: placementArea.minY, max: placementArea.maxY - size.height)
             orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
         }
 
         if aboveSpace >= size.height {
             let x = clamp(inputFrame.maxX - size.width, min: placementArea.minX, max: placementArea.maxX - size.width)
-            let y = inputFrame.maxY + margin
+            let y = inputFrame.maxY + 8
             orderedCandidates.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
         }
 
@@ -824,7 +824,7 @@ final class OverlayPanelController {
     }
 
     private func fallbackFrame(size: CGSize, inputFrame: CGRect, visibleFrame: CGRect) -> CGRect {
-        let margin: CGFloat = 12
+        let margin: CGFloat = 8
         let safeFrame = visibleFrame.insetBy(dx: margin, dy: margin)
 
         var x = inputFrame.minX
