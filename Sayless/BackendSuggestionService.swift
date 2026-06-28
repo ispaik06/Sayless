@@ -53,7 +53,8 @@ private struct BackendErrorResponse: Decodable {
 }
 
 final class BackendSuggestionService {
-    private let endpoint = URL(string: "http://127.0.0.1:8787/suggestions")!
+    private let endpoint = BackendConfiguration.endpoint
+    private let clientKey = BackendConfiguration.clientKey
     private let locale = "ko-KR"
     private let requestTimeout: TimeInterval = 18
 
@@ -75,6 +76,9 @@ final class BackendSuggestionService {
         request.httpMethod = "POST"
         request.timeoutInterval = requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let clientKey {
+            request.setValue(clientKey, forHTTPHeaderField: "x-sayless-client-key")
+        }
         request.httpBody = try JSONEncoder().encode(
             SuggestionRequest(
                 chatRoom: chatRoomPayload(title: chatRoom, participantCount: participantCount),
@@ -210,6 +214,31 @@ final class BackendSuggestionService {
         }
 
         return sender
+    }
+}
+
+private enum BackendConfiguration {
+    private static let fallbackEndpoint = "https://sayless-production-e6b4.up.railway.app/suggestions"
+
+    static let endpoint: URL = {
+        let rawValue = nonEmptyString(
+            Bundle.main.object(forInfoDictionaryKey: "SaylessBackendURL") as? String
+        ) ?? fallbackEndpoint
+
+        guard let url = URL(string: rawValue) else {
+            return URL(string: fallbackEndpoint)!
+        }
+
+        return url
+    }()
+
+    static let clientKey: String? = nonEmptyString(
+        Bundle.main.object(forInfoDictionaryKey: "SaylessClientKey") as? String
+    ) ?? nonEmptyString(ProcessInfo.processInfo.environment["SAYLESS_CLIENT_KEY"])
+
+    private static func nonEmptyString(_ value: String?) -> String? {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

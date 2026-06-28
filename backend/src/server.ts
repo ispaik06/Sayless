@@ -37,6 +37,16 @@ async function main() {
     port: config.port
   });
 
+  console.log(
+    JSON.stringify({
+      event: 'sayless_backend_listening',
+      host: config.host,
+      port: config.port,
+      nodeEnv: config.nodeEnv,
+      mode: config.suggestionMode
+    })
+  );
+
   app.log.info(
     {
       host: config.host,

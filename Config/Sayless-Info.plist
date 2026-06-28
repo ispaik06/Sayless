@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>SaylessBackendURL</key>
+	<string>https://sayless-production-e6b4.up.railway.app/suggestions</string>
+	<key>SaylessClientKey</key>
+	<string></string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>
