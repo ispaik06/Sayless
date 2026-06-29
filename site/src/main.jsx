@@ -354,76 +354,80 @@ function AssistantMockup() {
   }
 
   return (
-    <div className="device-frame">
-      <div className="window-bar">
-        <span />
-        <span />
-        <span />
+    <div className="demo-stage">
+      <div className="chat-window-demo">
+        <div className="window-bar">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="conversation">
+          <div className="chat-title">
+            <strong>하린</strong>
+            <span>typing like she knows exactly what she is doing</span>
+          </div>
+          <div className="chat-thread">
+            <div className="chat-row left">오늘 나올거야?</div>
+            <div className="chat-row left compact">너 오면 나 텐션 좀 올라갈 듯 ㅋㅋ</div>
+            <div className="chat-row right">나 지금 고민하는 척 하는 중</div>
+          </div>
+          <div className="input-line">센스있게 답장하고 싶은데 너무 티나면 안 됨...</div>
+        </div>
       </div>
-      <div className="conversation">
-        <div className="chat-title">
-          <strong>하린</strong>
-          <span>typing like she knows exactly what she is doing</span>
-        </div>
-        <div className="chat-thread">
-          <div className="chat-row left">오늘 나올거야?</div>
-          <div className="chat-row left compact">너 오면 나 텐션 좀 올라갈 듯 ㅋㅋ</div>
-          <div className="chat-row right">나 지금 고민하는 척 하는 중</div>
-        </div>
-        <div className="input-line">센스있게 답장하고 싶은데 너무 티나면 안 됨...</div>
-        <div
-          className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
-          style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
-        >
-          <div className="overlay-head" onPointerDown={startOverlayDrag}>
-            <div className="overlay-brand">
-              <span className="overlay-symbol">...</span>
-              <strong>Sayless</strong>
-              <em>KakaoTalk</em>
-            </div>
-            <div className="overlay-actions">
-              <button type="button" aria-label="Refresh suggestions">
-                <RefreshCw size={13} />
-              </button>
-              <button type="button" aria-label="Close overlay">
-                <X size={13} />
-              </button>
-            </div>
+
+      <div
+        className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
+        style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
+        onPointerDown={startOverlayDrag}
+      >
+        <div className="overlay-head">
+          <div className="overlay-brand">
+            <span className="overlay-symbol">...</span>
+            <strong>Sayless</strong>
+            <em>KakaoTalk</em>
           </div>
-          <div className="overlay-suggestions">
-            {replies.map((reply, index) => (
-              <button key={reply.label} type="button" className={index === 0 ? "is-selected" : ""}>
-                <span>{reply.label}</span>
-                <p>{reply.text}</p>
-              </button>
-            ))}
+          <div className="overlay-actions">
+            <button type="button" aria-label="Refresh suggestions">
+              <RefreshCw size={13} />
+            </button>
+            <button type="button" aria-label="Close overlay">
+              <X size={13} />
+            </button>
           </div>
-          <div className="overlay-adjustments" aria-label="Reply adjustment controls">
-            {DEMO_ADJUSTMENTS.map((adjustment) => (
-              <button
-                key={adjustment.id}
-                type="button"
-                className={activePreset === adjustment.id ? "is-active" : ""}
-                onClick={() => selectPreset(adjustment.id)}
-              >
-                {adjustment.label}
-              </button>
-            ))}
-          </div>
-          {showCustom && (
-            <input
-              className="overlay-custom-input"
-              value={customDraft}
-              onChange={(event) => setCustomDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                }
-              }}
-              placeholder="원하는 무드 적어보기"
-            />
-          )}
         </div>
+        <div className="overlay-suggestions">
+          {replies.map((reply, index) => (
+            <button key={reply.label} type="button" className={index === 0 ? "is-selected" : ""}>
+              <span>{reply.label}</span>
+              <p>{reply.text}</p>
+            </button>
+          ))}
+        </div>
+        <div className="overlay-adjustments" aria-label="Reply adjustment controls">
+          {DEMO_ADJUSTMENTS.map((adjustment) => (
+            <button
+              key={adjustment.id}
+              type="button"
+              className={activePreset === adjustment.id ? "is-active" : ""}
+              onClick={() => selectPreset(adjustment.id)}
+            >
+              {adjustment.label}
+            </button>
+          ))}
+        </div>
+        {showCustom && (
+          <input
+            className="overlay-custom-input"
+            value={customDraft}
+            onChange={(event) => setCustomDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
+            placeholder="원하는 무드 적어보기"
+          />
+        )}
       </div>
     </div>
   );

@@ -353,29 +353,54 @@ button {
   padding: clamp(56px, 7vw, 98px) clamp(18px, 5vw, 72px);
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.42);
+  overflow: visible;
 }
 
-.device-frame {
+.demo-stage {
   position: relative;
-  overflow: hidden;
-  width: min(920px, 100%);
-  min-height: 584px;
+  z-index: 4;
+  display: grid;
+  min-height: 660px;
   margin: 0 auto;
+  place-items: center;
+  overflow: visible;
+}
+
+.demo-stage::before {
+  content: "";
+  position: absolute;
+  inset: 26px clamp(0px, 7vw, 86px);
+  z-index: 0;
   border: 1px solid var(--glass-border);
-  border-radius: 16px;
+  border-radius: 18px;
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.54)),
     radial-gradient(circle at 72% 18%, rgba(37, 99, 235, 0.13), transparent 34%),
-    #fff;
+    radial-gradient(circle at 30% 74%, rgba(15, 159, 110, 0.1), transparent 31%);
   box-shadow: var(--shadow);
   backdrop-filter: blur(22px) saturate(150%);
-  transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+  pointer-events: none;
 }
 
-.device-frame:hover {
-  transform: translateY(-4px) scale(1.01);
+.chat-window-demo {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  width: min(430px, 100%);
+  min-height: 526px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7)),
+    #fff;
+  box-shadow: 0 22px 68px rgba(31, 41, 55, 0.15);
+  backdrop-filter: blur(22px) saturate(150%);
+  transition: border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.chat-window-demo:hover {
   border-color: rgba(37, 99, 235, 0.32);
-  box-shadow: 0 30px 90px rgba(31, 41, 55, 0.18), 0 0 0 6px rgba(37, 99, 235, 0.055);
+  box-shadow: 0 28px 80px rgba(31, 41, 55, 0.18), 0 0 0 6px rgba(37, 99, 235, 0.055);
 }
 
 .window-bar {
@@ -403,15 +428,15 @@ button {
 
 .conversation {
   position: relative;
-  min-height: 526px;
-  padding: 30px;
+  min-height: 472px;
+  padding: 24px;
 }
 
 .chat-title {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  width: min(360px, 43%);
+  width: 100%;
   margin-bottom: 18px;
 }
 
@@ -433,12 +458,11 @@ button {
 .chat-thread {
   display: grid;
   gap: 12px;
-  width: min(360px, 43%);
+  width: 100%;
 }
 
 .chat-row,
-.input-line,
-.sayless-overlay-demo {
+.input-line {
   border: 1px solid var(--line);
 }
 
@@ -465,9 +489,9 @@ button {
 
 .input-line {
   position: absolute;
-  left: 30px;
-  bottom: 30px;
-  width: min(360px, 43%);
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
   min-height: 58px;
   border-radius: 8px;
   padding: 17px 18px;
@@ -477,10 +501,11 @@ button {
 
 .sayless-overlay-demo {
   position: absolute;
-  right: 30px;
-  bottom: 74px;
-  width: min(455px, calc(100% - 44px));
-  border-color: rgba(255, 255, 255, 0.12);
+  top: 244px;
+  left: calc(50% + 96px);
+  z-index: 8;
+  width: min(430px, calc(100vw - 36px));
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 22px;
   padding: 14px;
   background:
@@ -489,6 +514,8 @@ button {
   color: #f6f7fb;
   box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(26px) saturate(175%);
+  cursor: grab;
+  touch-action: none;
   will-change: transform;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -497,6 +524,10 @@ button {
 .sayless-overlay-demo.is-dragging {
   border-color: rgba(74, 222, 128, 0.26);
   box-shadow: 0 28px 82px rgba(0, 0, 0, 0.32), 0 0 0 5px rgba(74, 222, 128, 0.055), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.sayless-overlay-demo.is-dragging {
+  cursor: grabbing;
 }
 
 .sayless-overlay-demo::before {
@@ -521,8 +552,6 @@ button {
   justify-content: space-between;
   margin-bottom: 12px;
   gap: 12px;
-  cursor: grab;
-  touch-action: none;
   user-select: none;
 }
 
@@ -1504,6 +1533,10 @@ button {
     font-size: 4.7rem;
   }
 
+  .sayless-overlay-demo {
+    left: calc(50% + 48px);
+  }
+
   .section h2,
   .final-cta h2 {
     font-size: 3.45rem;
@@ -1589,8 +1622,17 @@ button {
     width: 100%;
   }
 
-  .device-frame {
-    min-height: 520px;
+  .demo-stage {
+    min-height: 820px;
+  }
+
+  .demo-stage::before {
+    inset: 0;
+  }
+
+  .chat-window-demo {
+    width: min(430px, 100%);
+    min-height: 500px;
   }
 
   .hero-app-visual {
@@ -1608,47 +1650,26 @@ button {
   }
 
   .conversation {
+    min-height: 446px;
     padding: 18px;
   }
 
-  .sayless-overlay-demo {
-    top: 118px;
+  .input-line {
     right: 18px;
-    width: calc(100% - 36px);
+    bottom: 18px;
+    left: 18px;
+  }
+
+  .sayless-overlay-demo {
+    top: 420px;
+    left: max(18px, calc(50% - 215px));
+    width: min(430px, calc(100% - 36px));
   }
 
   .overlay-suggestions span {
     display: block;
     width: auto;
     margin-bottom: 3px;
-  }
-
-  .demo-section .device-frame {
-    min-height: auto;
-  }
-
-  .demo-section .conversation {
-    display: grid;
-    min-height: auto;
-    gap: 16px;
-  }
-
-  .demo-section .chat-thread {
-    width: 100%;
-  }
-
-  .demo-section .chat-title {
-    width: 100%;
-  }
-
-  .demo-section .input-line,
-  .demo-section .sayless-overlay-demo {
-    position: relative;
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
-    width: 100%;
   }
 
   .feature-grid {
