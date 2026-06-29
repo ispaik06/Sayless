@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E215BA0B2FEDB3A000D557F0 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = E215BA0A2FEDB3A000D557F0 /* Sparkle */; };
 		E215BA1B2FEDB92000D557F0 /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = E215BA1A2FEDB92000D557F0 /* ClerkKit */; };
 		E215BA1C2FEDB92000D557F0 /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = E215BA1D2FEDB92000D557F0 /* ClerkKitUI */; };
-		E215BA0B2FEDB3A000D557F0 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = E215BA0A2FEDB3A000D557F0 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -368,15 +368,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		E215BA1A2FEDB92000D557F0 /* ClerkKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
-			productName = ClerkKit;
-		};
 		E215BA0A2FEDB3A000D557F0 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E215BA092FEDB3A000D557F0 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		E215BA1A2FEDB92000D557F0 /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
 		};
 		E215BA1D2FEDB92000D557F0 /* ClerkKitUI */ = {
 			isa = XCSwiftPackageProductDependency;

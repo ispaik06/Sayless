@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject private var authSession: AuthSessionManager
     @Environment(Clerk.self) private var clerk
     @ObservedObject private var updateManager = UpdateManager.shared
+    @StateObject private var accountStatus = AccountStatusService()
     @State private var selectedTab: PreferencesTab = .general
     @State private var authSheetMode: AuthSheetMode?
     @State private var isProfilePresented = false
@@ -51,6 +52,13 @@ struct ContentView: View {
         .sheet(isPresented: $isProfilePresented) {
             UserProfileView()
                 .environment(authSession.clerk)
+        }
+        .task(id: clerk.user?.id) {
+            if clerk.user != nil {
+                await accountStatus.load()
+            } else {
+                accountStatus.reset()
+            }
         }
     }
 
@@ -164,7 +172,7 @@ struct ContentView: View {
                 accountConfigurationCard(message: configurationError)
             } else if clerk.user != nil {
                 signedInAccountCard
-                billingPreviewCard
+                accountUsageCard
             } else {
                 signedOutAccountCard
             }
@@ -288,6 +296,14 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
+                Button("Refresh Status") {
+                    Task {
+                        await accountStatus.load()
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(accountStatus.isLoading)
+
                 Button("Sign Out") {
                     authSession.signOut()
                 }
@@ -316,9 +332,59 @@ struct ContentView: View {
         )
     }
 
+    private var accountUsageCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Plan & Usage")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if accountStatus.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.7)
+                }
+            }
+
+            if let account = accountStatus.account {
+                HStack(alignment: .top, spacing: 12) {
+                    UsageMetricCard(title: "Plan", value: account.plan.capitalized, caption: account.subscription?.status ?? "No subscription")
+                    UsageMetricCard(title: "Requests", value: "\(account.usage.requests)", caption: "This month")
+                }
+
+                HStack(alignment: .top, spacing: 12) {
+                    UsageMetricCard(title: "Input tokens", value: formattedCount(account.usage.inputTokens), caption: "Prompt usage")
+                    UsageMetricCard(title: "Output tokens", value: formattedCount(account.usage.outputTokens), caption: "Reply usage")
+                    UsageMetricCard(title: "Total", value: formattedCount(account.usage.totalTokens), caption: "Tokens")
+                }
+            } else if let errorMessage = accountStatus.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.orange)
+            } else {
+                Text("Account usage will appear after your first authenticated request.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(.white.opacity(0.085), lineWidth: 1)
+        )
+    }
+
+    private func formattedCount(_ value: Int) -> String {
+        value.formatted(.number.notation(.compactName))
+    }
+
     private var billingPreviewCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Plan")
+            Text("Billing")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
@@ -378,8 +444,7 @@ struct ContentView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            AccountRoadmapRow(icon: "checkmark.shield", title: "Authenticated API calls", detail: "Send Clerk tokens to the Sayless backend.")
-            AccountRoadmapRow(icon: "chart.bar.xaxis", title: "Usage meter", detail: "Show monthly suggestion usage from Turso.")
+            AccountRoadmapRow(icon: "speedometer", title: "Free plan limits", detail: "Block or warn when monthly usage reaches the free quota.")
             AccountRoadmapRow(icon: "creditcard", title: "Billing", detail: "Open Stripe Checkout and manage Pro status.")
         }
         .padding(14)
@@ -640,6 +705,34 @@ private struct AccountRoadmapRow: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+private struct UsageMetricCard: View {
+    let title: String
+    let value: String
+    let caption: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(size: 17, weight: .bold))
+                .lineLimit(1)
+            Text(caption)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(.white.opacity(0.075), lineWidth: 1)
+        )
     }
 }
 

@@ -53,7 +53,13 @@ export const usageEvents = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     eventType: text('event_type').notNull(),
+    provider: text('provider'),
+    model: text('model'),
     quantity: integer('quantity').notNull().default(1),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    totalTokens: integer('total_tokens').notNull().default(0),
+    latencyMs: integer('latency_ms'),
     metadataJson: text('metadata_json'),
     createdAt: integer('created_at', { mode: 'timestamp_ms' })
       .notNull()

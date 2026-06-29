@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 import { config } from './config.js';
 import { buildNoveltyPayload, buildSuggestionPrompt, type NoveltyPayload } from './prompt.js';
-import { logAIUsage } from './openaiUsage.js';
+import { logAIUsage, parseOpenAIUsage, type AIRequestUsageSummary } from './openaiUsage.js';
 import {
   inferConversationState,
   validateSuggestionsForConversationState,
@@ -114,11 +114,20 @@ export class InvalidAIResponseError extends Error {
   }
 }
 
+export type SuggestionGenerationResult = {
+  suggestions: SuggestionResponse;
+  usage: AIRequestUsageSummary[];
+};
+
 export async function createAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
+  return (await createAISuggestionsWithUsage(input)).suggestions;
+}
+
+export async function createAISuggestionsWithUsage(input: SuggestionRequest): Promise<SuggestionGenerationResult> {
   const conversationState = inferConversationState(input);
   const novelty = buildNoveltyPayload(input);
   const firstResult = await requestAISuggestions(input, conversationState, novelty, undefined, 'initial');
-  const firstGuard = validateSuggestionsForConversationState(firstResult, conversationState, input);
+  const firstGuard = validateSuggestionsForConversationState(firstResult.suggestions, conversationState, input);
 
   if (firstGuard.ok) {
     return firstResult;
@@ -131,10 +140,13 @@ export async function createAISuggestions(input: SuggestionRequest): Promise<Sug
     buildGuardRetryInstruction(firstGuard),
     'retry'
   );
-  const retryGuard = validateSuggestionsForConversationState(retryResult, conversationState, input);
+  const retryGuard = validateSuggestionsForConversationState(retryResult.suggestions, conversationState, input);
 
   if (retryGuard.ok) {
-    return retryResult;
+    return {
+      suggestions: retryResult.suggestions,
+      usage: [...firstResult.usage, ...retryResult.usage]
+    };
   }
 
   throw new UnsafeSuggestionGuardError(retryGuard);
@@ -146,7 +158,7 @@ async function requestAISuggestions(
   novelty: NoveltyPayload | null,
   additionalInstruction?: string,
   attempt: 'initial' | 'retry' = 'initial'
-): Promise<SuggestionResponse> {
+): Promise<SuggestionGenerationResult> {
   if (config.suggestionProvider === 'gemini') {
     return requestGeminiSuggestions(input, conversationState, novelty, additionalInstruction, attempt);
   }
@@ -195,6 +207,7 @@ async function requestAISuggestions(
 
   const completion = await getAIClient().chat.completions.create(params);
   const latencyMs = performance.now() - startedAt;
+  const usage = usageSummary(completion.usage, latencyMs, attempt);
   logAIUsage({
     provider: config.suggestionProvider,
     model: config.aiModel,
@@ -208,7 +221,10 @@ async function requestAISuggestions(
     throw new Error('AI response was empty');
   }
 
-  return parseSuggestionResponse(content);
+  return {
+    suggestions: parseSuggestionResponse(content),
+    usage: [usage]
+  };
 }
 
 async function requestGeminiSuggestions(
@@ -217,7 +233,7 @@ async function requestGeminiSuggestions(
   novelty: NoveltyPayload | null,
   additionalInstruction?: string,
   attempt: 'initial' | 'retry' = 'initial'
-): Promise<SuggestionResponse> {
+): Promise<SuggestionGenerationResult> {
   if (!config.aiApiKey) {
     throw new Error('AI_PROVIDER=gemini requires GEMINI_API_KEY');
   }
@@ -271,10 +287,12 @@ async function requestGeminiSuggestions(
     );
   }
 
+  const openAIUsage = geminiUsageToOpenAIUsage(payload?.usageMetadata);
+  const usage = usageSummary(openAIUsage, latencyMs, attempt);
   logAIUsage({
     provider: config.suggestionProvider,
     model: config.aiModel,
-    usage: geminiUsageToOpenAIUsage(payload?.usageMetadata),
+    usage: openAIUsage,
     latencyMs,
     attempt
   });
@@ -284,7 +302,20 @@ async function requestGeminiSuggestions(
     throw new InvalidAIResponseError(`Gemini response was empty${payload?.candidates?.[0]?.finishReason ? ` (${payload.candidates[0].finishReason})` : ''}`);
   }
 
-  return parseSuggestionResponse(content);
+  return {
+    suggestions: parseSuggestionResponse(content),
+    usage: [usage]
+  };
+}
+
+function usageSummary(usage: unknown, latencyMs: number, attempt: 'initial' | 'retry'): AIRequestUsageSummary {
+  return {
+    ...parseOpenAIUsage(usage),
+    provider: config.suggestionProvider,
+    model: config.aiModel,
+    latencyMs,
+    attempt
+  };
 }
 
 function parseSuggestionResponse(content: string): SuggestionResponse {

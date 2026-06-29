@@ -18,6 +18,13 @@ export type ParsedOpenAIUsage = OpenAITokenUsageSummary & {
   usagePresent: boolean;
 };
 
+export type AIRequestUsageSummary = ParsedOpenAIUsage & {
+  provider: string;
+  model: string;
+  latencyMs: number;
+  attempt: 'initial' | 'retry';
+};
+
 export function parseOpenAIUsage(usage: unknown): ParsedOpenAIUsage {
   if (!usage || typeof usage !== 'object') {
     return emptyUsage(false);

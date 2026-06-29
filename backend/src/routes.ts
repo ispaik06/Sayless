@@ -2,8 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 import { requireAuth } from './auth.js';
 import { config } from './config.js';
+import { ensureUserForClerkId, getAccountStatus, recordAIUsageEvent } from './db/accounts.js';
 import { createMockSuggestions } from './mockSuggestions.js';
-import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestions } from './openaiSuggestions.js';
+import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestionsWithUsage } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
 
 function elapsedMs(startedAt: bigint): number {
@@ -83,6 +84,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  app.get('/me', async (request, reply) => {
+    const auth = requireAuth(request, reply);
+    if (!auth) {
+      return reply;
+    }
+
+    return getAccountStatus(auth.clerkUserId);
+  });
+
   app.post('/suggestions', async (request, reply) => {
     const startedAt = process.hrtime.bigint();
 
@@ -112,10 +122,40 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const input = SuggestionRequestSchema.parse(request.body);
+      const user = await ensureUserForClerkId(auth.clerkUserId);
       const result =
         config.suggestionProvider !== 'mock'
-          ? await createAISuggestions(input)
-          : createMockSuggestions(input);
+          ? await createAISuggestionsWithUsage(input)
+          : {
+              suggestions: createMockSuggestions(input),
+              usage: []
+            };
+      const usageTotals = aggregateUsage(result.usage);
+
+      await recordAIUsageEvent({
+        userId: user.id,
+        provider: config.suggestionProvider,
+        model: config.aiModel,
+        inputTokens: usageTotals.inputTokens,
+        outputTokens: usageTotals.outputTokens,
+        totalTokens: usageTotals.totalTokens,
+        latencyMs: usageTotals.latencyMs,
+        metadata: {
+          chatRoomPresent: Boolean(input.chatRoom),
+          participantCount: input.chatRoom?.participantCount ?? null,
+          draftTextPresent: Boolean(input.draftText),
+          activeSuggestionsPresent: Boolean(input.activeSuggestions),
+          intent: input.intent?.kind ?? 'initial',
+          refreshIndex: input.intent?.refreshIndex ?? null,
+          messageCount: input.messages.length,
+          attempts: result.usage.map((item) => ({
+            attempt: item.attempt,
+            usagePresent: item.usagePresent,
+            totalTokens: item.totalTokens,
+            latencyMs: Math.round(item.latencyMs)
+          }))
+        }
+      });
 
       request.log.info(
         {
@@ -129,12 +169,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           clerkUserId: auth.clerkUserId,
           provider: config.suggestionProvider,
           model: config.aiModel,
+          inputTokens: usageTotals.inputTokens,
+          outputTokens: usageTotals.outputTokens,
+          totalTokens: usageTotals.totalTokens,
           elapsedMs: Math.round(elapsedMs(startedAt))
         },
         'suggestions generated'
       );
 
-      return result;
+      return result.suggestions;
     } catch (error) {
       if (error instanceof ZodError) {
         request.log.warn(
@@ -193,4 +236,28 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       });
     }
   });
+}
+
+function aggregateUsage(
+  usage: Array<{
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    latencyMs: number;
+  }>
+) {
+  return usage.reduce(
+    (totals, item) => ({
+      inputTokens: totals.inputTokens + item.inputTokens,
+      outputTokens: totals.outputTokens + item.outputTokens,
+      totalTokens: totals.totalTokens + item.totalTokens,
+      latencyMs: totals.latencyMs + item.latencyMs
+    }),
+    {
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      latencyMs: 0
+    }
+  );
 }
