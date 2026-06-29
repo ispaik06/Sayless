@@ -1,3 +1,5 @@
+import 'dotenv/config';
+import { clerkPlugin } from '@clerk/fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
@@ -29,6 +31,8 @@ async function buildServer() {
     max: 120,
     timeWindow: '1 minute'
   });
+
+  await app.register(clerkPlugin);
 
   await registerRoutes(app);
 

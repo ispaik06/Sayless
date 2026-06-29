@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
+import { requireAuth } from './auth.js';
 import { config } from './config.js';
 import { createMockSuggestions } from './mockSuggestions.js';
 import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestions } from './openaiSuggestions.js';
@@ -73,6 +74,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     const startedAt = process.hrtime.bigint();
 
     try {
+      const auth = requireAuth(request, reply);
+      if (!auth) {
+        return reply;
+      }
+
       if (config.saylessClientKey) {
         const clientKey = readSingleHeader(request.headers['x-sayless-client-key']);
 
@@ -107,6 +113,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           intent: input.intent?.kind ?? 'initial',
           refreshIndex: input.intent?.refreshIndex ?? null,
           messageCount: input.messages.length,
+          clerkUserId: auth.clerkUserId,
           provider: config.suggestionProvider,
           model: config.aiModel,
           elapsedMs: Math.round(elapsedMs(startedAt))

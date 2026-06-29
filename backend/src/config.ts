@@ -89,12 +89,27 @@ export const config = {
   openaiApiKey: process.env.OPENAI_API_KEY,
   geminiApiKey: process.env.GEMINI_API_KEY,
   groqApiKey: process.env.GROQ_API_KEY,
-  saylessClientKey: process.env.SAYLESS_CLIENT_KEY
+  saylessClientKey: process.env.SAYLESS_CLIENT_KEY,
+  clerkSecretKey: process.env.CLERK_SECRET_KEY,
+  tursoDatabaseUrl: process.env.TURSO_DATABASE_URL ?? '',
+  tursoAuthToken: process.env.TURSO_AUTH_TOKEN
 } as const;
 
 export function assertAIConfigured(): void {
   if (config.suggestionProvider !== 'mock' && !config.aiApiKey) {
     throw new Error(`AI_PROVIDER=${config.suggestionProvider} requires ${apiKeyNameForProvider(config.suggestionProvider)}`);
+  }
+
+  if (!config.clerkSecretKey) {
+    throw new Error('CLERK_SECRET_KEY is required');
+  }
+
+  if (!config.tursoDatabaseUrl) {
+    throw new Error('TURSO_DATABASE_URL is required');
+  }
+
+  if (!config.tursoAuthToken) {
+    throw new Error('TURSO_AUTH_TOKEN is required');
   }
 }
 
