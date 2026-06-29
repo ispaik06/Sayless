@@ -273,24 +273,24 @@ function HeroAppVisual() {
 
 const DEMO_REPLY_PRESETS = {
   rizz: [
-    { label: "Rizz", text: "Careful. If I show up, you might accidentally make it a date." },
-    { label: "Flirty", text: "I was going to stay in, but you are making bad decisions sound tempting." },
-    { label: "Bold", text: "Send the address. I will bring the charm, you bring the tension." }
+    { label: "Rizz", text: "Careful. If I come over, you might forget this was supposed to be casual." },
+    { label: "Flirty", text: "I was behaving tonight, but you are making that very inconvenient." },
+    { label: "Bold", text: "Send the address. I will bring the eye contact you keep pretending not to notice." }
   ],
   shorter: [
-    { label: "Short", text: "Fine. But only because you asked like that." },
-    { label: "Clean", text: "Text me the place. I might pull up." },
-    { label: "Lowkey", text: "Maybe. Depends how much trouble you are planning." }
+    { label: "Short", text: "Maybe. Depends how badly you want me there." },
+    { label: "Clean", text: "Text me the place. I might make your night better." },
+    { label: "Lowkey", text: "I could show up. Try not to miss me too obviously." }
   ],
   softer: [
-    { label: "Soft", text: "I kind of want to see you. Pretend I said that casually." },
-    { label: "Warm", text: "If you are there, I am probably coming. Do not make it obvious." },
-    { label: "Sweet", text: "You asking makes it a lot harder to say no." }
+    { label: "Soft", text: "I kind of want to see you. Pretend I made that sound less obvious." },
+    { label: "Warm", text: "If you are there, I am already tempted. Do not make me admit it twice." },
+    { label: "Sweet", text: "You asking like that makes it hard to stay away." }
   ],
   funnier: [
-    { label: "Funny", text: "This feels like a side quest with suspiciously high romance stats." },
-    { label: "Chaotic", text: "If I come out and catch feelings, I am blaming your entire friend group." },
-    { label: "Wild", text: "I can attend, but I cannot promise I will behave around you." }
+    { label: "Funny", text: "This invite has dangerous levels of plot development." },
+    { label: "Chaotic", text: "If I come out and you look too good, I am filing a complaint." },
+    { label: "Wild", text: "I can come, but I cannot promise I will act normal around you." }
   ],
   custom: [
     { label: "Custom", text: "Make it sound like I am interested, not desperate." },
@@ -360,8 +360,16 @@ function AssistantMockup() {
       }
 
       setOverlayPosition({
-        x: clamp(nextX, stageRect.left - overlayRect.left, stageRect.right - overlayRect.right),
-        y: clamp(nextY, stageRect.top - overlayRect.top, stageRect.bottom - overlayRect.bottom)
+        x: clamp(
+          nextX,
+          initialPosition.x + stageRect.left - overlayRect.left,
+          initialPosition.x + stageRect.right - overlayRect.right
+        ),
+        y: clamp(
+          nextY,
+          initialPosition.y + stageRect.top - overlayRect.top,
+          initialPosition.y + stageRect.bottom - overlayRect.bottom
+        )
       });
     }
 
@@ -385,16 +393,16 @@ function AssistantMockup() {
         </div>
         <div className="conversation">
           <div className="chat-title">
-            <strong>Maya</strong>
+            <strong>Isabel</strong>
             <span>typing like she knows exactly what she is doing</span>
           </div>
           <div className="chat-thread">
-            <div className="chat-row left">Are you coming tonight or are you scared?</div>
-            <div className="chat-row left compact">Be honest. You only get nervous when I am there.</div>
-            <div className="chat-row right">That is a dangerous accusation.</div>
+            <div className="chat-row left">Are you coming over, or are you just going to keep flirting from a safe distance?</div>
+            <div className="chat-row left compact">Be honest. You get a little reckless when it is just us.</div>
+            <div className="chat-row right">You are making it very hard to play innocent.</div>
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
-            {selectedReply ? selectedReply.text : "Pick a Sayless reply to drop it here..."}
+            {selectedReply ? selectedReply.text : "I want to answer, but I need it to sound effortless..."}
           </div>
         </div>
       </div>

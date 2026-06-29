@@ -372,7 +372,7 @@ button {
   overflow: hidden;
   width: min(430px, 100%);
   min-height: 526px;
-  transform: translateX(-74px);
+  transform: translateX(-118px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   background:
