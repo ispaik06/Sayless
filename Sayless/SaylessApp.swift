@@ -29,12 +29,6 @@ struct SaylessApp: App {
                 appModel.openPreferences()
             }
 
-            if authSession.isSignedIn {
-                Button("Sign Out") {
-                    authSession.signOut()
-                }
-            }
-
             Button("Check for Updates...") {
                 updateManager.checkForUpdates()
             }

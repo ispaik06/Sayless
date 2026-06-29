@@ -357,12 +357,6 @@ struct ContentView: View {
                     UsageMetricCard(title: "Today", value: "\(account.usage.daily.requests) / \(dailyLimit)", caption: "Daily requests")
                     UsageMetricCard(title: "Week", value: "\(account.usage.weekly.requests) / \(weeklyLimit)", caption: "Weekly requests")
                 }
-
-                HStack(alignment: .top, spacing: 12) {
-                    UsageMetricCard(title: "Input tokens", value: formattedCount(account.usage.weekly.inputTokens), caption: "This week")
-                    UsageMetricCard(title: "Output tokens", value: formattedCount(account.usage.weekly.outputTokens), caption: "This week")
-                    UsageMetricCard(title: "Total", value: formattedCount(account.usage.weekly.totalTokens), caption: "Weekly tokens")
-                }
             } else if let errorMessage = accountStatus.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 13, weight: .semibold))
