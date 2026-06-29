@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -273,29 +273,29 @@ function HeroAppVisual() {
 
 const DEMO_REPLY_PRESETS = {
   rizz: [
-    { label: "Rizz", text: "가야지. 근데 너 있으면 나 오늘 텐션 좀 위험함 ㅋㅋ" },
-    { label: "Flirty", text: "나 원래 고민하는 척 잘하는데, 너 부르면 바로 흔들림." },
-    { label: "MZ", text: "오히려 좋아. 대신 오늘 플러팅은 네가 책임져야 됨." }
+    { label: "Rizz", text: "Careful. If I show up, you might accidentally make it a date." },
+    { label: "Flirty", text: "I was going to stay in, but you are making bad decisions sound tempting." },
+    { label: "Bold", text: "Send the address. I will bring the charm, you bring the tension." }
   ],
   shorter: [
-    { label: "Short", text: "갈게. 너 있으면 재밌을 듯 ㅋㅋ" },
-    { label: "Clean", text: "좋아, 몇 시에 볼까?" },
-    { label: "Lowkey", text: "나갈까 봐. 너도 계속 있는 거지?" }
+    { label: "Short", text: "Fine. But only because you asked like that." },
+    { label: "Clean", text: "Text me the place. I might pull up." },
+    { label: "Lowkey", text: "Maybe. Depends how much trouble you are planning." }
   ],
   softer: [
-    { label: "Soft", text: "나도 보고 싶긴 해. 너무 티났나 ㅋㅋ" },
-    { label: "Warm", text: "갈게. 너 기다린다니까 좀 설렌다." },
-    { label: "Sweet", text: "네가 그렇게 말하면 안 나갈 수가 없잖아." }
+    { label: "Soft", text: "I kind of want to see you. Pretend I said that casually." },
+    { label: "Warm", text: "If you are there, I am probably coming. Do not make it obvious." },
+    { label: "Sweet", text: "You asking makes it a lot harder to say no." }
   ],
   funnier: [
-    { label: "Funny", text: "이 정도면 나 거의 소환 당한 거 아님? 출동함." },
-    { label: "Chaotic", text: "나가면 너 때문에 심박수 이슈 생길 듯 ㅋㅋ" },
-    { label: "Bold", text: "오늘 내가 가면 분위기 버프 들어가는 거 알지?" }
+    { label: "Funny", text: "This feels like a side quest with suspiciously high romance stats." },
+    { label: "Chaotic", text: "If I come out and catch feelings, I am blaming your entire friend group." },
+    { label: "Wild", text: "I can attend, but I cannot promise I will behave around you." }
   ],
   custom: [
-    { label: "Custom", text: "너한테만 살짝 약한 컨셉으로 가볼게." },
-    { label: "Try", text: "지금 가면 나 너무 기대한 사람 같아? 그래도 갈래." },
-    { label: "Draft", text: "나갈게. 대신 오늘은 네가 내 옆자리 예약해." }
+    { label: "Custom", text: "Make it sound like I am interested, not desperate." },
+    { label: "Try", text: "Give me the version that says yes but still has aura." },
+    { label: "Draft", text: "Keep it playful. I want them to think about it twice." }
   ]
 };
 
@@ -307,16 +307,24 @@ const DEMO_ADJUSTMENTS = [
 ];
 
 function AssistantMockup() {
+  const stageRef = useRef(null);
+  const overlayRef = useRef(null);
   const [activePreset, setActivePreset] = useState("rizz");
   const [customDraft, setCustomDraft] = useState("");
   const [showCustom, setShowCustom] = useState(false);
   const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
+  const [selectedReply, setSelectedReply] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const replies = DEMO_REPLY_PRESETS[activePreset];
 
   function selectPreset(presetId) {
     setActivePreset(presetId);
     setShowCustom(presetId === "custom");
+    setSelectedReply(null);
+  }
+
+  function selectReply(reply) {
+    setSelectedReply(reply);
   }
 
   function startOverlayDrag(event) {
@@ -335,11 +343,25 @@ function AssistantMockup() {
     const startX = event.clientX;
     const startY = event.clientY;
     const initialPosition = overlayPosition;
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    const overlayRect = overlayRef.current?.getBoundingClientRect();
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
 
     function handlePointerMove(moveEvent) {
+      const nextX = initialPosition.x + moveEvent.clientX - startX;
+      const nextY = initialPosition.y + moveEvent.clientY - startY;
+
+      if (!stageRect || !overlayRect) {
+        setOverlayPosition({ x: nextX, y: nextY });
+        return;
+      }
+
       setOverlayPosition({
-        x: initialPosition.x + moveEvent.clientX - startX,
-        y: initialPosition.y + moveEvent.clientY - startY
+        x: clamp(nextX, stageRect.left - overlayRect.left, stageRect.right - overlayRect.right),
+        y: clamp(nextY, stageRect.top - overlayRect.top, stageRect.bottom - overlayRect.bottom)
       });
     }
 
@@ -354,7 +376,7 @@ function AssistantMockup() {
   }
 
   return (
-    <div className="demo-stage">
+    <div className="demo-stage" ref={stageRef}>
       <div className="chat-window-demo">
         <div className="window-bar">
           <span />
@@ -363,19 +385,22 @@ function AssistantMockup() {
         </div>
         <div className="conversation">
           <div className="chat-title">
-            <strong>하린</strong>
+            <strong>Maya</strong>
             <span>typing like she knows exactly what she is doing</span>
           </div>
           <div className="chat-thread">
-            <div className="chat-row left">오늘 나올거야?</div>
-            <div className="chat-row left compact">너 오면 나 텐션 좀 올라갈 듯 ㅋㅋ</div>
-            <div className="chat-row right">나 지금 고민하는 척 하는 중</div>
+            <div className="chat-row left">Are you coming tonight or are you scared?</div>
+            <div className="chat-row left compact">Be honest. You only get nervous when I am there.</div>
+            <div className="chat-row right">That is a dangerous accusation.</div>
           </div>
-          <div className="input-line">센스있게 답장하고 싶은데 너무 티나면 안 됨...</div>
+          <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
+            {selectedReply ? selectedReply.text : "Pick a Sayless reply to drop it here..."}
+          </div>
         </div>
       </div>
 
       <div
+        ref={overlayRef}
         className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
         style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
         onPointerDown={startOverlayDrag}
@@ -397,7 +422,12 @@ function AssistantMockup() {
         </div>
         <div className="overlay-suggestions">
           {replies.map((reply, index) => (
-            <button key={reply.label} type="button" className={index === 0 ? "is-selected" : ""}>
+            <button
+              key={reply.label}
+              type="button"
+              className={selectedReply?.text === reply.text ? "is-selected" : ""}
+              onClick={() => selectReply(reply)}
+            >
               <span>{reply.label}</span>
               <p>{reply.text}</p>
             </button>
@@ -425,7 +455,7 @@ function AssistantMockup() {
                 event.preventDefault();
               }
             }}
-            placeholder="원하는 무드 적어보기"
+            placeholder="Type the exact vibe you want"
           />
         )}
       </div>

@@ -353,7 +353,7 @@ button {
   padding: clamp(56px, 7vw, 98px) clamp(18px, 5vw, 72px);
   border-top: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.42);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .demo-stage {
@@ -363,23 +363,7 @@ button {
   min-height: 660px;
   margin: 0 auto;
   place-items: center;
-  overflow: visible;
-}
-
-.demo-stage::before {
-  content: "";
-  position: absolute;
-  inset: 26px clamp(0px, 7vw, 86px);
-  z-index: 0;
-  border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.54)),
-    radial-gradient(circle at 72% 18%, rgba(37, 99, 235, 0.13), transparent 34%),
-    radial-gradient(circle at 30% 74%, rgba(15, 159, 110, 0.1), transparent 31%);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(22px) saturate(150%);
-  pointer-events: none;
+  overflow: hidden;
 }
 
 .chat-window-demo {
@@ -388,6 +372,7 @@ button {
   overflow: hidden;
   width: min(430px, 100%);
   min-height: 526px;
+  transform: translateX(-74px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   background:
@@ -499,10 +484,15 @@ button {
   background: #fff;
 }
 
+.input-line.has-reply {
+  color: #202633;
+  font-weight: 720;
+}
+
 .sayless-overlay-demo {
   position: absolute;
   top: 244px;
-  left: calc(50% + 96px);
+  left: calc(50% + 82px);
   z-index: 8;
   width: min(430px, calc(100vw - 36px));
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1534,7 +1524,7 @@ button {
   }
 
   .sayless-overlay-demo {
-    left: calc(50% + 48px);
+    left: calc(50% + 34px);
   }
 
   .section h2,
@@ -1626,13 +1616,10 @@ button {
     min-height: 820px;
   }
 
-  .demo-stage::before {
-    inset: 0;
-  }
-
   .chat-window-demo {
     width: min(430px, 100%);
     min-height: 500px;
+    transform: translateX(0);
   }
 
   .hero-app-visual {
