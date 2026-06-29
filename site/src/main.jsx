@@ -359,7 +359,7 @@ function MacSecurityMockup() {
 
 function Footer() {
   const socials = [
-    { label: "Instagram", href: "https://www.instagram.com/_ispaik.0/", icon: <Instagram size={19} /> },
+    { label: "Instagram", href: "https://www.instagram.com/_ispaik/", icon: <Instagram size={19} /> },
     { label: "GitHub", href: "https://github.com/ispaik06", icon: <Github size={19} /> },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/inseong-paik-7b2982354/", icon: <Linkedin size={19} /> }
   ];
