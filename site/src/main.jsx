@@ -86,10 +86,6 @@ function HomePage() {
         </section>
 
         <section className="demo-section" id="demo">
-          <div className="demo-heading">
-            <p className="section-kicker">Overlay preview</p>
-            <h2>Appears beside your input, not on top of the chat.</h2>
-          </div>
           <AssistantMockup />
         </section>
 
@@ -275,7 +271,88 @@ function HeroAppVisual() {
   );
 }
 
+const DEMO_REPLY_PRESETS = {
+  rizz: [
+    { label: "Rizz", text: "가야지. 근데 너 있으면 나 오늘 텐션 좀 위험함 ㅋㅋ" },
+    { label: "Flirty", text: "나 원래 고민하는 척 잘하는데, 너 부르면 바로 흔들림." },
+    { label: "MZ", text: "오히려 좋아. 대신 오늘 플러팅은 네가 책임져야 됨." }
+  ],
+  shorter: [
+    { label: "Short", text: "갈게. 너 있으면 재밌을 듯 ㅋㅋ" },
+    { label: "Clean", text: "좋아, 몇 시에 볼까?" },
+    { label: "Lowkey", text: "나갈까 봐. 너도 계속 있는 거지?" }
+  ],
+  softer: [
+    { label: "Soft", text: "나도 보고 싶긴 해. 너무 티났나 ㅋㅋ" },
+    { label: "Warm", text: "갈게. 너 기다린다니까 좀 설렌다." },
+    { label: "Sweet", text: "네가 그렇게 말하면 안 나갈 수가 없잖아." }
+  ],
+  funnier: [
+    { label: "Funny", text: "이 정도면 나 거의 소환 당한 거 아님? 출동함." },
+    { label: "Chaotic", text: "나가면 너 때문에 심박수 이슈 생길 듯 ㅋㅋ" },
+    { label: "Bold", text: "오늘 내가 가면 분위기 버프 들어가는 거 알지?" }
+  ],
+  custom: [
+    { label: "Custom", text: "너한테만 살짝 약한 컨셉으로 가볼게." },
+    { label: "Try", text: "지금 가면 나 너무 기대한 사람 같아? 그래도 갈래." },
+    { label: "Draft", text: "나갈게. 대신 오늘은 네가 내 옆자리 예약해." }
+  ]
+};
+
+const DEMO_ADJUSTMENTS = [
+  { id: "shorter", label: "Shorter" },
+  { id: "softer", label: "Softer" },
+  { id: "funnier", label: "Funnier" },
+  { id: "custom", label: "Custom" }
+];
+
 function AssistantMockup() {
+  const [activePreset, setActivePreset] = useState("rizz");
+  const [customDraft, setCustomDraft] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const replies = DEMO_REPLY_PRESETS[activePreset];
+
+  function selectPreset(presetId) {
+    setActivePreset(presetId);
+    setShowCustom(presetId === "custom");
+  }
+
+  function startOverlayDrag(event) {
+    if (event.button !== undefined && event.button !== 0) {
+      return;
+    }
+
+    if (event.target.closest("button, input")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setIsDragging(true);
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initialPosition = overlayPosition;
+
+    function handlePointerMove(moveEvent) {
+      setOverlayPosition({
+        x: initialPosition.x + moveEvent.clientX - startX,
+        y: initialPosition.y + moveEvent.clientY - startY
+      });
+    }
+
+    function handlePointerUp() {
+      setIsDragging(false);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
+  }
+
   return (
     <div className="device-frame">
       <div className="window-bar">
@@ -284,14 +361,21 @@ function AssistantMockup() {
         <span />
       </div>
       <div className="conversation">
-        <div className="chat-thread">
-          <div className="chat-row left">Are you coming out tonight?</div>
-          <div className="chat-row left compact">Everyone is asking.</div>
-          <div className="chat-row right">maybe, depends on the plan</div>
+        <div className="chat-title">
+          <strong>하린</strong>
+          <span>typing like she knows exactly what she is doing</span>
         </div>
-        <div className="input-line">I want to say yes, but not too eager...</div>
-        <div className="sayless-overlay-demo">
-          <div className="overlay-head">
+        <div className="chat-thread">
+          <div className="chat-row left">오늘 나올거야?</div>
+          <div className="chat-row left compact">너 오면 나 텐션 좀 올라갈 듯 ㅋㅋ</div>
+          <div className="chat-row right">나 지금 고민하는 척 하는 중</div>
+        </div>
+        <div className="input-line">센스있게 답장하고 싶은데 너무 티나면 안 됨...</div>
+        <div
+          className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
+          style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
+        >
+          <div className="overlay-head" onPointerDown={startOverlayDrag}>
             <div className="overlay-brand">
               <span className="overlay-symbol">...</span>
               <strong>Sayless</strong>
@@ -307,29 +391,38 @@ function AssistantMockup() {
             </div>
           </div>
           <div className="overlay-suggestions">
-            <button type="button" className="is-selected">
-              <span>Casual</span>
-              <p>Sounds good. Where are we meeting?</p>
-            </button>
-            <button type="button">
-              <span>Warm</span>
-              <p>I am down for a bit. What time?</p>
-            </button>
-            <button type="button">
-              <span>Playful</span>
-              <p>Maybe. Convince me with the plan.</p>
-            </button>
+            {replies.map((reply, index) => (
+              <button key={reply.label} type="button" className={index === 0 ? "is-selected" : ""}>
+                <span>{reply.label}</span>
+                <p>{reply.text}</p>
+              </button>
+            ))}
           </div>
           <div className="overlay-adjustments" aria-label="Reply adjustment controls">
-            <span>Shorter</span>
-            <span>Softer</span>
-            <span>Funnier</span>
-            <span>Custom</span>
+            {DEMO_ADJUSTMENTS.map((adjustment) => (
+              <button
+                key={adjustment.id}
+                type="button"
+                className={activePreset === adjustment.id ? "is-active" : ""}
+                onClick={() => selectPreset(adjustment.id)}
+              >
+                {adjustment.label}
+              </button>
+            ))}
           </div>
-        </div>
-        <div className="overlay-anchor" aria-hidden="true">
-          <div></div>
-          <span></span>
+          {showCustom && (
+            <input
+              className="overlay-custom-input"
+              value={customDraft}
+              onChange={(event) => setCustomDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
+              }}
+              placeholder="원하는 무드 적어보기"
+            />
+          )}
         </div>
       </div>
     </div>
