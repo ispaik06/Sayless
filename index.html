@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <meta name="description" content="Sayless is a macOS menu bar app that reads the visible KakaoTalk conversation and drafts three reply options in seconds." />
+        <meta name="author" content="Sayless" />
+        <meta property="og:title" content="Sayless for macOS" />
+        <meta property="og:description" content="Reply faster without sounding like a robot." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="assets/img/app-icon.png" />
+        <title>Sayless - AI replies for KakaoTalk on macOS</title>
+        <link rel="icon" type="image/png" href="assets/img/app-icon.png" />
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,600;1,600&amp;display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,300;0,500;0,600;0,700;1,300;1,500;1,600;1,700&amp;display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet" />
+        <link href="css/styles.css" rel="stylesheet" />
+    </head>
+    <body id="page-top" class="sayless-page">
+        <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
+            <div class="container px-5">
+                <a class="navbar-brand fw-bold d-flex align-items-center gap-2" href="#page-top">
+                    <img src="assets/img/app-icon.png" alt="" class="nav-icon" />
+                    Sayless
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                    Menu
+                    <i class="bi-list"></i>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarResponsive">
+                    <ul class="navbar-nav ms-auto me-4 my-3 my-lg-0">
+                        <li class="nav-item"><a class="nav-link me-lg-3" href="#features">Features</a></li>
+                        <li class="nav-item"><a class="nav-link me-lg-3" href="#install">Install</a></li>
+                        <li class="nav-item"><a class="nav-link me-lg-3" href="#download">Download</a></li>
+                    </ul>
+                    <a class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0" href="https://github.com/ispaik06/Sayless/releases/latest">
+                        <span class="d-flex align-items-center">
+                            <i class="bi-download me-2"></i>
+                            <span class="small">Download</span>
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <header class="masthead sayless-hero">
+            <div class="container px-5">
+                <div class="row gx-5 align-items-center">
+                    <div class="col-lg-6">
+                        <div class="mb-5 mb-lg-0 text-center text-lg-start">
+                            <p class="eyebrow mb-3">macOS menu bar app for KakaoTalk</p>
+                            <h1 class="display-1 lh-1 mb-4">Say less. Reply better.</h1>
+                            <p class="lead fw-normal text-muted mb-5">Sayless reads the visible conversation, understands the mood, and gives you three sharp replies before the chat goes cold.</p>
+                            <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center justify-content-lg-start gap-3">
+                                <a class="btn btn-dark btn-lg rounded-pill px-4 py-3" href="https://github.com/ispaik06/Sayless/releases/latest">
+                                    <i class="bi-apple me-2"></i>
+                                    Download for macOS
+                                </a>
+                                <a class="btn btn-outline-dark btn-lg rounded-pill px-4 py-3" href="#install">Installation notes</a>
+                            </div>
+                            <p class="small text-muted mt-4 mb-0">Requires macOS, Accessibility permission, and a Sayless account.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="hero-card mx-auto">
+                            <div class="hero-card-glow"></div>
+                            <img class="hero-app-icon" src="assets/img/app-icon.png" alt="Sayless app icon" />
+                            <div class="reply-stack">
+                                <div class="reply-pill angry">Annoyed but controlled</div>
+                                <div class="reply-pill blunt">Short, clean, done</div>
+                                <div class="reply-pill scary">Politely terrifying</div>
+                            </div>
+                            <div class="hero-caption">Three replies. One shortcut. No overthinking.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <aside class="text-center bg-gradient-primary-to-secondary">
+            <div class="container px-5">
+                <div class="row gx-5 justify-content-center">
+                    <div class="col-xl-8">
+                        <div class="h2 fs-1 text-white mb-0">Built for the moment where you know the vibe, but not the sentence.</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <section id="features" class="sayless-section">
+            <div class="container px-5">
+                <div class="row gx-5 align-items-center">
+                    <div class="col-lg-5 mb-5 mb-lg-0">
+                        <h2 class="display-4 lh-1 mb-4">A reply engine that stays out of the way.</h2>
+                        <p class="lead fw-normal text-muted mb-0">Sayless lives in your menu bar. Hit the shortcut, pick a line, and move on.</p>
+                    </div>
+                    <div class="col-lg-7">
+                        <div class="row gx-4 gy-4">
+                            <div class="col-md-6">
+                                <div class="feature-card">
+                                    <i class="bi-lightning-charge icon-feature text-gradient d-block mb-3"></i>
+                                    <h3 class="font-alt">Instant options</h3>
+                                    <p class="text-muted mb-0">Generate three context-aware replies from the latest visible messages.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-card">
+                                    <i class="bi-chat-square-text icon-feature text-gradient d-block mb-3"></i>
+                                    <h3 class="font-alt">Tone controls</h3>
+                                    <p class="text-muted mb-0">Refresh for shorter, softer, wittier, or custom directions.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-card">
+                                    <i class="bi-shield-check icon-feature text-gradient d-block mb-3"></i>
+                                    <h3 class="font-alt">Account-based usage</h3>
+                                    <p class="text-muted mb-0">Clerk authentication keeps usage attached to your account.</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="feature-card">
+                                    <i class="bi-window-sidebar icon-feature text-gradient d-block mb-3"></i>
+                                    <h3 class="font-alt">Native macOS feel</h3>
+                                    <p class="text-muted mb-0">Designed around the menu bar, keyboard shortcuts, and a clean overlay.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-light sayless-section" id="install">
+            <div class="container px-5">
+                <div class="row gx-5 align-items-center justify-content-center justify-content-lg-between">
+                    <div class="col-12 col-lg-5">
+                        <p class="eyebrow mb-3">First launch</p>
+                        <h2 class="display-4 lh-1 mb-4">macOS may block the app once.</h2>
+                        <p class="lead fw-normal text-muted mb-4">Sayless is distributed outside the Mac App Store. If macOS says it cannot verify the developer, open System Settings and allow it manually.</p>
+                        <ol class="install-list">
+                            <li>Open <strong>System Settings</strong>.</li>
+                            <li>Go to <strong>Privacy &amp; Security</strong>.</li>
+                            <li>Scroll down and click <strong>Open Anyway</strong> for Sayless.</li>
+                            <li>Launch Sayless again and grant Accessibility permission when prompted.</li>
+                        </ol>
+                    </div>
+                    <div class="col-sm-10 col-md-7 col-lg-5">
+                        <div class="permission-card">
+                            <div class="settings-dot red"></div>
+                            <div class="settings-dot yellow"></div>
+                            <div class="settings-dot green"></div>
+                            <h3>Privacy &amp; Security</h3>
+                            <p>"Sayless" was blocked from use because it is not from an identified developer.</p>
+                            <button type="button">Open Anyway</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta">
+            <div class="cta-content">
+                <div class="container px-5">
+                    <h2 class="text-white display-1 lh-1 mb-4">
+                        Stop drafting.
+                        <br />
+                        Start replying.
+                    </h2>
+                    <a class="btn btn-outline-light py-3 px-4 rounded-pill" href="https://github.com/ispaik06/Sayless/releases/latest">Download the latest release</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-gradient-primary-to-secondary" id="download">
+            <div class="container px-5 text-center">
+                <img class="download-icon mb-4" src="assets/img/app-icon.png" alt="Sayless app icon" />
+                <h2 class="text-white font-alt mb-3">Get Sayless for macOS.</h2>
+                <p class="text-white-50 mb-4">Download the latest release from GitHub. Sparkle updates use this same Pages site through <code>appcast.xml</code>.</p>
+                <a class="btn btn-light btn-lg rounded-pill px-5 py-3" href="https://github.com/ispaik06/Sayless/releases/latest">
+                    <i class="bi-github me-2"></i>
+                    Open latest release
+                </a>
+            </div>
+        </section>
+
+        <footer class="bg-black text-center py-5">
+            <div class="container px-5">
+                <div class="text-white-50 small">
+                    <div class="mb-2">&copy; 2026 Sayless. Built for macOS.</div>
+                    <a href="https://github.com/ispaik06/Sayless">GitHub</a>
+                    <span class="mx-1">&middot;</span>
+                    <a href="appcast.xml">Appcast</a>
+                </div>
+            </div>
+        </footer>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="js/scripts.js"></script>
+    </body>
+</html>
