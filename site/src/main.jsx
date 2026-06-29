@@ -2,13 +2,16 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
+  CheckCircle2,
   ChevronRight,
   Command,
   Download,
   Eye,
+  Github,
+  Instagram,
+  Linkedin,
   LockKeyhole,
   MessageSquareText,
-  MousePointer2,
   Sparkles,
   Wand2
 } from "lucide-react";
@@ -122,7 +125,7 @@ function HomePage() {
             />
             <FeatureCard
               icon={<Command />}
-              title="Built for macOS"
+              title="Native on Mac"
               text="A menu bar app with a shortcut-first overlay designed to stay out of the way."
             />
           </div>
@@ -169,13 +172,7 @@ function HomePage() {
 }
 
 function InstallPage() {
-  const [confirmed, setConfirmed] = useState(false);
-
-  function downloadLatest() {
-    if (confirmed) {
-      window.location.href = RELEASE_URL;
-    }
-  }
+  const [acknowledged, setAcknowledged] = useState(false);
 
   return (
     <Shell install>
@@ -183,26 +180,19 @@ function InstallPage() {
         <section className="install-hero">
           <div>
             <div className="eyebrow">
-              <MousePointer2 size={16} />
-              First launch notes
+              <Sparkles size={16} />
+              Installation notes
             </div>
-            <h1>Read this once before downloading Sayless.</h1>
+            <h1>Install Sayless for macOS.</h1>
             <p>
-              Sayless is distributed outside the Mac App Store. macOS may block the first launch until you allow it
-              manually in System Settings.
+              Review the first-launch steps, then unlock the download. The current release is distributed outside the
+              Mac App Store, so macOS may ask you to allow it manually.
             </p>
           </div>
-          <div className="download-gate">
+          <div className="install-summary">
             <img src="assets/img/app-icon.png" alt="Sayless app icon" />
-            <h2>Download is locked until you confirm the notes.</h2>
-            <label className="confirm-row">
-              <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-              <span>I read the installation notes and understand the first-launch steps.</span>
-            </label>
-            <button className="primary-button" type="button" disabled={!confirmed} onClick={downloadLatest}>
-              <Download size={19} />
-              Continue to GitHub release
-            </button>
+            <span>macOS menu bar app</span>
+            <strong>Accessibility permission required on first launch.</strong>
           </div>
         </section>
 
@@ -223,6 +213,24 @@ function InstallPage() {
             </ol>
           </div>
           <MacSecurityMockup />
+        </section>
+
+        <section className="install-gate" aria-label="Download confirmation">
+          <button
+            className={`read-button ${acknowledged ? "is-complete" : ""}`}
+            type="button"
+            onClick={() => setAcknowledged(true)}
+          >
+            <CheckCircle2 size={20} />
+            {acknowledged ? "Installation notes confirmed" : "I have read the installation notes"}
+          </button>
+          <div className={`download-reveal ${acknowledged ? "is-visible" : ""}`}>
+            <a className="primary-button" href={RELEASE_URL} target="_blank" rel="noopener noreferrer">
+              <Download size={19} />
+              Download latest release
+            </a>
+            <p>Opens GitHub Releases in a new tab.</p>
+          </div>
         </section>
       </main>
       <Footer />
@@ -281,28 +289,68 @@ function Step({ number, title, text }) {
 
 function MacSecurityMockup() {
   return (
-    <div className="security-mockup" aria-label="macOS Privacy and Security settings showing Open Anyway">
-      <div className="alert-card">
+    <div className="mac-install-guide" aria-label="macOS Privacy and Security settings showing the Open Anyway button">
+      <div className="gatekeeper-alert">
         <div className="alert-help">?</div>
         <div className="alert-icon-wrap">
-          <img src="assets/img/app-icon.png" alt="" />
-          <span>!</span>
+          <img src="assets/img/app-icon.png" alt="" className="alert-app-icon" />
+          <span className="alert-warning">!</span>
         </div>
         <h3>"Sayless" Not Opened</h3>
         <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
         <div className="alert-done">Done</div>
       </div>
-      <div className="settings-card">
-        <div className="settings-title">Privacy &amp; Security</div>
-        <div className="settings-row muted">Speech Recognition <strong>0</strong></div>
-        <div className="settings-row muted">Sensitive Content Warning <strong>Off</strong></div>
-        <div className="settings-label">Security</div>
-        <div className="blocked-row">
-          <div>
-            <strong>"Sayless" was blocked to protect your Mac.</strong>
-            <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+
+      <div className="settings-window">
+        <div className="settings-sidebar">
+          <div className="settings-traffic-lights" aria-hidden="true">
+            <span className="dot red"></span>
+            <span className="dot yellow"></span>
+            <span className="dot green"></span>
           </div>
-          <span>Open Anyway</span>
+          <div className="settings-search">Search</div>
+          <div className="settings-side-row"><span className="settings-side-icon pink"></span>Notifications</div>
+          <div className="settings-side-row"><span className="settings-side-icon purple"></span>Focus</div>
+          <div className="settings-side-row"><span className="settings-side-icon gray"></span>Screen Time</div>
+          <div className="settings-side-row"><span className="settings-side-icon black"></span>Lock Screen</div>
+          <div className="settings-side-row active"><span className="settings-side-icon blue"></span>Privacy &amp; Security</div>
+          <div className="settings-side-row"><span className="settings-side-icon rose"></span>Touch ID &amp; Password</div>
+          <div className="settings-side-row"><span className="settings-side-icon cyan"></span>Users &amp; Groups</div>
+          <div className="settings-side-row"><span className="settings-side-icon orange"></span>Internet Accounts</div>
+        </div>
+        <div className="settings-content">
+          <div className="settings-titlebar">
+            <div className="settings-nav-buttons" aria-hidden="true">
+              <span>&lt;</span>
+              <span>&gt;</span>
+            </div>
+            <h3>Privacy &amp; Security</h3>
+          </div>
+          <div className="settings-list">
+            <div className="settings-row"><span className="settings-row-icon teal"></span>Speech Recognition <strong>0</strong></div>
+            <div className="settings-row"><span className="settings-row-icon azure"></span>Sensitive Content Warning <strong>Off</strong></div>
+            <div className="settings-row"><span className="settings-row-icon red"></span>Blocked Contacts</div>
+            <div className="settings-row"><span className="settings-row-icon indigo"></span>Analytics &amp; Improvements</div>
+            <div className="settings-row"><span className="settings-row-icon blue"></span>Apple Advertising</div>
+          </div>
+          <div className="security-label">Security</div>
+          <div className="security-panel">
+            <div className="allow-row">
+              <span>Allow applications from</span>
+              <strong>App Store &amp; Known Developers</strong>
+            </div>
+            <div className="blocked-row">
+              <div>
+                <strong>"Sayless" was blocked to protect your Mac.</strong>
+                <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+              </div>
+              <button type="button" className="open-anyway-callout">Open Anyway</button>
+            </div>
+          </div>
+          <div className="settings-list settings-list-bottom">
+            <div className="settings-row"><span className="settings-row-icon gray"></span>FileVault <strong>On</strong></div>
+            <div className="settings-row"><span className="settings-row-icon slate"></span>Accessories <strong>Ask for new accessories</strong></div>
+          </div>
         </div>
       </div>
     </div>
@@ -310,11 +358,28 @@ function MacSecurityMockup() {
 }
 
 function Footer() {
+  const socials = [
+    { label: "Instagram", href: "https://www.instagram.com/_ispaik.0/", icon: <Instagram size={19} /> },
+    { label: "GitHub", href: "https://github.com/ispaik06", icon: <Github size={19} /> },
+    { label: "LinkedIn", href: "https://www.linkedin.com/in/inseong-paik-7b2982354/", icon: <Linkedin size={19} /> }
+  ];
+
   return (
     <footer className="footer">
-      <span>&copy; 2026 Sayless. Built for macOS.</span>
-      <a href="https://github.com/ispaik06/Sayless">GitHub</a>
-      <a href="appcast.xml">Appcast</a>
+      <div className="footer-left">
+        <span>&copy; 2026 Sayless. All rights reserved.</span>
+        <a href="appcast.xml">Appcast</a>
+      </div>
+      <div className="footer-right" aria-label="Creator links">
+        <span>Created by Inseong Paik</span>
+        <div className="social-links">
+          {socials.map((social) => (
+            <a key={social.label} href={social.href} aria-label={social.label} target="_blank" rel="noopener noreferrer">
+              {social.icon}
+            </a>
+          ))}
+        </div>
+      </div>
     </footer>
   );
 }
