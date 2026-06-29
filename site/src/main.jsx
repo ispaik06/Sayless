@@ -12,8 +12,10 @@ import {
   Linkedin,
   LockKeyhole,
   MessageSquareText,
+  RefreshCw,
   Sparkles,
-  Wand2
+  Wand2,
+  X
 } from "lucide-react";
 import "./styles.css";
 
@@ -70,7 +72,7 @@ function HomePage() {
                 <Download size={19} />
                 Download for macOS
               </a>
-              <a className="secondary-button" href="#product">
+              <a className="secondary-button" href="#demo">
                 See how it works
                 <ChevronRight size={18} />
               </a>
@@ -79,8 +81,16 @@ function HomePage() {
           </div>
 
           <div className="hero-visual" aria-label="Sayless app preview">
-            <AssistantMockup />
+            <HeroAppVisual />
           </div>
+        </section>
+
+        <section className="demo-section" id="demo">
+          <div className="demo-heading">
+            <p className="section-kicker">Overlay preview</p>
+            <h2>Appears beside your input, not on top of the chat.</h2>
+          </div>
+          <AssistantMockup />
         </section>
 
         <section className="proof-band" aria-label="Sayless workflow">
@@ -238,6 +248,33 @@ function InstallPage() {
   );
 }
 
+function HeroAppVisual() {
+  return (
+    <div className="hero-app-visual">
+      <div className="hero-glass-orbit one"></div>
+      <div className="hero-glass-orbit two"></div>
+      <div className="app-photo-card">
+        <div className="app-photo-topline">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <img src="assets/img/app-icon.png" alt="Sayless app icon" />
+        <strong>Sayless</strong>
+        <p>Mac-first AI communication assistant</p>
+      </div>
+      <div className="floating-status top">
+        <span>Menu bar</span>
+        <strong>Always one shortcut away</strong>
+      </div>
+      <div className="floating-status bottom">
+        <span>Context ready</span>
+        <strong>3 replies prepared</strong>
+      </div>
+    </div>
+  );
+}
+
 function AssistantMockup() {
   return (
     <div className="device-frame">
@@ -260,12 +297,14 @@ function AssistantMockup() {
               <strong>Sayless</strong>
               <em>KakaoTalk</em>
             </div>
-            <span className="overlay-shortcut">⌘ ⇧ Space</span>
-          </div>
-          <div className="overlay-compose">I want to say yes, but not too eager...</div>
-          <div className="overlay-meta">
-            <span>Tab / Shift Tab</span>
-            <strong>1/2</strong>
+            <div className="overlay-actions">
+              <button type="button" aria-label="Refresh suggestions">
+                <RefreshCw size={13} />
+              </button>
+              <button type="button" aria-label="Close overlay">
+                <X size={13} />
+              </button>
+            </div>
           </div>
           <div className="overlay-suggestions">
             <button type="button" className="is-selected">
@@ -286,10 +325,6 @@ function AssistantMockup() {
             <span>Softer</span>
             <span>Funnier</span>
             <span>Custom</span>
-          </div>
-          <div className="overlay-custom-row">
-            <span>원하는 느낌, 길이, 말투, 언어 입력</span>
-            <button type="button">↗</button>
           </div>
         </div>
         <div className="overlay-anchor" aria-hidden="true">
