@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const RELEASE_URL = "https://github.com/ispaik06/Sayless/releases/latest";
+const DOWNLOAD_URL = "https://sayless-production-e6b4.up.railway.app/download";
 const INSTALL_URL = "install.html";
 
 function App() {
@@ -225,11 +225,11 @@ function InstallPage() {
             {acknowledged ? "Installation notes confirmed" : "I have read the installation notes"}
           </button>
           <div className={`download-reveal ${acknowledged ? "is-visible" : ""}`}>
-            <a className="primary-button" href={RELEASE_URL} target="_blank" rel="noopener noreferrer">
+            <a className="primary-button" href={DOWNLOAD_URL}>
               <Download size={19} />
-              Download latest release
+              Download latest DMG
             </a>
-            <p>Opens GitHub Releases in a new tab.</p>
+            <p>Downloads the latest macOS build directly.</p>
           </div>
         </section>
       </main>

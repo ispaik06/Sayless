@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 import { hashIdentifier, requireAuth } from './auth.js';
 import { config } from './config.js';
 import { ensureUserForClerkId, getAccountStatus, recordAIUsageEvent } from './db/accounts.js';
+import { DownloadReleaseError, fetchLatestDmgAsset } from './downloadRelease.js';
 import { createMockSuggestions } from './mockSuggestions.js';
 import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestionsWithUsage } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
@@ -66,6 +67,58 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     provider: config.suggestionProvider,
     model: config.aiModel
   }));
+
+  app.get('/download', async (request, reply) => {
+    try {
+      const { tagName, asset } = await fetchLatestDmgAsset({
+        owner: config.githubReleaseOwner,
+        repo: config.githubReleaseRepo,
+        token: config.githubToken
+      });
+
+      request.log.info(
+        {
+          repo: `${config.githubReleaseOwner}/${config.githubReleaseRepo}`,
+          tagName,
+          assetName: asset.name
+        },
+        'redirecting to latest dmg release asset'
+      );
+
+      return reply
+        .header('Cache-Control', 'no-store')
+        .code(302)
+        .redirect(asset.browser_download_url);
+    } catch (error) {
+      if (error instanceof DownloadReleaseError) {
+        request.log.warn(
+          {
+            code: error.code,
+            statusCode: error.statusCode,
+            message: error.message
+          },
+          'download redirect failed'
+        );
+
+        return reply.code(error.statusCode).send({
+          error: error.code,
+          message: error.message
+        });
+      }
+
+      request.log.error(
+        {
+          error: loggableError(error)
+        },
+        'download redirect failed'
+      );
+
+      return reply.code(502).send({
+        error: 'download_redirect_failed',
+        message: 'Could not resolve latest Sayless DMG download'
+      });
+    }
+  });
 
   app.get('/auth/config', async (_request, reply) => {
     if (!config.clerkPublishableKey) {

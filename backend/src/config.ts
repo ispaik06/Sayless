@@ -94,7 +94,10 @@ export const config = {
   tursoDatabaseUrl: process.env.TURSO_DATABASE_URL ?? '',
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN,
   freeDailySuggestionLimit: readNumber('FREE_DAILY_SUGGESTION_LIMIT', 100),
-  freeWeeklySuggestionLimit: readNumber('FREE_WEEKLY_SUGGESTION_LIMIT', 500)
+  freeWeeklySuggestionLimit: readNumber('FREE_WEEKLY_SUGGESTION_LIMIT', 500),
+  githubReleaseOwner: process.env.GITHUB_RELEASE_OWNER ?? 'ispaik06',
+  githubReleaseRepo: process.env.GITHUB_RELEASE_REPO ?? 'Sayless',
+  githubToken: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
 } as const;
 
 export function assertAIConfigured(): void {
