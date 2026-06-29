@@ -138,22 +138,80 @@
                     <div class="col-12 col-lg-5">
                         <p class="eyebrow mb-3">First launch</p>
                         <h2 class="display-4 lh-1 mb-4">macOS may block the app once.</h2>
-                        <p class="lead fw-normal text-muted mb-4">Sayless is distributed outside the Mac App Store. If macOS says it cannot verify the developer, open System Settings and allow it manually.</p>
+                        <p class="lead fw-normal text-muted mb-4">Sayless is distributed outside the Mac App Store. If macOS shows the "'Sayless' Not Opened" alert, allow it manually in System Settings.</p>
                         <ol class="install-list">
-                            <li>Open <strong>System Settings</strong>.</li>
-                            <li>Go to <strong>Privacy &amp; Security</strong>.</li>
-                            <li>Scroll down and click <strong>Open Anyway</strong> for Sayless.</li>
-                            <li>Launch Sayless again and grant Accessibility permission when prompted.</li>
+                            <li>Click <strong>Done</strong> on the macOS warning.</li>
+                            <li>Open <strong>System Settings</strong> and go to <strong>Privacy &amp; Security</strong>.</li>
+                            <li>Scroll down to the <strong>Security</strong> section.</li>
+                            <li>Click <strong>Open Anyway</strong> next to the Sayless message.</li>
+                            <li>Launch Sayless again, then grant Accessibility permission when prompted.</li>
                         </ol>
                     </div>
-                    <div class="col-sm-10 col-md-7 col-lg-5">
-                        <div class="permission-card">
-                            <div class="settings-dot red"></div>
-                            <div class="settings-dot yellow"></div>
-                            <div class="settings-dot green"></div>
-                            <h3>Privacy &amp; Security</h3>
-                            <p>"Sayless" was blocked from use because it is not from an identified developer.</p>
-                            <button type="button">Open Anyway</button>
+                    <div class="col-sm-12 col-lg-7">
+                        <div class="mac-install-guide" aria-label="macOS Privacy and Security settings showing the Open Anyway button">
+                            <div class="gatekeeper-alert">
+                                <div class="alert-help">?</div>
+                                <div class="alert-icon-wrap">
+                                    <img src="assets/img/app-icon.png" alt="" class="alert-app-icon" />
+                                    <span class="alert-warning">!</span>
+                                </div>
+                                <h3>"Sayless" Not Opened</h3>
+                                <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+                                <div class="alert-done">Done</div>
+                            </div>
+
+                            <div class="settings-window">
+                                <div class="settings-sidebar">
+                                    <div class="settings-traffic-lights" aria-hidden="true">
+                                        <span class="dot red"></span>
+                                        <span class="dot yellow"></span>
+                                        <span class="dot green"></span>
+                                    </div>
+                                    <div class="settings-search">Search</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon pink"></span>Notifications</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon purple"></span>Focus</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon gray"></span>Screen Time</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon black"></span>Lock Screen</div>
+                                    <div class="settings-side-row active"><span class="settings-side-icon blue"></span>Privacy &amp; Security</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon rose"></span>Touch ID &amp; Password</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon cyan"></span>Users &amp; Groups</div>
+                                    <div class="settings-side-row"><span class="settings-side-icon orange"></span>Internet Accounts</div>
+                                </div>
+                                <div class="settings-content">
+                                    <div class="settings-titlebar">
+                                        <div class="settings-nav-buttons" aria-hidden="true">
+                                            <span>&lt;</span>
+                                            <span>&gt;</span>
+                                        </div>
+                                        <h3>Privacy &amp; Security</h3>
+                                    </div>
+                                    <div class="settings-list">
+                                        <div class="settings-row"><span class="settings-row-icon teal"></span>Speech Recognition <strong>0</strong></div>
+                                        <div class="settings-row"><span class="settings-row-icon azure"></span>Sensitive Content Warning <strong>Off</strong></div>
+                                        <div class="settings-row"><span class="settings-row-icon red"></span>Blocked Contacts</div>
+                                        <div class="settings-row"><span class="settings-row-icon indigo"></span>Analytics &amp; Improvements</div>
+                                        <div class="settings-row"><span class="settings-row-icon blue"></span>Apple Advertising</div>
+                                    </div>
+                                    <div class="security-label">Security</div>
+                                    <div class="security-panel">
+                                        <div class="allow-row">
+                                            <span>Allow applications from</span>
+                                            <strong>App Store &amp; Known Developers</strong>
+                                        </div>
+                                        <div class="blocked-row">
+                                            <div>
+                                                <strong>"Sayless" was blocked to protect your Mac.</strong>
+                                                <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+                                            </div>
+                                            <button type="button" class="open-anyway-callout">Open Anyway</button>
+                                        </div>
+                                    </div>
+                                    <div class="settings-list settings-list-bottom">
+                                        <div class="settings-row"><span class="settings-row-icon gray"></span>FileVault <strong>On</strong></div>
+                                        <div class="settings-row"><span class="settings-row-icon slate"></span>Accessories <strong>Ask for new accessories</strong></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
