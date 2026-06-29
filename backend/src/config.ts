@@ -93,7 +93,8 @@ export const config = {
   clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   tursoDatabaseUrl: process.env.TURSO_DATABASE_URL ?? '',
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN,
-  freeMonthlySuggestionLimit: readNumber('FREE_MONTHLY_SUGGESTION_LIMIT', 50)
+  freeDailySuggestionLimit: readNumber('FREE_DAILY_SUGGESTION_LIMIT', 100),
+  freeWeeklySuggestionLimit: readNumber('FREE_WEEKLY_SUGGESTION_LIMIT', 500)
 } as const;
 
 export function assertAIConfigured(): void {

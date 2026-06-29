@@ -50,13 +50,15 @@ export async function getAccountStatus(clerkUserId: string) {
     where: eq(subscriptions.userId, user.id),
     orderBy: desc(subscriptions.updatedAt)
   });
-  const usage = await getMonthlyUsage(user.id);
+  const usage = {
+    daily: await getUsageSince(user.id, startOfDay()),
+    weekly: await getUsageSince(user.id, startOfWeek())
+  };
   const plan = subscription && activeSubscriptionStatuses.has(subscription.status) ? 'pro' : 'free';
 
   return {
     user: {
       id: user.id,
-      clerkUserId: user.clerkUserId,
       stripeCustomerId: user.stripeCustomerId
     },
     plan,
@@ -88,8 +90,7 @@ export async function recordAIUsageEvent(input: AIUsageEventInput): Promise<void
   });
 }
 
-async function getMonthlyUsage(userId: string) {
-  const since = startOfMonth();
+async function getUsageSince(userId: string, since: Date) {
   const rows = await db
     .select({
       requests: sql<number>`coalesce(sum(${usageEvents.quantity}), 0)`,
@@ -111,7 +112,16 @@ async function getMonthlyUsage(userId: string) {
   };
 }
 
-function startOfMonth(): Date {
+function startOfDay(): Date {
   const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function startOfWeek(): Date {
+  const now = new Date();
+  const day = now.getUTCDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const start = startOfDay();
+  start.setUTCDate(start.getUTCDate() - daysSinceMonday);
+  return start;
 }

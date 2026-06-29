@@ -69,11 +69,11 @@ struct AccountStatus: Decodable {
     let plan: String
     let subscription: AccountSubscription?
     let usage: AccountUsage
+    let limits: AccountLimits?
 }
 
 struct AccountUser: Decodable {
     let id: String
-    let clerkUserId: String
     let stripeCustomerId: String?
 }
 
@@ -85,9 +85,19 @@ struct AccountSubscription: Decodable {
 }
 
 struct AccountUsage: Decodable {
+    let daily: AccountUsagePeriod
+    let weekly: AccountUsagePeriod
+}
+
+struct AccountUsagePeriod: Decodable {
     let periodStart: String
     let requests: Int
     let inputTokens: Int
     let outputTokens: Int
     let totalTokens: Int
+}
+
+struct AccountLimits: Decodable {
+    let dailySuggestions: Int
+    let weeklySuggestions: Int
 }

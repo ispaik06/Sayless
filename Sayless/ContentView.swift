@@ -349,15 +349,19 @@ struct ContentView: View {
             }
 
             if let account = accountStatus.account {
+                let dailyLimit = account.limits?.dailySuggestions ?? 100
+                let weeklyLimit = account.limits?.weeklySuggestions ?? 500
+
                 HStack(alignment: .top, spacing: 12) {
                     UsageMetricCard(title: "Plan", value: account.plan.capitalized, caption: account.subscription?.status ?? "No subscription")
-                    UsageMetricCard(title: "Requests", value: "\(account.usage.requests)", caption: "This month")
+                    UsageMetricCard(title: "Today", value: "\(account.usage.daily.requests) / \(dailyLimit)", caption: "Daily requests")
+                    UsageMetricCard(title: "Week", value: "\(account.usage.weekly.requests) / \(weeklyLimit)", caption: "Weekly requests")
                 }
 
                 HStack(alignment: .top, spacing: 12) {
-                    UsageMetricCard(title: "Input tokens", value: formattedCount(account.usage.inputTokens), caption: "Prompt usage")
-                    UsageMetricCard(title: "Output tokens", value: formattedCount(account.usage.outputTokens), caption: "Reply usage")
-                    UsageMetricCard(title: "Total", value: formattedCount(account.usage.totalTokens), caption: "Tokens")
+                    UsageMetricCard(title: "Input tokens", value: formattedCount(account.usage.weekly.inputTokens), caption: "This week")
+                    UsageMetricCard(title: "Output tokens", value: formattedCount(account.usage.weekly.outputTokens), caption: "This week")
+                    UsageMetricCard(title: "Total", value: formattedCount(account.usage.weekly.totalTokens), caption: "Weekly tokens")
                 }
             } else if let errorMessage = accountStatus.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -444,7 +448,7 @@ struct ContentView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            AccountRoadmapRow(icon: "speedometer", title: "Free plan limits", detail: "Block or warn when monthly usage reaches the free quota.")
+            AccountRoadmapRow(icon: "speedometer", title: "Free plan limits", detail: "Block requests at 100/day or 500/week on the free plan.")
             AccountRoadmapRow(icon: "creditcard", title: "Billing", detail: "Open Stripe Checkout and manage Pro status.")
         }
         .padding(14)

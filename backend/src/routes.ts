@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
-import { requireAuth } from './auth.js';
+import { hashIdentifier, requireAuth } from './auth.js';
 import { config } from './config.js';
 import { ensureUserForClerkId, getAccountStatus, recordAIUsageEvent } from './db/accounts.js';
 import { createMockSuggestions } from './mockSuggestions.js';
@@ -86,7 +86,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       return reply;
     }
 
-    return getAccountStatus(auth.clerkUserId);
+    const accountStatus = await getAccountStatus(auth.clerkUserId);
+
+    return {
+      ...accountStatus,
+      limits: {
+        dailySuggestions: config.freeDailySuggestionLimit,
+        weeklySuggestions: config.freeWeeklySuggestionLimit
+      }
+    };
   });
 
   app.post('/suggestions', async (request, reply) => {
@@ -99,14 +107,18 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const input = SuggestionRequestSchema.parse(request.body);
+      const userHash = hashIdentifier(auth.clerkUserId);
       const user = await ensureUserForClerkId(auth.clerkUserId);
       const accountStatus = await getAccountStatus(auth.clerkUserId);
-      if (accountStatus.plan === 'free' && accountStatus.usage.requests >= config.freeMonthlySuggestionLimit) {
+      const exceededLimit = freeUsageLimitExceeded(accountStatus.usage);
+
+      if (accountStatus.plan === 'free' && exceededLimit) {
         request.log.warn(
           {
-            clerkUserId: auth.clerkUserId,
-            usageRequests: accountStatus.usage.requests,
-            freeMonthlySuggestionLimit: config.freeMonthlySuggestionLimit,
+            userHash,
+            scope: exceededLimit.scope,
+            usageRequests: exceededLimit.requests,
+            freeSuggestionLimit: exceededLimit.limit,
             elapsedMs: Math.round(elapsedMs(startedAt))
           },
           'suggestions usage limit exceeded'
@@ -114,10 +126,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.code(402).send({
           error: 'usage_limit_exceeded',
-          message: `Free plan limit reached (${config.freeMonthlySuggestionLimit} suggestions this month).`,
+          message: exceededLimit.message,
           plan: accountStatus.plan,
+          scope: exceededLimit.scope,
           usage: accountStatus.usage,
-          limit: config.freeMonthlySuggestionLimit
+          limit: exceededLimit.limit
         });
       }
 
@@ -164,11 +177,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           intent: input.intent?.kind ?? 'initial',
           refreshIndex: input.intent?.refreshIndex ?? null,
           messageCount: input.messages.length,
-          clerkUserId: auth.clerkUserId,
+          userHash,
           provider: config.suggestionProvider,
           model: config.aiModel,
           plan: accountStatus.plan,
-          freeMonthlySuggestionLimit: config.freeMonthlySuggestionLimit,
+          freeDailySuggestionLimit: config.freeDailySuggestionLimit,
+          freeWeeklySuggestionLimit: config.freeWeeklySuggestionLimit,
           inputTokens: usageTotals.inputTokens,
           outputTokens: usageTotals.outputTokens,
           totalTokens: usageTotals.totalTokens,
@@ -237,6 +251,44 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 }
+
+function freeUsageLimitExceeded(usage: AccountUsageSummary): FreeUsageLimitExceeded | null {
+  if (usage.daily.requests >= config.freeDailySuggestionLimit) {
+    return {
+      scope: 'daily',
+      requests: usage.daily.requests,
+      limit: config.freeDailySuggestionLimit,
+      message: `Free plan daily limit reached (${config.freeDailySuggestionLimit} suggestions today).`
+    };
+  }
+
+  if (usage.weekly.requests >= config.freeWeeklySuggestionLimit) {
+    return {
+      scope: 'weekly',
+      requests: usage.weekly.requests,
+      limit: config.freeWeeklySuggestionLimit,
+      message: `Free plan weekly limit reached (${config.freeWeeklySuggestionLimit} suggestions this week).`
+    };
+  }
+
+  return null;
+}
+
+type AccountUsageSummary = {
+  daily: {
+    requests: number;
+  };
+  weekly: {
+    requests: number;
+  };
+};
+
+type FreeUsageLimitExceeded = {
+  scope: 'daily' | 'weekly';
+  requests: number;
+  limit: number;
+  message: string;
+};
 
 function aggregateUsage(
   usage: Array<{

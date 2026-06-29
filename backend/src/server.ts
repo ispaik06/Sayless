@@ -1,9 +1,10 @@
 import 'dotenv/config';
-import { clerkPlugin } from '@clerk/fastify';
+import { clerkPlugin, getAuth } from '@clerk/fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { assertAIConfigured, config } from './config.js';
+import { hashIdentifier } from './auth.js';
 import { registerRoutes } from './routes.js';
 
 async function buildServer() {
@@ -26,12 +27,20 @@ async function buildServer() {
     origin: false
   });
 
+  await app.register(clerkPlugin);
+
   await app.register(rateLimit, {
     max: 120,
-    timeWindow: '1 minute'
+    timeWindow: '1 minute',
+    keyGenerator: (request) => {
+      try {
+        const auth = getAuth(request);
+        return auth.userId ? `user:${hashIdentifier(auth.userId)}` : `ip:${request.ip}`;
+      } catch {
+        return `ip:${request.ip}`;
+      }
+    }
   });
-
-  await app.register(clerkPlugin);
 
   await registerRoutes(app);
 

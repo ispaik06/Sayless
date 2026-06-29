@@ -1,5 +1,6 @@
 import { getAuth } from '@clerk/fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { createHash } from 'node:crypto';
 
 export type AuthenticatedUser = {
   clerkUserId: string;
@@ -22,4 +23,8 @@ export function requireAuth(request: FastifyRequest, reply: FastifyReply): Authe
     clerkUserId: auth.userId,
     sessionId: auth.sessionId
   };
+}
+
+export function hashIdentifier(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 16);
 }
