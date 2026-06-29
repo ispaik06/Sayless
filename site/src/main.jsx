@@ -247,20 +247,54 @@ function AssistantMockup() {
         <span />
       </div>
       <div className="conversation">
-        <div className="chat-row left">Are you coming out tonight?</div>
-        <div className="chat-row left compact">Everyone is asking.</div>
+        <div className="chat-thread">
+          <div className="chat-row left">Are you coming out tonight?</div>
+          <div className="chat-row left compact">Everyone is asking.</div>
+          <div className="chat-row right">maybe, depends on the plan</div>
+        </div>
         <div className="input-line">I want to say yes, but not too eager...</div>
-        <div className="assistant-panel">
-          <div className="assistant-head">
-            <img src="assets/img/app-icon.png" alt="" />
-            <div>
+        <div className="sayless-overlay-demo">
+          <div className="overlay-head">
+            <div className="overlay-brand">
+              <span className="overlay-symbol">...</span>
               <strong>Sayless</strong>
-              <span>reading context</span>
+              <em>KakaoTalk</em>
             </div>
+            <span className="overlay-shortcut">⌘ ⇧ Space</span>
           </div>
-          <button type="button">Sounds good. Where are we meeting?</button>
-          <button type="button">I am down for a bit. What time?</button>
-          <button type="button">Maybe. Convince me with the plan.</button>
+          <div className="overlay-compose">I want to say yes, but not too eager...</div>
+          <div className="overlay-meta">
+            <span>Tab / Shift Tab</span>
+            <strong>1/2</strong>
+          </div>
+          <div className="overlay-suggestions">
+            <button type="button" className="is-selected">
+              <span>Casual</span>
+              <p>Sounds good. Where are we meeting?</p>
+            </button>
+            <button type="button">
+              <span>Warm</span>
+              <p>I am down for a bit. What time?</p>
+            </button>
+            <button type="button">
+              <span>Playful</span>
+              <p>Maybe. Convince me with the plan.</p>
+            </button>
+          </div>
+          <div className="overlay-adjustments" aria-label="Reply adjustment controls">
+            <span>Shorter</span>
+            <span>Softer</span>
+            <span>Funnier</span>
+            <span>Custom</span>
+          </div>
+          <div className="overlay-custom-row">
+            <span>원하는 느낌, 길이, 말투, 언어 입력</span>
+            <button type="button">↗</button>
+          </div>
+        </div>
+        <div className="overlay-anchor" aria-hidden="true">
+          <div></div>
+          <span></span>
         </div>
       </div>
     </div>
