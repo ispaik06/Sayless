@@ -372,7 +372,7 @@ button {
   overflow: hidden;
   width: min(430px, 100%);
   min-height: 526px;
-  transform: translateX(-118px);
+  transform: translateX(-146px);
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   background:
@@ -635,10 +635,12 @@ button {
 
 .overlay-suggestions span {
   display: inline-block;
-  width: 82px;
+  width: auto;
+  margin-right: 7px;
   color: rgba(74, 222, 128, 0.95);
   font-size: 12px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .overlay-suggestions p {
@@ -1651,12 +1653,6 @@ button {
     top: 420px;
     left: max(18px, calc(50% - 215px));
     width: min(430px, calc(100% - 36px));
-  }
-
-  .overlay-suggestions span {
-    display: block;
-    width: auto;
-    margin-bottom: 3px;
   }
 
   .feature-grid {

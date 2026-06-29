@@ -273,36 +273,31 @@ function HeroAppVisual() {
 
 const DEMO_REPLY_PRESETS = {
   rizz: [
-    { label: "Rizz", text: "Careful. If I come over, you might forget this was supposed to be casual." },
-    { label: "Flirty", text: "I was behaving tonight, but you are making that very inconvenient." },
-    { label: "Bold", text: "Send the address. I will bring the eye contact you keep pretending not to notice." }
+    { label: "Soft Rizz", text: "Hey Isabel, I had a really good time tonight. Want to let me take you to dinner tomorrow?" },
+    { label: "Confident", text: "I keep thinking about tonight. Dinner tomorrow, just us?" },
+    { label: "Smooth", text: "Tonight was way too fun to leave it there. Dinner tomorrow?" }
   ],
-  shorter: [
-    { label: "Short", text: "Maybe. Depends how badly you want me there." },
-    { label: "Clean", text: "Text me the place. I might make your night better." },
-    { label: "Lowkey", text: "I could show up. Try not to miss me too obviously." }
+  sweet: [
+    { label: "Sweet", text: "I had a really nice time with you tonight. Would you want to grab dinner tomorrow?" },
+    { label: "Warm", text: "Tonight made me want to see you again soon. Dinner tomorrow?" },
+    { label: "Gentle", text: "No pressure, but I would love to take you to dinner tomorrow." }
   ],
-  softer: [
-    { label: "Soft", text: "I kind of want to see you. Pretend I made that sound less obvious." },
-    { label: "Warm", text: "If you are there, I am already tempted. Do not make me admit it twice." },
-    { label: "Sweet", text: "You asking like that makes it hard to stay away." }
-  ],
-  funnier: [
-    { label: "Funny", text: "This invite has dangerous levels of plot development." },
-    { label: "Chaotic", text: "If I come out and you look too good, I am filing a complaint." },
-    { label: "Wild", text: "I can come, but I cannot promise I will act normal around you." }
+  playful: [
+    { label: "Playful", text: "I am trying to play it cool, but dinner with you tomorrow sounds too good not to ask." },
+    { label: "Cute", text: "The movie was fun, but I think dinner with you tomorrow might beat it." },
+    { label: "Tease", text: "If I ask you to dinner tomorrow, are you going to pretend you did not see this coming?" }
   ],
   custom: [
-    { label: "Custom", text: "Make it sound like I am interested, not desperate." },
-    { label: "Try", text: "Give me the version that says yes but still has aura." },
-    { label: "Draft", text: "Keep it playful. I want them to think about it twice." }
+    { label: "Custom", text: "Make it sweet, a little nervous, but still confident." },
+    { label: "Try", text: "Ask her to dinner without sounding too intense." },
+    { label: "Draft", text: "Keep it warm, simple, and obvious enough that she feels it." }
   ]
 };
 
 const DEMO_ADJUSTMENTS = [
-  { id: "shorter", label: "Shorter" },
-  { id: "softer", label: "Softer" },
-  { id: "funnier", label: "Funnier" },
+  { id: "rizz", label: "Rizz" },
+  { id: "sweet", label: "Sweet" },
+  { id: "playful", label: "Playful" },
   { id: "custom", label: "Custom" }
 ];
 
@@ -394,15 +389,16 @@ function AssistantMockup() {
         <div className="conversation">
           <div className="chat-title">
             <strong>Isabel</strong>
-            <span>typing like she knows exactly what she is doing</span>
+            <span>Active now</span>
           </div>
           <div className="chat-thread">
-            <div className="chat-row left">Are you coming over, or are you just going to keep flirting from a safe distance?</div>
-            <div className="chat-row left compact">Be honest. You get a little reckless when it is just us.</div>
-            <div className="chat-row right">You are making it very hard to play innocent.</div>
+            <div className="chat-row left">Hey! I had a great time tonight.</div>
+            <div className="chat-row left compact">The movie was fun 🙂</div>
+            <div className="chat-row right">Me too! Really enjoyed hanging out with you 🍿</div>
+            <div className="chat-row left">Let's do it again soon! 😌</div>
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
-            {selectedReply ? selectedReply.text : "I want to answer, but I need it to sound effortless..."}
+            {selectedReply ? selectedReply.text : "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow? 😳"}
           </div>
         </div>
       </div>
@@ -417,7 +413,7 @@ function AssistantMockup() {
           <div className="overlay-brand">
             <span className="overlay-symbol">...</span>
             <strong>Sayless</strong>
-            <em>KakaoTalk</em>
+            <em>Isabel</em>
           </div>
           <div className="overlay-actions">
             <button type="button" aria-label="Refresh suggestions">
