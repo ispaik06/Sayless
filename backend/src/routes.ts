@@ -11,10 +11,6 @@ function elapsedMs(startedAt: bigint): number {
   return Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 }
 
-function readSingleHeader(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 function isAIConfigurationError(error: unknown): boolean {
   return error instanceof Error && /(?:OPENAI|GEMINI|GROQ|AI_PROVIDER|API key|API_KEY)/i.test(error.message);
 }
@@ -102,27 +98,29 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         return reply;
       }
 
-      if (config.saylessClientKey) {
-        const clientKey = readSingleHeader(request.headers['x-sayless-client-key']);
-
-        if (clientKey !== config.saylessClientKey) {
-          request.log.warn(
-            {
-              clientKeyPresent: Boolean(clientKey),
-              elapsedMs: Math.round(elapsedMs(startedAt))
-            },
-            'suggestions unauthorized'
-          );
-
-          return reply.code(401).send({
-            error: 'unauthorized',
-            message: 'Invalid Sayless client key'
-          });
-        }
-      }
-
       const input = SuggestionRequestSchema.parse(request.body);
       const user = await ensureUserForClerkId(auth.clerkUserId);
+      const accountStatus = await getAccountStatus(auth.clerkUserId);
+      if (accountStatus.plan === 'free' && accountStatus.usage.requests >= config.freeMonthlySuggestionLimit) {
+        request.log.warn(
+          {
+            clerkUserId: auth.clerkUserId,
+            usageRequests: accountStatus.usage.requests,
+            freeMonthlySuggestionLimit: config.freeMonthlySuggestionLimit,
+            elapsedMs: Math.round(elapsedMs(startedAt))
+          },
+          'suggestions usage limit exceeded'
+        );
+
+        return reply.code(402).send({
+          error: 'usage_limit_exceeded',
+          message: `Free plan limit reached (${config.freeMonthlySuggestionLimit} suggestions this month).`,
+          plan: accountStatus.plan,
+          usage: accountStatus.usage,
+          limit: config.freeMonthlySuggestionLimit
+        });
+      }
+
       const result =
         config.suggestionProvider !== 'mock'
           ? await createAISuggestionsWithUsage(input)
@@ -169,6 +167,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           clerkUserId: auth.clerkUserId,
           provider: config.suggestionProvider,
           model: config.aiModel,
+          plan: accountStatus.plan,
+          freeMonthlySuggestionLimit: config.freeMonthlySuggestionLimit,
           inputTokens: usageTotals.inputTokens,
           outputTokens: usageTotals.outputTokens,
           totalTokens: usageTotals.totalTokens,

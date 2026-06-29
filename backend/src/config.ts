@@ -89,11 +89,11 @@ export const config = {
   openaiApiKey: process.env.OPENAI_API_KEY,
   geminiApiKey: process.env.GEMINI_API_KEY,
   groqApiKey: process.env.GROQ_API_KEY,
-  saylessClientKey: process.env.SAYLESS_CLIENT_KEY,
   clerkSecretKey: process.env.CLERK_SECRET_KEY,
   clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   tursoDatabaseUrl: process.env.TURSO_DATABASE_URL ?? '',
-  tursoAuthToken: process.env.TURSO_AUTH_TOKEN
+  tursoAuthToken: process.env.TURSO_AUTH_TOKEN,
+  freeMonthlySuggestionLimit: readNumber('FREE_MONTHLY_SUGGESTION_LIMIT', 50)
 } as const;
 
 export function assertAIConfigured(): void {

@@ -32,8 +32,6 @@
 	<string></string>
 	<key>SaylessBackendURL</key>
 	<string>https://sayless-production-e6b4.up.railway.app/suggestions</string>
-	<key>SaylessClientKey</key>
-	<string>sl_prod_5e3421664caafc6d7e9bbd560e790d6cb89ec25be974a874b0dff4b7d0a246b1</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>

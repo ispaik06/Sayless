@@ -14,7 +14,6 @@ async function buildServer() {
       level: config.nodeEnv === 'development' ? 'info' : 'warn',
       redact: [
         'req.headers.authorization',
-        'req.headers.x-sayless-client-key',
         'OPENAI_API_KEY',
         'GEMINI_API_KEY',
         'GROQ_API_KEY'

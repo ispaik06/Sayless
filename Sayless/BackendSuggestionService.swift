@@ -54,7 +54,6 @@ private struct BackendErrorResponse: Decodable {
 
 final class BackendSuggestionService {
     private let endpoint = BackendConfiguration.endpoint
-    private let clientKey = BackendConfiguration.clientKey
     private let locale = "ko-KR"
     private let requestTimeout: TimeInterval = 18
 
@@ -78,9 +77,6 @@ final class BackendSuggestionService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token = try await AuthSessionManager.shared.sessionToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        if let clientKey {
-            request.setValue(clientKey, forHTTPHeaderField: "x-sayless-client-key")
         }
         request.httpBody = try JSONEncoder().encode(
             SuggestionRequest(
@@ -234,10 +230,6 @@ private enum BackendConfiguration {
 
         return url
     }()
-
-    static let clientKey: String? = nonEmptyString(
-        Bundle.main.object(forInfoDictionaryKey: "SaylessClientKey") as? String
-    ) ?? nonEmptyString(ProcessInfo.processInfo.environment["SAYLESS_CLIENT_KEY"])
 
     private static func nonEmptyString(_ value: String?) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
