@@ -1,0 +1,322 @@
+import React, { useState } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  ArrowRight,
+  ChevronRight,
+  Command,
+  Download,
+  Eye,
+  LockKeyhole,
+  MessageSquareText,
+  MousePointer2,
+  Sparkles,
+  Wand2
+} from "lucide-react";
+import "./styles.css";
+
+const RELEASE_URL = "https://github.com/ispaik06/Sayless/releases/latest";
+const INSTALL_URL = "install.html";
+
+function App() {
+  const path = window.location.pathname;
+  const isInstallPage = path.endsWith("/install.html") || path.endsWith("/install");
+
+  return isInstallPage ? <InstallPage /> : <HomePage />;
+}
+
+function Shell({ children, install = false }) {
+  return (
+    <div className="site-shell">
+      <header className="topbar">
+        <a className="brand" href="index.html" aria-label="Sayless home">
+          <img src="assets/img/app-icon.png" alt="" />
+          <span>Sayless</span>
+        </a>
+        <nav className="nav-links" aria-label="Primary navigation">
+          <a href={install ? "index.html#product" : "#product"}>Product</a>
+          <a href={install ? "index.html#privacy" : "#privacy"}>Privacy</a>
+          <a href={INSTALL_URL}>Install</a>
+        </nav>
+        <a className="nav-cta" href={INSTALL_URL}>
+          <Download size={17} />
+          Download
+        </a>
+      </header>
+      {children}
+    </div>
+  );
+}
+
+function HomePage() {
+  return (
+    <Shell>
+      <main>
+        <section className="hero">
+          <div className="hero-copy">
+            <div className="eyebrow">
+              <Sparkles size={16} />
+              AI communication wingman for macOS
+            </div>
+            <h1>Your next reply, already in context.</h1>
+            <p className="hero-subtitle">
+              Sayless reads the conversation in front of you and suggests replies that fit the room, the relationship,
+              and what you are trying to say.
+            </p>
+            <div className="hero-actions">
+              <a className="primary-button" href={INSTALL_URL}>
+                <Download size={19} />
+                Download for macOS
+              </a>
+              <a className="secondary-button" href="#product">
+                See how it works
+                <ChevronRight size={18} />
+              </a>
+            </div>
+            <p className="hero-note">Requires macOS, Accessibility permission, and a Sayless account.</p>
+          </div>
+
+          <div className="hero-visual" aria-label="Sayless app preview">
+            <AssistantMockup />
+          </div>
+        </section>
+
+        <section className="proof-band" aria-label="Sayless workflow">
+          <div>
+            <span>01</span>
+            Reads visible context
+          </div>
+          <div>
+            <span>02</span>
+            Understands the room
+          </div>
+          <div>
+            <span>03</span>
+            Gives you the line
+          </div>
+        </section>
+
+        <section className="section split" id="product">
+          <div>
+            <p className="section-kicker">No prompt theater</p>
+            <h2>An assistant for the chat you are already in.</h2>
+            <p>
+              Sayless is not a tone converter. It is a context-aware reply assistant that lives beside your text input.
+              Open it when you are stuck, pick the option that sounds closest, and keep the conversation moving.
+            </p>
+          </div>
+          <div className="feature-grid">
+            <FeatureCard
+              icon={<Eye />}
+              title="Reads the room"
+              text="Uses the latest visible messages to understand what is happening before suggesting anything."
+            />
+            <FeatureCard
+              icon={<MessageSquareText />}
+              title="Sounds like a reply"
+              text="Gives concise, usable lines instead of long AI paragraphs that need another edit."
+            />
+            <FeatureCard
+              icon={<Wand2 />}
+              title="Adjusts fast"
+              text="Ask for shorter, warmer, cleaner, funnier, or custom versions until the line fits."
+            />
+            <FeatureCard
+              icon={<Command />}
+              title="Built for macOS"
+              text="A menu bar app with a shortcut-first overlay designed to stay out of the way."
+            />
+          </div>
+        </section>
+
+        <section className="section workflow">
+          <p className="section-kicker">How it feels</p>
+          <h2>Less explaining. More replying.</h2>
+          <div className="workflow-grid">
+            <Step number="1" title="You are in KakaoTalk" text="No copying the whole conversation into a separate AI app." />
+            <Step number="2" title="Sayless sees the context" text="The assistant reads what is visible and prepares replies around the current moment." />
+            <Step number="3" title="You choose the line" text="Send it as-is, tweak the tone, or use it as the starting point." />
+          </div>
+        </section>
+
+        <section className="section privacy" id="privacy">
+          <div className="privacy-panel">
+            <LockKeyhole size={28} />
+            <div>
+              <p className="section-kicker">Trust by design</p>
+              <h2>You stay in control.</h2>
+              <p>
+                Sayless appears when you ask for help. The current macOS build requires Accessibility permission so it
+                can read supported visible text and place a lightweight assistant next to your conversation.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="final-cta">
+          <div>
+            <p className="section-kicker">Ready when the chat is not</p>
+            <h2>Read the room. Reply with Sayless.</h2>
+          </div>
+          <a className="primary-button light" href={INSTALL_URL}>
+            Review install notes
+            <ArrowRight size={19} />
+          </a>
+        </section>
+      </main>
+      <Footer />
+    </Shell>
+  );
+}
+
+function InstallPage() {
+  const [confirmed, setConfirmed] = useState(false);
+
+  function downloadLatest() {
+    if (confirmed) {
+      window.location.href = RELEASE_URL;
+    }
+  }
+
+  return (
+    <Shell install>
+      <main className="install-page">
+        <section className="install-hero">
+          <div>
+            <div className="eyebrow">
+              <MousePointer2 size={16} />
+              First launch notes
+            </div>
+            <h1>Read this once before downloading Sayless.</h1>
+            <p>
+              Sayless is distributed outside the Mac App Store. macOS may block the first launch until you allow it
+              manually in System Settings.
+            </p>
+          </div>
+          <div className="download-gate">
+            <img src="assets/img/app-icon.png" alt="Sayless app icon" />
+            <h2>Download is locked until you confirm the notes.</h2>
+            <label className="confirm-row">
+              <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+              <span>I read the installation notes and understand the first-launch steps.</span>
+            </label>
+            <button className="primary-button" type="button" disabled={!confirmed} onClick={downloadLatest}>
+              <Download size={19} />
+              Continue to GitHub release
+            </button>
+          </div>
+        </section>
+
+        <section className="install-layout">
+          <div className="install-notes">
+            <p className="section-kicker">Installation notes</p>
+            <h2>macOS may block the app once.</h2>
+            <p>
+              Sayless is distributed outside the Mac App Store. If macOS shows the "'Sayless' Not Opened" alert, allow
+              it manually in System Settings.
+            </p>
+            <ol>
+              <li>Click <strong>Done</strong> on the macOS warning.</li>
+              <li>Open <strong>System Settings</strong> and go to <strong>Privacy &amp; Security</strong>.</li>
+              <li>Scroll down to the <strong>Security</strong> section.</li>
+              <li>Click <strong>Open Anyway</strong> next to the Sayless message.</li>
+              <li>Launch Sayless again, then grant Accessibility permission when prompted.</li>
+            </ol>
+          </div>
+          <MacSecurityMockup />
+        </section>
+      </main>
+      <Footer />
+    </Shell>
+  );
+}
+
+function AssistantMockup() {
+  return (
+    <div className="device-frame">
+      <div className="window-bar">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="conversation">
+        <div className="chat-row left">Are you coming out tonight?</div>
+        <div className="chat-row left compact">Everyone is asking.</div>
+        <div className="input-line">I want to say yes, but not too eager...</div>
+        <div className="assistant-panel">
+          <div className="assistant-head">
+            <img src="assets/img/app-icon.png" alt="" />
+            <div>
+              <strong>Sayless</strong>
+              <span>reading context</span>
+            </div>
+          </div>
+          <button type="button">Sounds good. Where are we meeting?</button>
+          <button type="button">I am down for a bit. What time?</button>
+          <button type="button">Maybe. Convince me with the plan.</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({ icon, title, text }) {
+  return (
+    <article className="feature-card">
+      <div className="feature-icon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function Step({ number, title, text }) {
+  return (
+    <article className="step-card">
+      <span>{number}</span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function MacSecurityMockup() {
+  return (
+    <div className="security-mockup" aria-label="macOS Privacy and Security settings showing Open Anyway">
+      <div className="alert-card">
+        <div className="alert-help">?</div>
+        <div className="alert-icon-wrap">
+          <img src="assets/img/app-icon.png" alt="" />
+          <span>!</span>
+        </div>
+        <h3>"Sayless" Not Opened</h3>
+        <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+        <div className="alert-done">Done</div>
+      </div>
+      <div className="settings-card">
+        <div className="settings-title">Privacy &amp; Security</div>
+        <div className="settings-row muted">Speech Recognition <strong>0</strong></div>
+        <div className="settings-row muted">Sensitive Content Warning <strong>Off</strong></div>
+        <div className="settings-label">Security</div>
+        <div className="blocked-row">
+          <div>
+            <strong>"Sayless" was blocked to protect your Mac.</strong>
+            <p>Apple could not verify "Sayless" is free of malware that may harm your Mac or compromise your privacy.</p>
+          </div>
+          <span>Open Anyway</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="footer">
+      <span>&copy; 2026 Sayless. Built for macOS.</span>
+      <a href="https://github.com/ispaik06/Sayless">GitHub</a>
+      <a href="appcast.xml">Appcast</a>
+    </footer>
+  );
+}
+
+createRoot(document.getElementById("root")).render(<App />);

@@ -1,0 +1,53 @@
+name: Deploy website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Build website
+        working-directory: site
+        run: npm run build
+
+      - name: Preserve current appcast
+        run: |
+          git fetch origin gh-pages:gh-pages
+          git show gh-pages:appcast.xml > site/dist/appcast.xml
+
+      - name: Deploy to gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf /tmp/sayless-pages
+          git worktree add /tmp/sayless-pages gh-pages
+          rsync -a --delete --exclude=".git" site/dist/ /tmp/sayless-pages/
+          cd /tmp/sayless-pages
+          git add -A
+          git commit -m "Deploy website" || exit 0
+          git push origin gh-pages
