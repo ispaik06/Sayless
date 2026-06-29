@@ -76,6 +76,9 @@ final class BackendSuggestionService {
         request.httpMethod = "POST"
         request.timeoutInterval = requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = try await AuthSessionManager.shared.sessionToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         if let clientKey {
             request.setValue(clientKey, forHTTPHeaderField: "x-sayless-client-key")
         }

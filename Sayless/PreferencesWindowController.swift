@@ -17,6 +17,8 @@ final class PreferencesWindowController: NSWindowController {
         let hostingView = FullSizeHostingView(
             rootView: ContentView()
                 .environmentObject(appModel)
+                .environmentObject(AuthSessionManager.shared)
+                .environment(AuthSessionManager.shared.clerk)
                 .ignoresSafeArea()
         )
         hostingView.wantsLayer = true

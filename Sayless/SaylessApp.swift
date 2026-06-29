@@ -5,12 +5,14 @@
 //  Created by IN-SEONG PAIK on 6/25/26.
 //
 
+import ClerkKit
 import SwiftUI
 
 @main
 struct SaylessApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var appModel = AppModel()
+    @StateObject private var authSession = AuthSessionManager.shared
     @StateObject private var updateManager = UpdateManager.shared
 
     var body: some Scene {
@@ -27,6 +29,12 @@ struct SaylessApp: App {
                 appModel.openPreferences()
             }
 
+            if authSession.isSignedIn {
+                Button("Sign Out") {
+                    authSession.signOut()
+                }
+            }
+
             Button("Check for Updates...") {
                 updateManager.checkForUpdates()
             }
@@ -37,5 +45,6 @@ struct SaylessApp: App {
                 NSApplication.shared.terminate(nil)
             }
         }
+        .environment(authSession.clerk)
     }
 }

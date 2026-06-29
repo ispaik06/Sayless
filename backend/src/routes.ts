@@ -70,6 +70,19 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     model: config.aiModel
   }));
 
+  app.get('/auth/config', async (_request, reply) => {
+    if (!config.clerkPublishableKey) {
+      return reply.code(500).send({
+        error: 'configuration_error',
+        message: 'Clerk publishable key is not configured'
+      });
+    }
+
+    return {
+      clerkPublishableKey: config.clerkPublishableKey
+    };
+  });
+
   app.post('/suggestions', async (request, reply) => {
     const startedAt = process.hrtime.bigint();
 
