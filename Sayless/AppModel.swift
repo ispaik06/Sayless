@@ -143,6 +143,10 @@ final class AppModel: ObservableObject {
         suggestionTask?.cancel()
         overlayController.resetSuggestionState()
 
+        guard canRequestAuthenticatedSuggestions(near: context.frame) else {
+            return
+        }
+
         if let cached = cachedSuggestions(for: context, validateTimeline: false) {
             overlayController.showSuggestions(
                 context: context,
@@ -181,6 +185,10 @@ final class AppModel: ObservableObject {
 
     private func generateSuggestions(for context: FocusedTextContext, intent: SuggestionIntent) {
         suggestionTask?.cancel()
+        guard canRequestAuthenticatedSuggestions(near: context.frame) else {
+            return
+        }
+
         let generation = overlayController.beginSuggestionRequest()
         let previousSuggestions = overlayController.suggestionHistory
         let activeSuggestions = activeSuggestionsForRequest(intent: intent)
@@ -200,6 +208,10 @@ final class AppModel: ObservableObject {
 
     private func resetAndRegenerateSuggestions(for context: FocusedTextContext) {
         suggestionTask?.cancel()
+        guard canRequestAuthenticatedSuggestions(near: context.frame) else {
+            return
+        }
+
         suggestionCache = nil
         overlayController.resetSuggestionState()
         let generation = overlayController.refresh(content: .generating(context: context))
@@ -214,6 +226,30 @@ final class AppModel: ObservableObject {
                 forceRefresh: true
             )
         }
+    }
+
+    private func canRequestAuthenticatedSuggestions(near frame: CGRect?) -> Bool {
+        let authSession = AuthSessionManager.shared
+        guard authSession.isSignedIn else {
+            let message: String
+            if authSession.configurationError != nil {
+                message = "Sayless is still loading account configuration. Open Preferences > Account if this does not resolve."
+            } else {
+                message = "Open Preferences > Account and sign in before generating suggestions."
+            }
+
+            overlayController.show(
+                content: .notice(
+                    title: "Sign in required",
+                    message: message,
+                    buttonTitle: nil
+                ),
+                near: frame
+            )
+            return false
+        }
+
+        return true
     }
 
     private func loadSuggestions(
