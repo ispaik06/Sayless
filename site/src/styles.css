@@ -1416,6 +1416,7 @@ button {
 .download-reveal.is-visible {
   max-height: 150px;
   opacity: 1;
+  overflow: visible;
   pointer-events: auto;
   transform: translateY(0);
 }
