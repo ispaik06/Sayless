@@ -492,16 +492,13 @@ final class AccessibilityReader {
 
         let input = bestInstagramInput(in: focusedWindow)
         guard let input else {
-            instagramDebug("provider matched but no Instagram input found: \(app.localizedName ?? "unknown") / \(chatRoomTitle(for: focusedWindow))")
             return .noChatInput
         }
 
         let inputFrame = frame(of: input) ?? frame(of: focusedWindow) ?? .zero
-        let roomTitle = instagramRoomTitle(in: focusedWindow) ?? "Instagram DM"
+        let detectedRoomTitle = instagramRoomTitle(in: focusedWindow)
+        let roomTitle = detectedRoomTitle ?? "Instagram DM"
         let messages: [ChatMessage] = []
-
-        instagramDebug("provider matched: \(app.localizedName ?? "unknown") / \(chatRoomTitle(for: focusedWindow))")
-        instagramDebug("detected room title: \(roomTitle)")
 
         return .ready(
             FocusedTextContext(
@@ -511,7 +508,7 @@ final class AccessibilityReader {
                 element: input,
                 windowElement: focusedWindow,
                 windowTitle: roomTitle,
-                participantCount: nil,
+                participantCount: detectedRoomTitle == nil ? nil : 2,
                 role: copyStringAttribute(input, kAXRoleAttribute) ?? "",
                 value: textValue(of: input) ?? "",
                 frame: inputFrame,
@@ -681,15 +678,6 @@ final class AccessibilityReader {
             limit: limit
         )
 
-        if logExtraction {
-            printInstagramExtraction(
-                roomTitle: roomTitle,
-                staticTextCount: allCandidates.count,
-                candidateCount: messageCandidates.count,
-                messages: messages
-            )
-        }
-
         return messages
     }
 
@@ -760,6 +748,7 @@ final class AccessibilityReader {
             guard !text.isEmpty,
                   candidate.frame.width > 2,
                   candidate.frame.height > 2,
+                  isInsideInstagramConversationColumn(candidate.frame, windowFrame: windowFrame),
                   !isInstagramUIChromeText(text),
                   !isInstagramHeaderCandidate(candidate, windowFrame: windowFrame, roomTitle: roomTitle) else {
                 return false
@@ -775,6 +764,22 @@ final class AccessibilityReader {
 
             return lhs.frame.minX < rhs.frame.minX
         }
+    }
+
+    private func isInsideInstagramConversationColumn(_ frame: CGRect, windowFrame: CGRect?) -> Bool {
+        guard let windowFrame else {
+            return true
+        }
+
+        let conversationMinX = windowFrame.minX + max(340, windowFrame.width * 0.25)
+        let toolbarMaxY = windowFrame.minY + 72
+        guard frame.midX >= conversationMinX,
+              frame.midY >= toolbarMaxY,
+              frame.midX <= windowFrame.maxX - 24 else {
+            return false
+        }
+
+        return true
     }
 
     private func inferInstagramMessages(
@@ -955,6 +960,7 @@ final class AccessibilityReader {
             "menu",
             "new message",
             "your note",
+            "you replied to yourself",
             "notes",
             "threads",
             "meta",
@@ -981,6 +987,7 @@ final class AccessibilityReader {
             "seen ",
             "open the profile page",
             "liked a message",
+            "you replied to",
             "sent an attachment",
             "typing"
         ]
@@ -990,7 +997,6 @@ final class AccessibilityReader {
 
     private func bestInstagramInput(in window: AXUIElement) -> AXUIElement? {
         let candidates = instagramInputCandidates(in: window)
-        instagramDebug("input candidate count: \(candidates.count)")
         return candidates.sorted { lhs, rhs in
             if lhs.score != rhs.score {
                 return lhs.score > rhs.score
@@ -1060,12 +1066,10 @@ final class AccessibilityReader {
         let pid = appPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
 
         if focusElementAndVerify(input, appPID: pid) {
-            instagramDebug("input focus success: AXFocused")
             return true
         }
 
         guard let inputFrame = frame(of: input) else {
-            instagramDebug("input focus failure: no input frame")
             return false
         }
 
@@ -1073,11 +1077,9 @@ final class AccessibilityReader {
         Thread.sleep(forTimeInterval: 0.08)
 
         if verifyFocusedInput(appPID: pid) {
-            instagramDebug("input focus success: click fallback")
             return true
         }
 
-        instagramDebug("input focus failure")
         return false
     }
 
@@ -1139,7 +1141,6 @@ final class AccessibilityReader {
             return title
         }
 
-        instagramDebug("room title unavailable from Instagram profile header")
         return nil
     }
 
@@ -1170,7 +1171,6 @@ final class AccessibilityReader {
 
         for profileLink in profileLinks {
             if let title = instagramHeadingTitle(inside: profileLink.element) {
-                instagramDebug("detected room title from profile link: \(title)")
                 return title
             }
         }
@@ -1251,30 +1251,6 @@ final class AccessibilityReader {
         ]
         .compactMap { $0?.lowercased() }
         .joined(separator: " ")
-    }
-
-    private func printInstagramExtraction(
-        roomTitle: String,
-        staticTextCount: Int,
-        candidateCount: Int,
-        messages: [ChatMessage]
-    ) {
-        print("========== Sayless Instagram AX Extraction ==========")
-        print("room: \(roomTitle)")
-        print("staticTextCount: \(staticTextCount)")
-        print("messageCandidateCount: \(candidateCount)")
-        print("messages: \(messages.count)")
-        for (index, message) in messages.enumerated() {
-            let source = message.debugSource ?? ""
-            print("[\(index + 1)] \(message.sender): \(message.text) \(source)")
-        }
-        print("====================================================")
-    }
-
-    private func instagramDebug(_ message: String) {
-        #if DEBUG
-        print("[Sayless][InstagramAX] \(message)")
-        #endif
     }
 
     private func normalizedInstagramText(_ text: String) -> String {

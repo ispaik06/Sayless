@@ -57,6 +57,7 @@ final class BackendSuggestionService {
     private let endpoint = BackendConfiguration.endpoint
     private let locale = "ko-KR"
     private let requestTimeout: TimeInterval = 18
+    private let maxTextsPerMessageGroup = 15
 
     func suggestions(
         chatRoom: String,
@@ -187,7 +188,7 @@ final class BackendSuggestionService {
             if let last = groups.last,
                last.role == role,
                last.name == name,
-               last.texts.count + texts.count <= 8 {
+               last.texts.count + texts.count <= maxTextsPerMessageGroup {
                 groups[groups.count - 1] = SuggestionMessageGroup(
                     role: last.role,
                     name: last.name,
@@ -198,7 +199,7 @@ final class BackendSuggestionService {
                     SuggestionMessageGroup(
                         role: role,
                         name: name,
-                        texts: Array(texts.prefix(8))
+                        texts: Array(texts.prefix(maxTextsPerMessageGroup))
                     )
                 )
             }
