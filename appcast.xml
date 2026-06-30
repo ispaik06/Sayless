@@ -6,6 +6,15 @@
         <description>Most recent changes with links to updates for Sayless.</description>
         <language>en</language>
         <item>
+            <title>0.1.4</title>
+            <pubDate>Tue, 30 Jun 2026 12:40:11 +0900</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>0.1.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.4/Sayless-0.1.4-5.zip" length="8504369" type="application/octet-stream" sparkle:edSignature="ou8RlDl/2H2kWmDIyW3Yrqwq+6lBXpwYatK+NvfF69WnQyQohrVtlmema+iiu1y3oRH6hCparPvfbKgWUi8WAQ=="/>
+        </item>
+        <item>
             <title>0.1.2</title>
             <pubDate>Sun, 28 Jun 2026 23:48:06 +0900</pubDate>
             <sparkle:version>3</sparkle:version>
@@ -22,15 +31,6 @@
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.1/Sayless-0.1.1-2.zip" length="3580929" type="application/octet-stream" sparkle:edSignature="V+AIPREAxy0GAM2OO7ZyeGJ+7BYs+a+yhjhDRkOGrFobMXXuyXR7TgojeLmocXX6GrJUYCUukoFBPVxHbIVYBg=="/>
-        </item>
-        <item>
-            <title>0.1.0</title>
-            <pubDate>Sat, 27 Jun 2026 18:58:16 +0900</pubDate>
-            <sparkle:version>1</sparkle:version>
-            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.0/Sayless-0.1.0-1.zip" length="3570490" type="application/octet-stream" sparkle:edSignature="MJVy+qVCeNkN/0QVyEjq2IS1AVH65zvlU0KqA9D3X1WsmKNGogTgglzscZnjbcprEhbgiSkzK67cR5V9NfVQAw=="/>
         </item>
     </channel>
 </rss>
