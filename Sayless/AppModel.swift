@@ -50,6 +50,7 @@ final class AppModel: ObservableObject {
     private static let refreshShortcutDefaultsKey = "refreshShortcutOption"
     private static let customShortcutDefaultsKey = "customShortcut"
     private static let customRefreshShortcutDefaultsKey = "customRefreshShortcut"
+    private static let temporaryNoticeDuration: TimeInterval = 2.1
 
     init() {
         let savedShortcut = UserDefaults.standard.string(forKey: Self.shortcutDefaultsKey)
@@ -238,13 +239,14 @@ final class AppModel: ObservableObject {
                 message = "Open Preferences > Account and sign in before generating suggestions."
             }
 
-            overlayController.show(
+            overlayController.showTemporary(
                 content: .notice(
                     title: "Sign in required",
                     message: message,
                     buttonTitle: nil
                 ),
-                near: frame
+                near: frame,
+                duration: Self.temporaryNoticeDuration
             )
             return false
         }
@@ -456,7 +458,7 @@ final class AppModel: ObservableObject {
                     message: "Sayless already has permission to read the focused KakaoTalk input.",
                     buttonTitle: nil
                 ),
-                duration: 2.1
+                duration: Self.temporaryNoticeDuration
             )
         } else {
             openAccessibilitySettingsIfNeeded()
