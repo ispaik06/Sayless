@@ -306,11 +306,11 @@ const DEMO_CHAT_MESSAGES = [
   { side: "left", delay: 420, text: "Hey! I had a great time tonight." },
   { side: "left", compact: true, delay: 780, text: "The movie was fun 🙂" },
   { side: "right", delay: 1650, text: "Me too! Really enjoyed hanging out with you 🍿" },
-  { side: "left", delay: 2150, text: "Let's do it again soon! 😌" }
+  { side: "left", delay: 800, text: "Let's do it again soon! 😌" }
 ];
 
 const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow...?";
-const DEMO_TYPING_START_DELAY = 1500;
+const DEMO_TYPING_START_DELAY = 1000;
 
 function AssistantMockup() {
   const stageRef = useRef(null);
@@ -411,7 +411,7 @@ function AssistantMockup() {
     const typingTimer = window.setTimeout(() => {
       const nextLength = Math.min(Array.from(typedMessage).length + 1, characters.length);
       setTypedMessage(characters.slice(0, nextLength).join(""));
-    }, 50);
+    }, 30);
 
     return () => window.clearTimeout(typingTimer);
   }, [demoFocused, selectedReply, typedMessage, typingComplete, typingReady, visibleMessageCount]);
