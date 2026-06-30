@@ -46,7 +46,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -rf /tmp/sayless-pages
           git worktree add /tmp/sayless-pages gh-pages
-          rsync -a --delete --exclude=".git" site/dist/ /tmp/sayless-pages/
+          rsync -a --delete --exclude=".git" --exclude="assets/main-*.js" --exclude="assets/main-*.css" site/dist/ /tmp/sayless-pages/
+          rsync -a site/dist/assets/main-*.js site/dist/assets/main-*.css /tmp/sayless-pages/assets/
           cd /tmp/sayless-pages
           git add -A
           git commit -m "Deploy website" || exit 0
