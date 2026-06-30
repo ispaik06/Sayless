@@ -1128,6 +1128,69 @@ button {
   padding: clamp(34px, 6vw, 70px) clamp(18px, 5vw, 72px) clamp(72px, 9vw, 120px);
 }
 
+.install-scroll-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 10px 14px 10px 18px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(18, 24, 33, 0.92), rgba(6, 15, 28, 0.84)),
+    rgba(14, 18, 26, 0.88);
+  box-shadow:
+    0 18px 42px rgba(15, 23, 42, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 14px);
+  transition: opacity 260ms ease, transform 260ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.install-scroll-hint.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+  animation: installHintFloat 1.35s ease-in-out infinite;
+}
+
+.install-scroll-hint:hover {
+  border-color: rgba(77, 139, 255, 0.54);
+  box-shadow:
+    0 22px 54px rgba(77, 139, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.install-scroll-hint span {
+  font-size: 13px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.install-scroll-hint small {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.install-scroll-hint svg {
+  flex: 0 0 auto;
+  color: #8fb7ff;
+  animation: installHintArrow 1.35s ease-in-out infinite;
+}
+
 .install-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
@@ -1852,6 +1915,28 @@ button {
   }
 }
 
+@keyframes installHintFloat {
+  0%,
+  100% {
+    transform: translate(-50%, 0);
+  }
+
+  50% {
+    transform: translate(-50%, -6px);
+  }
+}
+
+@keyframes installHintArrow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(4px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1935,12 +2020,6 @@ button {
     padding: 0 10px;
   }
 
-  .nav-cta {
-    min-height: 40px;
-    padding: 0 14px;
-    font-size: 14px;
-  }
-
   .hero h1 {
     font-size: 3.35rem;
   }
@@ -1956,6 +2035,16 @@ button {
 
   .install-notes h2 {
     font-size: 2.25rem;
+  }
+
+  .install-scroll-hint {
+    width: calc(100% - 32px);
+    bottom: 16px;
+    gap: 8px;
+  }
+
+  .install-scroll-hint small {
+    display: none;
   }
 
   .hero-actions,

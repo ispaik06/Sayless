@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  ArrowDown,
   ArrowRight,
   CheckCircle2,
   ChevronRight,
@@ -112,7 +113,9 @@ const COPY = {
       confirmed: "Installation notes confirmed",
       acknowledge: "I have read the installation notes",
       download: "Download latest DMG",
-      downloadHelp: "Downloads the latest macOS build directly."
+      downloadHelp: "Downloads the latest macOS build directly.",
+      scrollHint: "Download button is below",
+      scrollHintSubtext: "Review the notes, then scroll down."
     },
     demo: {
       person: "Isabel",
@@ -256,7 +259,9 @@ const COPY = {
       confirmed: "설치 안내 확인 완료",
       acknowledge: "설치 안내를 읽었습니다",
       download: "최신 DMG 다운로드",
-      downloadHelp: "최신 macOS 빌드를 바로 다운로드합니다."
+      downloadHelp: "최신 macOS 빌드를 바로 다운로드합니다.",
+      scrollHint: "아래에 다운로드 버튼이 있어요",
+      scrollHintSubtext: "설치 안내 확인 후 내려가세요."
     },
     demo: {
       person: "설윤아",
@@ -358,10 +363,6 @@ function Shell({ children, install = false, lang, setLang, t }) {
             <span className={lang === "en" ? "is-active" : ""}>EN</span>
             <span className={lang === "ko" ? "is-active" : ""}>KO</span>
           </button>
-          <a className="nav-cta" href={INSTALL_URL}>
-            <Download size={17} />
-            {t.nav.download}
-          </a>
         </div>
       </header>
       {children}
@@ -481,10 +482,32 @@ function HomePage({ lang, setLang, t }) {
 
 function InstallPage({ lang, setLang, t }) {
   const [acknowledged, setAcknowledged] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(true);
+  const gateRef = useRef(null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowScrollHint(false), 4200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   return (
     <Shell install lang={lang} setLang={setLang} t={t}>
       <main className="install-page">
+        <button
+          className={`install-scroll-hint ${showScrollHint ? "is-visible" : ""}`}
+          type="button"
+          aria-hidden={!showScrollHint}
+          tabIndex={showScrollHint ? 0 : -1}
+          onClick={() => {
+            setShowScrollHint(false);
+            gateRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }}
+        >
+          <span>{t.install.scrollHint}</span>
+          <small>{t.install.scrollHintSubtext}</small>
+          <ArrowDown size={16} />
+        </button>
+
         <section className="install-hero">
           <div>
             <div className="eyebrow">
@@ -519,7 +542,7 @@ function InstallPage({ lang, setLang, t }) {
           <MacSecurityMockup lang={lang} />
         </section>
 
-        <section className="install-gate" aria-label="Download confirmation">
+        <section className="install-gate" ref={gateRef} aria-label="Download confirmation">
           <button
             className={`read-button ${acknowledged ? "is-complete" : ""}`}
             type="button"
