@@ -310,7 +310,7 @@ const DEMO_CHAT_MESSAGES = [
 ];
 
 const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow...?";
-const DEMO_TYPING_START_DELAY = 2600;
+const DEMO_TYPING_START_DELAY = 1500;
 
 function AssistantMockup() {
   const stageRef = useRef(null);
@@ -411,7 +411,7 @@ function AssistantMockup() {
     const typingTimer = window.setTimeout(() => {
       const nextLength = Math.min(Array.from(typedMessage).length + 1, characters.length);
       setTypedMessage(characters.slice(0, nextLength).join(""));
-    }, 100);
+    }, 50);
 
     return () => window.clearTimeout(typingTimer);
   }, [demoFocused, selectedReply, typedMessage, typingComplete, typingReady, visibleMessageCount]);
