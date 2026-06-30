@@ -302,7 +302,14 @@ const DEMO_ADJUSTMENTS = [
   { id: "custom", label: "Custom" }
 ];
 
-const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow? 😳";
+const DEMO_CHAT_MESSAGES = [
+  { side: "left", text: "Hey! I had a great time tonight." },
+  { side: "left", compact: true, text: "The movie was fun 🙂" },
+  { side: "right", text: "Me too! Really enjoyed hanging out with you 🍿" },
+  { side: "left", text: "Let's do it again soon! 😌" }
+];
+
+const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow...?";
 
 function AssistantMockup() {
   const stageRef = useRef(null);
@@ -315,11 +322,15 @@ function AssistantMockup() {
   const [selectedReply, setSelectedReply] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [typedMessage, setTypedMessage] = useState("");
-  const [typingStarted, setTypingStarted] = useState(false);
+  const [visibleMessageCount, setVisibleMessageCount] = useState(0);
+  const [demoInView, setDemoInView] = useState(false);
+  const [documentActive, setDocumentActive] = useState(() => document.visibilityState === "visible" && document.hasFocus());
   const [typingComplete, setTypingComplete] = useState(false);
+  const [showShortcutPrompt, setShowShortcutPrompt] = useState(false);
   const [shortcutPromptDismissed, setShortcutPromptDismissed] = useState(false);
-  const hasTypedMessageRef = useRef(false);
   const replies = DEMO_REPLY_PRESETS[activePreset];
+  const demoFocused = demoInView && documentActive;
+  const canUseShortcut = showShortcutPrompt || shortcutPromptDismissed || overlayVisible;
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -330,10 +341,7 @@ function AssistantMockup() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setTypingStarted(true);
-          observer.disconnect();
-        }
+        setDemoInView(entry.isIntersecting && entry.intersectionRatio >= 0.52);
       },
       { rootMargin: "-12% 0px -12% 0px", threshold: 0.52 }
     );
@@ -344,42 +352,75 @@ function AssistantMockup() {
   }, []);
 
   useEffect(() => {
-    if (!typingStarted || selectedReply) {
+    function updateDocumentActive() {
+      setDocumentActive(document.visibilityState === "visible" && document.hasFocus());
+    }
+
+    updateDocumentActive();
+    document.addEventListener("visibilitychange", updateDocumentActive);
+    window.addEventListener("focus", updateDocumentActive);
+    window.addEventListener("blur", updateDocumentActive);
+
+    return () => {
+      document.removeEventListener("visibilitychange", updateDocumentActive);
+      window.removeEventListener("focus", updateDocumentActive);
+      window.removeEventListener("blur", updateDocumentActive);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!demoFocused || selectedReply || visibleMessageCount >= DEMO_CHAT_MESSAGES.length) {
       return undefined;
     }
 
-    if (hasTypedMessageRef.current) {
-      setTypedMessage(DEMO_TYPED_MESSAGE);
-      setTypingComplete(true);
+    const messageTimer = window.setTimeout(
+      () => setVisibleMessageCount((count) => Math.min(count + 1, DEMO_CHAT_MESSAGES.length)),
+      visibleMessageCount === 0 ? 420 : 820
+    );
+
+    return () => window.clearTimeout(messageTimer);
+  }, [demoFocused, selectedReply, visibleMessageCount]);
+
+  useEffect(() => {
+    if (!demoFocused || selectedReply || visibleMessageCount < DEMO_CHAT_MESSAGES.length || typingComplete) {
       return undefined;
     }
 
     const characters = Array.from(DEMO_TYPED_MESSAGE);
-    let index = 0;
-    setTypedMessage("");
-    setTypingComplete(false);
 
-    const typingTimer = window.setInterval(() => {
-      index += 1;
-      setTypedMessage(characters.slice(0, index).join(""));
+    if (typedMessage.length >= characters.length) {
+      setTypingComplete(true);
+      return undefined;
+    }
 
-      if (index >= characters.length) {
-        hasTypedMessageRef.current = true;
-        setTypingComplete(true);
-        window.clearInterval(typingTimer);
-      }
-    }, 78);
+    const typingTimer = window.setTimeout(() => {
+      const nextLength = Math.min(Array.from(typedMessage).length + 1, characters.length);
+      setTypedMessage(characters.slice(0, nextLength).join(""));
+    }, 108);
 
-    return () => window.clearInterval(typingTimer);
-  }, [typingStarted, selectedReply]);
+    return () => window.clearTimeout(typingTimer);
+  }, [demoFocused, selectedReply, typedMessage, typingComplete, visibleMessageCount]);
+
+  useEffect(() => {
+    if (!demoFocused || !typingComplete || showShortcutPrompt || shortcutPromptDismissed) {
+      return undefined;
+    }
+
+    const promptTimer = window.setTimeout(() => {
+      setShowShortcutPrompt(true);
+    }, 1150);
+
+    return () => window.clearTimeout(promptTimer);
+  }, [demoFocused, shortcutPromptDismissed, showShortcutPrompt, typingComplete]);
 
   useEffect(() => {
     function handleShortcut(event) {
       if (event.altKey && event.code === "Space") {
         event.preventDefault();
-        if (!typingComplete) {
+        if (!canUseShortcut) {
           return;
         }
+        setShowShortcutPrompt(false);
         setShortcutPromptDismissed(true);
         setOverlayVisible((visible) => !visible);
       }
@@ -388,9 +429,10 @@ function AssistantMockup() {
     window.addEventListener("keydown", handleShortcut);
 
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [typingComplete]);
+  }, [canUseShortcut]);
 
   function openOverlayFromPrompt() {
+    setShowShortcutPrompt(false);
     setShortcutPromptDismissed(true);
     setOverlayVisible(true);
   }
@@ -475,21 +517,25 @@ function AssistantMockup() {
             <span>Active now</span>
           </div>
           <div className="chat-thread">
-            <div className="chat-row left">Hey! I had a great time tonight.</div>
-            <div className="chat-row left compact">The movie was fun 🙂</div>
-            <div className="chat-row right">Me too! Really enjoyed hanging out with you 🍿</div>
-            <div className="chat-row left">Let's do it again soon! 😌</div>
+            {DEMO_CHAT_MESSAGES.slice(0, visibleMessageCount).map((message) => (
+              <div
+                key={message.text}
+                className={`chat-row ${message.side} ${message.compact ? "compact" : ""}`}
+              >
+                {message.text}
+              </div>
+            ))}
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
             {selectedReply ? selectedReply.text : typedMessage}
-            {!selectedReply && typingStarted && !typingComplete && (
+            {!selectedReply && demoFocused && visibleMessageCount === DEMO_CHAT_MESSAGES.length && !typingComplete && (
               <span className="typing-caret" aria-hidden="true"></span>
             )}
           </div>
         </div>
       </div>
 
-      {typingComplete && !shortcutPromptDismissed && (
+      {showShortcutPrompt && !shortcutPromptDismissed && (
         <button className="shortcut-hint" type="button" onClick={openOverlayFromPrompt}>
           <span>Press</span>
           <kbd>Option</kbd>
