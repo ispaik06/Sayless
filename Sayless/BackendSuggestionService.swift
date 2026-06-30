@@ -214,6 +214,7 @@ final class BackendSuggestionService {
     private func name(for sender: String, role: String) -> String? {
         guard role == "other",
               sender != "Unknown",
+              sender != "other",
               !sender.isEmpty else {
             return nil
         }

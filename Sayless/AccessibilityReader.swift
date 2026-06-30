@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 
 struct FocusedTextContext {
+    let source: ChatContextSource
     let appName: String
     let bundleIdentifier: String
     let element: AXUIElement
@@ -15,6 +16,11 @@ struct FocusedTextContext {
     let chatMessages: [ChatMessage]
 }
 
+enum ChatContextSource {
+    case kakaoTalk
+    case webInstagram
+}
+
 struct ChatMessage {
     let sender: String
     let text: String
@@ -24,6 +30,22 @@ struct ChatMessage {
 
 struct ChatTimelineSignature: Equatable {
     let tail: [ChatMessageFingerprint]
+
+    func hasMeaningfulOverlap(with other: ChatTimelineSignature, minimum: Int = 2) -> Bool {
+        let requiredOverlap = min(minimum, tail.count, other.tail.count)
+        guard requiredOverlap > 0 else {
+            return false
+        }
+
+        for overlap in stride(from: min(tail.count, other.tail.count), through: requiredOverlap, by: -1) {
+            if Array(tail.suffix(overlap)) == Array(other.tail.prefix(overlap))
+                || Array(other.tail.suffix(overlap)) == Array(tail.prefix(overlap)) {
+                return true
+            }
+        }
+
+        return false
+    }
 
     func containsNewerMessages(than previous: ChatTimelineSignature) -> Bool {
         guard tail != previous.tail,
@@ -85,6 +107,28 @@ private struct AXElementSnapshot {
     let children: [AXUIElement]
 }
 
+private struct InstagramTextCandidate {
+    let text: String
+    let role: String
+    let frame: CGRect
+    let parentChain: [InstagramAncestorSnapshot]
+    let depth: Int
+}
+
+private struct InstagramAncestorSnapshot {
+    let role: String
+    let value: String?
+    let title: String?
+    let description: String?
+    let help: String?
+}
+
+private struct InstagramInputCandidate {
+    let element: AXUIElement
+    let frame: CGRect
+    let score: Int
+}
+
 private enum ParsedChatRow {
     case system(text: String, frame: CGRect)
     case message(ChatMessage)
@@ -113,6 +157,29 @@ final class AccessibilityReader {
     private typealias AXElementID = UInt
     private var cachedChatTable: AXUIElement?
     private var cachedChatWindowID: AXElementID?
+
+    func focusedTextContext(includeParticipantCount: Bool = true) -> SummonResult {
+        guard isAccessibilityTrusted() else {
+            return .accessibilityMissing
+        }
+
+        guard let app = NSWorkspace.shared.frontmostApplication else {
+            return .unsupportedApp
+        }
+
+        if isBrowser(app) {
+            let instagramResult = focusedWebInstagramTextContext(app: app)
+            if case .ready = instagramResult {
+                return instagramResult
+            }
+        }
+
+        if isKakaoTalk(app) {
+            return fastFocusedKakaoTextContext()
+        }
+
+        return .unsupportedApp
+    }
 
     func requestAccessibilityIfNeeded() -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
@@ -175,6 +242,54 @@ final class AccessibilityReader {
 
         focus(input)
         return context(for: input, app: app, includeParticipantCount: false)
+    }
+
+    func collectVisibleMessages(for context: FocusedTextContext, limit: Int = 20) -> [ChatMessage] {
+        guard let window = context.windowElement else {
+            return []
+        }
+
+        switch context.source {
+        case .kakaoTalk:
+            return collectVisibleKakaoMessages(in: window, limit: limit)
+        case .webInstagram:
+            return collectVisibleInstagramMessages(in: window, limit: limit)
+        }
+    }
+
+    func latestVisibleMessageSignature(for context: FocusedTextContext) -> ChatTimelineSignature? {
+        guard let window = context.windowElement else {
+            return nil
+        }
+
+        switch context.source {
+        case .kakaoTalk:
+            return latestVisibleKakaoMessageSignature(in: window)
+        case .webInstagram:
+            let messages = collectVisibleInstagramMessages(in: window, limit: 10, logExtraction: false)
+            let tail = messages.suffix(8).map { message in
+                ChatMessageFingerprint(
+                    role: message.sender == "Me" ? "me" : "other",
+                    senderHash: message.sender == "Me" ? nil : stableHash(message.sender),
+                    textHash: stableHash(message.text)
+                )
+            }
+            return tail.isEmpty ? nil : ChatTimelineSignature(tail: Array(tail))
+        }
+    }
+
+    func focusInput(for context: FocusedTextContext) -> Bool {
+        switch context.source {
+        case .kakaoTalk:
+            focus(context.element)
+            return true
+        case .webInstagram:
+            guard let window = context.windowElement else {
+                return focusElementAndVerify(context.element, appPID: nil)
+            }
+
+            return focusInstagramInput(in: window, appPID: nil, fallbackElement: context.element)
+        }
     }
 
     func setValue(_ text: String, into element: AXUIElement) -> Bool {
@@ -349,6 +464,63 @@ final class AccessibilityReader {
         return name.contains("kakaotalk") || name.contains("kakao") || bundleID.contains("kakao")
     }
 
+    private func isBrowser(_ app: NSRunningApplication) -> Bool {
+        let name = (app.localizedName ?? "").lowercased()
+        let bundleID = (app.bundleIdentifier ?? "").lowercased()
+        let browserTokens = [
+            "safari",
+            "chrome",
+            "chromium",
+            "arc",
+            "atlas",
+            "browser",
+            "edge",
+            "firefox",
+            "brave"
+        ]
+
+        return browserTokens.contains { name.contains($0) || bundleID.contains($0) }
+    }
+
+    private func focusedWebInstagramTextContext(app: NSRunningApplication) -> SummonResult {
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        guard let focusedWindow = copyAttribute(appElement, kAXFocusedWindowAttribute) as AXUIElement?,
+              isWindowUsable(focusedWindow),
+              looksLikeInstagramMessagesWindow(focusedWindow) else {
+            return .unsupportedApp
+        }
+
+        let input = bestInstagramInput(in: focusedWindow)
+        guard let input else {
+            instagramDebug("provider matched but no Instagram input found: \(app.localizedName ?? "unknown") / \(chatRoomTitle(for: focusedWindow))")
+            return .noChatInput
+        }
+
+        let inputFrame = frame(of: input) ?? frame(of: focusedWindow) ?? .zero
+        let roomTitle = instagramRoomTitle(in: focusedWindow) ?? "Instagram DM"
+        let messages: [ChatMessage] = []
+
+        instagramDebug("provider matched: \(app.localizedName ?? "unknown") / \(chatRoomTitle(for: focusedWindow))")
+        instagramDebug("detected room title: \(roomTitle)")
+
+        return .ready(
+            FocusedTextContext(
+                source: .webInstagram,
+                appName: app.localizedName ?? "Browser",
+                bundleIdentifier: app.bundleIdentifier ?? "",
+                element: input,
+                windowElement: focusedWindow,
+                windowTitle: roomTitle,
+                participantCount: nil,
+                role: copyStringAttribute(input, kAXRoleAttribute) ?? "",
+                value: textValue(of: input) ?? "",
+                frame: inputFrame,
+                windowFrame: frame(of: focusedWindow),
+                chatMessages: messages
+            )
+        )
+    }
+
     private func findFocusedKakaoChatInput(in appElement: AXUIElement) -> AXUIElement? {
         if let focusedElement = copyAttribute(appElement, kAXFocusedUIElementAttribute) as AXUIElement? {
             if let input = nearestInput(around: focusedElement) {
@@ -469,6 +641,685 @@ final class AccessibilityReader {
         return false
     }
 
+    private func looksLikeInstagramMessagesWindow(_ window: AXUIElement) -> Bool {
+        let title = chatRoomTitle(for: window).lowercased()
+        if title.contains("instagram") && (title.contains("messages") || title.contains("direct")) {
+            return true
+        }
+
+        if title.contains("instagram") {
+            let texts = collectInstagramStaticTextCandidates(in: window, maxDepth: 10, maxNodes: 220)
+            return texts.contains { candidate in
+                let normalized = candidate.text.lowercased()
+                return normalized == "messages"
+                    || normalized == "send"
+                    || normalized == "message..."
+                    || normalized.contains("active now")
+            }
+        }
+
+        return false
+    }
+
+    private func collectVisibleInstagramMessages(
+        in focusedWindow: AXUIElement,
+        limit: Int = 20,
+        logExtraction: Bool = true
+    ) -> [ChatMessage] {
+        guard isAccessibilityTrusted(), isWindowUsable(focusedWindow) else {
+            return []
+        }
+
+        let roomTitle = instagramRoomTitle(in: focusedWindow) ?? "Instagram DM"
+        let windowFrame = frame(of: focusedWindow)
+        let allCandidates = collectInstagramStaticTextCandidates(in: focusedWindow, maxDepth: 30, maxNodes: 3000)
+        let messageCandidates = instagramMessageTextCandidates(allCandidates, windowFrame: windowFrame, roomTitle: roomTitle)
+        let messages = inferInstagramMessages(
+            from: messageCandidates,
+            windowFrame: windowFrame,
+            roomTitle: roomTitle,
+            limit: limit
+        )
+
+        if logExtraction {
+            printInstagramExtraction(
+                roomTitle: roomTitle,
+                staticTextCount: allCandidates.count,
+                candidateCount: messageCandidates.count,
+                messages: messages
+            )
+        }
+
+        return messages
+    }
+
+    private func collectInstagramStaticTextCandidates(
+        in root: AXUIElement,
+        maxDepth: Int,
+        maxNodes: Int
+    ) -> [InstagramTextCandidate] {
+        var queue: [(element: AXUIElement, depth: Int, parents: [InstagramAncestorSnapshot])] = [
+            (root, 0, [])
+        ]
+        var visited = Set<AXElementID>()
+        var candidates: [InstagramTextCandidate] = []
+        var visitedCount = 0
+
+        while !queue.isEmpty, visitedCount < maxNodes {
+            let item = queue.removeFirst()
+            let id = elementID(item.element)
+            guard !visited.contains(id) else {
+                continue
+            }
+
+            visited.insert(id)
+            visitedCount += 1
+
+            let snapshot = snapshot(of: item.element)
+            if snapshot.role == kAXStaticTextRole as String,
+               let text = visibleText(from: snapshot),
+               let frame = snapshot.frame {
+                candidates.append(
+                    InstagramTextCandidate(
+                        text: normalizedInstagramText(text),
+                        role: snapshot.role,
+                        frame: frame,
+                        parentChain: item.parents,
+                        depth: item.depth
+                    )
+                )
+            }
+
+            guard item.depth < maxDepth else {
+                continue
+            }
+
+            let ancestor = InstagramAncestorSnapshot(
+                role: snapshot.role,
+                value: snapshot.value,
+                title: snapshot.title,
+                description: snapshot.description,
+                help: snapshot.help
+            )
+            let nextParents = Array((item.parents + [ancestor]).suffix(10))
+            snapshot.children.forEach {
+                queue.append(($0, item.depth + 1, nextParents))
+            }
+        }
+
+        return uniqueInstagramCandidates(candidates)
+    }
+
+    private func instagramMessageTextCandidates(
+        _ candidates: [InstagramTextCandidate],
+        windowFrame: CGRect?,
+        roomTitle: String
+    ) -> [InstagramTextCandidate] {
+        let filtered = candidates.filter { candidate in
+            let text = candidate.text
+            guard !text.isEmpty,
+                  candidate.frame.width > 2,
+                  candidate.frame.height > 2,
+                  !isInstagramUIChromeText(text),
+                  !isInstagramHeaderCandidate(candidate, windowFrame: windowFrame, roomTitle: roomTitle) else {
+                return false
+            }
+
+            return true
+        }
+
+        return filtered.sorted { lhs, rhs in
+            if abs(lhs.frame.minY - rhs.frame.minY) > 3 {
+                return lhs.frame.minY < rhs.frame.minY
+            }
+
+            return lhs.frame.minX < rhs.frame.minX
+        }
+    }
+
+    private func inferInstagramMessages(
+        from candidates: [InstagramTextCandidate],
+        windowFrame: CGRect?,
+        roomTitle: String,
+        limit: Int
+    ) -> [ChatMessage] {
+        let conversationFrame = unionFrame(candidates.map(\.frame))
+        let referenceFrame = windowFrame ?? (conversationFrame.isNull ? nil : conversationFrame)
+        let centerX = referenceFrame?.midX ?? conversationFrame.midX
+        var messages: [ChatMessage] = []
+        var pendingSender: String?
+        var senderLabels: [String] = []
+
+        for index in candidates.indices {
+            let candidate = candidates[index]
+            let nextCandidate = candidates.indices.contains(index + 1) ? candidates[index + 1] : nil
+
+            if isInstagramSenderLabel(candidate, next: nextCandidate, centerX: centerX, windowFrame: referenceFrame) {
+                pendingSender = candidate.text
+                senderLabels.append(candidate.text)
+                continue
+            }
+
+            let isMine = isInstagramOutgoingMessage(candidate.frame, centerX: centerX, windowFrame: referenceFrame)
+            let sender: String
+            if isMine {
+                sender = "Me"
+                pendingSender = nil
+            } else if let pendingSender {
+                sender = pendingSender
+            } else {
+                sender = instagramFallbackSender(roomTitle: roomTitle)
+            }
+
+            messages.append(
+                ChatMessage(
+                    sender: sender,
+                    text: candidate.text,
+                    frame: candidate.frame,
+                    debugSource: "web-instagram x:\(Int(candidate.frame.minX)) y:\(Int(candidate.frame.minY))"
+                )
+            )
+        }
+
+        let deduped = dedupeAdjacentInstagramMessages(messages)
+        return Array(deduped.suffix(limit))
+    }
+
+    private func instagramFallbackSender(roomTitle: String) -> String {
+        let title = normalizedInstagramText(roomTitle)
+        guard !title.isEmpty,
+              title != "Instagram DM",
+              !isInstagramUIChromeText(title) else {
+            return "other"
+        }
+
+        return title
+    }
+
+    private func isInstagramOutgoingMessage(_ frame: CGRect, centerX: CGFloat, windowFrame: CGRect?) -> Bool {
+        if frame.midX > centerX + 36 {
+            return true
+        }
+
+        if let windowFrame,
+           frame.maxX > windowFrame.maxX - max(120, windowFrame.width * 0.22),
+           frame.minX > centerX - 24 {
+            return true
+        }
+
+        return false
+    }
+
+    private func isInstagramSenderLabel(
+        _ candidate: InstagramTextCandidate,
+        next: InstagramTextCandidate?,
+        centerX: CGFloat,
+        windowFrame: CGRect?
+    ) -> Bool {
+        let text = candidate.text
+        guard text.count >= 2,
+              text.count <= 32,
+              !text.contains("\n"),
+              !isInstagramOutgoingMessage(candidate.frame, centerX: centerX, windowFrame: windowFrame),
+              !isInstagramUIChromeText(text),
+              !looksLikeSentenceMessage(text) else {
+            return false
+        }
+
+        guard let next else {
+            return false
+        }
+
+        let verticalGap = next.frame.minY - candidate.frame.maxY
+        guard verticalGap >= -2,
+              verticalGap <= 52,
+              !isInstagramOutgoingMessage(next.frame, centerX: centerX, windowFrame: windowFrame),
+              next.frame.minX >= candidate.frame.minX - 18,
+              next.frame.minX <= candidate.frame.minX + 120 else {
+            return false
+        }
+
+        return true
+    }
+
+    private func looksLikeSentenceMessage(_ text: String) -> Bool {
+        if text.contains("?") || text.contains("!") || text.contains(".") || text.contains("ㅋㅋ") || text.contains("ㅎ") {
+            return true
+        }
+
+        if text.contains(" ") && text.count > 10 {
+            return true
+        }
+
+        return false
+    }
+
+    private func isInstagramHeaderCandidate(
+        _ candidate: InstagramTextCandidate,
+        windowFrame: CGRect?,
+        roomTitle: String
+    ) -> Bool {
+        let text = candidate.text
+        let normalizedText = normalizedComparableInstagramText(text)
+        let normalizedRoomTitle = normalizedComparableInstagramText(roomTitle)
+        let parentIdentity = candidate.parentChain
+            .flatMap { [$0.role, $0.value, $0.title, $0.description, $0.help] }
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+
+        if parentIdentity.contains("heading") || parentIdentity.contains("open the profile page") {
+            return true
+        }
+
+        if !normalizedRoomTitle.isEmpty,
+           normalizedText == normalizedRoomTitle {
+            return true
+        }
+
+        guard let windowFrame else {
+            return false
+        }
+
+        let headerMaxY = windowFrame.minY + min(max(windowFrame.height * 0.18, 88), 155)
+        if candidate.frame.midY <= headerMaxY,
+           candidate.frame.midX > windowFrame.minX + max(180, windowFrame.width * 0.20),
+           candidate.frame.midX < windowFrame.maxX - 80,
+           candidate.frame.height <= 36 {
+            return true
+        }
+
+        return false
+    }
+
+    private func isInstagramUIChromeText(_ text: String) -> Bool {
+        let normalized = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let exact = [
+            "instagram",
+            "messages",
+            "message",
+            "message...",
+            "search",
+            "home",
+            "explore",
+            "reels",
+            "notifications",
+            "profile",
+            "send",
+            "active now",
+            "seen",
+            "reply",
+            "like",
+            "more",
+            "menu",
+            "new message",
+            "your note",
+            "notes",
+            "threads",
+            "meta",
+            "메시지",
+            "검색",
+            "홈",
+            "탐색",
+            "릴스",
+            "알림",
+            "프로필",
+            "보내기",
+            "답장",
+            "좋아요",
+            "더 보기",
+            "활동 중"
+        ]
+
+        if exact.contains(normalized) {
+            return true
+        }
+
+        let prefixes = [
+            "active ",
+            "seen ",
+            "open the profile page",
+            "liked a message",
+            "sent an attachment",
+            "typing"
+        ]
+
+        return prefixes.contains { normalized.hasPrefix($0) }
+    }
+
+    private func bestInstagramInput(in window: AXUIElement) -> AXUIElement? {
+        let candidates = instagramInputCandidates(in: window)
+        instagramDebug("input candidate count: \(candidates.count)")
+        return candidates.sorted { lhs, rhs in
+            if lhs.score != rhs.score {
+                return lhs.score > rhs.score
+            }
+
+            if abs(lhs.frame.minY - rhs.frame.minY) > 8 {
+                return lhs.frame.minY > rhs.frame.minY
+            }
+
+            return lhs.frame.width > rhs.frame.width
+        }
+        .first?
+        .element
+    }
+
+    private func instagramInputCandidates(in window: AXUIElement) -> [InstagramInputCandidate] {
+        let windowFrame = frame(of: window)
+        let elements = [window] + descendants(of: window, maxDepth: 30, maxVisited: 3000)
+        return elements.compactMap { element -> InstagramInputCandidate? in
+            let snapshot = snapshot(of: element)
+            guard let candidateFrame = snapshot.frame,
+                  candidateFrame.width > 80,
+                  candidateFrame.height >= 14 else {
+                return nil
+            }
+
+            let role = snapshot.role
+            let text = [
+                snapshot.value,
+                snapshot.title,
+                snapshot.description,
+                snapshot.help
+            ]
+            .compactMap { $0?.lowercased() }
+            .joined(separator: " ")
+            let isTextRole = role == kAXTextAreaRole as String
+                || role == kAXTextFieldRole as String
+                || role == "AXTextArea"
+                || role == "AXTextField"
+                || role.lowercased().contains("text")
+            let mentionsMessage = text.contains("message")
+                || text.contains("메시지")
+                || text.contains("입력")
+            let lowerArea = windowFrame.map { candidateFrame.midY > $0.minY + $0.height * 0.62 } ?? true
+
+            guard isTextRole || mentionsMessage else {
+                return nil
+            }
+
+            var score = 0
+            if isTextRole { score += 4 }
+            if mentionsMessage { score += 5 }
+            if lowerArea { score += 4 }
+            if isSettableTextArea(element) { score += 2 }
+            if role == kAXTextAreaRole as String || role == kAXTextFieldRole as String { score += 2 }
+
+            return InstagramInputCandidate(element: element, frame: candidateFrame, score: score)
+        }
+    }
+
+    private func focusInstagramInput(
+        in window: AXUIElement,
+        appPID: pid_t?,
+        fallbackElement: AXUIElement
+    ) -> Bool {
+        let input = bestInstagramInput(in: window) ?? fallbackElement
+        let pid = appPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
+
+        if focusElementAndVerify(input, appPID: pid) {
+            instagramDebug("input focus success: AXFocused")
+            return true
+        }
+
+        guard let inputFrame = frame(of: input) else {
+            instagramDebug("input focus failure: no input frame")
+            return false
+        }
+
+        clickAXFrameCenter(inputFrame)
+        Thread.sleep(forTimeInterval: 0.08)
+
+        if verifyFocusedInput(appPID: pid) {
+            instagramDebug("input focus success: click fallback")
+            return true
+        }
+
+        instagramDebug("input focus failure")
+        return false
+    }
+
+    private func focusElementAndVerify(_ element: AXUIElement, appPID: pid_t?) -> Bool {
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        Thread.sleep(forTimeInterval: 0.04)
+        return verifyFocusedInput(appPID: appPID)
+    }
+
+    private func verifyFocusedInput(appPID: pid_t?) -> Bool {
+        let pid = appPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
+        guard let pid else {
+            return false
+        }
+
+        let appElement = AXUIElementCreateApplication(pid)
+        guard let focused = copyAttribute(appElement, kAXFocusedUIElementAttribute) as AXUIElement? else {
+            return false
+        }
+
+        let role = (copyStringAttribute(focused, kAXRoleAttribute) ?? "").lowercased()
+        let identity = [
+            copyStringAttribute(focused, kAXValueAttribute),
+            copyStringAttribute(focused, kAXTitleAttribute),
+            copyStringAttribute(focused, kAXDescriptionAttribute),
+            copyStringAttribute(focused, kAXHelpAttribute)
+        ]
+        .compactMap { $0?.lowercased() }
+        .joined(separator: " ")
+
+        return role.contains("text") || identity.contains("message") || identity.contains("메시지")
+    }
+
+    private func clickAXFrameCenter(_ frame: CGRect) {
+        guard let source = CGEventSource(stateID: .combinedSessionState) else {
+            return
+        }
+
+        let point = CGPoint(x: frame.midX, y: frame.midY)
+        let mouseDown = CGEvent(
+            mouseEventSource: source,
+            mouseType: .leftMouseDown,
+            mouseCursorPosition: point,
+            mouseButton: .left
+        )
+        let mouseUp = CGEvent(
+            mouseEventSource: source,
+            mouseType: .leftMouseUp,
+            mouseCursorPosition: point,
+            mouseButton: .left
+        )
+
+        mouseDown?.post(tap: .cghidEventTap)
+        mouseUp?.post(tap: .cghidEventTap)
+    }
+
+    private func instagramRoomTitle(in window: AXUIElement) -> String? {
+        if let title = instagramProfileHeaderTitle(in: window) {
+            return title
+        }
+
+        instagramDebug("room title unavailable from Instagram profile header")
+        return nil
+    }
+
+    private func instagramProfileHeaderTitle(in window: AXUIElement) -> String? {
+        let windowFrame = frame(of: window)
+        let elements = descendants(of: window, maxDepth: 18, maxVisited: 1800)
+        let profileLinks = elements.compactMap { element -> (element: AXUIElement, frame: CGRect?)? in
+            let snapshot = snapshot(of: element)
+            let role = snapshot.role
+            let identity = instagramElementIdentity(snapshot)
+            let isLink = role == "AXLink" || role.lowercased().contains("link")
+            guard isLink,
+                  identity.contains("open the profile page of") else {
+                return nil
+            }
+
+            if let windowFrame,
+               let linkFrame = snapshot.frame {
+                let headerMaxY = windowFrame.minY + min(max(windowFrame.height * 0.22, 96), 175)
+                guard linkFrame.midY <= headerMaxY,
+                      linkFrame.midX > windowFrame.minX + max(150, windowFrame.width * 0.16) else {
+                    return nil
+                }
+            }
+
+            return (element, snapshot.frame)
+        }
+
+        for profileLink in profileLinks {
+            if let title = instagramHeadingTitle(inside: profileLink.element) {
+                instagramDebug("detected room title from profile link: \(title)")
+                return title
+            }
+        }
+
+        return nil
+    }
+
+    private func instagramHeadingTitle(inside link: AXUIElement) -> String? {
+        let candidates = [link] + descendants(of: link, maxDepth: 6, maxVisited: 120)
+        let headings = candidates.filter { element in
+            let snapshot = snapshot(of: element)
+            let identity = instagramElementIdentity(snapshot)
+            return snapshot.role == "AXHeading"
+                || snapshot.role.lowercased().contains("heading")
+                || identity.contains("(heading)")
+                || identity.contains(" heading")
+        }
+
+        for heading in headings {
+            let headingSnapshot = snapshot(of: heading)
+            let childTexts = descendants(of: heading, maxDepth: 3, maxVisited: 40)
+                .compactMap { child -> (text: String, frame: CGRect?)? in
+                    let childSnapshot = snapshot(of: child)
+                    guard childSnapshot.role == kAXStaticTextRole as String,
+                          let text = visibleText(from: childSnapshot),
+                          !isInstagramUIChromeText(text) else {
+                        return nil
+                    }
+
+                    return (normalizedInstagramText(text), childSnapshot.frame)
+                }
+                .sorted { lhs, rhs in
+                    guard let lhsFrame = lhs.frame,
+                          let rhsFrame = rhs.frame else {
+                        return lhs.text.count > rhs.text.count
+                    }
+
+                    if abs(lhsFrame.minY - rhsFrame.minY) > 2 {
+                        return lhsFrame.minY < rhsFrame.minY
+                    }
+
+                    return lhsFrame.minX < rhsFrame.minX
+                }
+
+            if let childTitle = childTexts.first?.text,
+               isLikelyInstagramRoomTitle(childTitle) {
+                return childTitle
+            }
+
+            if let ownTitle = visibleText(from: headingSnapshot).map(normalizedInstagramText),
+               isLikelyInstagramRoomTitle(ownTitle) {
+                return ownTitle
+            }
+        }
+
+        return nil
+    }
+
+    private func isLikelyInstagramRoomTitle(_ text: String) -> Bool {
+        let normalized = normalizedInstagramText(text)
+        guard !normalized.isEmpty,
+              normalized.count <= 80,
+              !normalized.contains("\n"),
+              !isInstagramUIChromeText(normalized) else {
+            return false
+        }
+
+        return true
+    }
+
+    private func instagramElementIdentity(_ snapshot: AXElementSnapshot) -> String {
+        [
+            snapshot.role,
+            snapshot.value,
+            snapshot.title,
+            snapshot.description,
+            snapshot.help
+        ]
+        .compactMap { $0?.lowercased() }
+        .joined(separator: " ")
+    }
+
+    private func printInstagramExtraction(
+        roomTitle: String,
+        staticTextCount: Int,
+        candidateCount: Int,
+        messages: [ChatMessage]
+    ) {
+        print("========== Sayless Instagram AX Extraction ==========")
+        print("room: \(roomTitle)")
+        print("staticTextCount: \(staticTextCount)")
+        print("messageCandidateCount: \(candidateCount)")
+        print("messages: \(messages.count)")
+        for (index, message) in messages.enumerated() {
+            let source = message.debugSource ?? ""
+            print("[\(index + 1)] \(message.sender): \(message.text) \(source)")
+        }
+        print("====================================================")
+    }
+
+    private func instagramDebug(_ message: String) {
+        #if DEBUG
+        print("[Sayless][InstagramAX] \(message)")
+        #endif
+    }
+
+    private func normalizedInstagramText(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\u{fffc}", with: "")
+            .replacingOccurrences(of: "\u{00a0}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func normalizedComparableInstagramText(_ text: String) -> String {
+        normalizedInstagramText(text)
+            .lowercased()
+            .components(separatedBy: " (").first?
+            .components(separatedBy: " [").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private func uniqueInstagramCandidates(_ candidates: [InstagramTextCandidate]) -> [InstagramTextCandidate] {
+        var seen = Set<String>()
+        return candidates.filter { candidate in
+            let key = "\(candidate.text)|\(Int(candidate.frame.minX))|\(Int(candidate.frame.minY))"
+            guard !seen.contains(key) else {
+                return false
+            }
+
+            seen.insert(key)
+            return true
+        }
+    }
+
+    private func dedupeAdjacentInstagramMessages(_ messages: [ChatMessage]) -> [ChatMessage] {
+        var result: [ChatMessage] = []
+        for message in messages {
+            if let last = result.last,
+               last.sender == message.sender,
+               last.text == message.text {
+                continue
+            }
+
+            result.append(message)
+        }
+
+        return result
+    }
+
     private func focus(_ element: AXUIElement) {
         AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     }
@@ -514,6 +1365,7 @@ final class AccessibilityReader {
 
         return .ready(
             FocusedTextContext(
+                source: .kakaoTalk,
                 appName: app.localizedName ?? "KakaoTalk",
                 bundleIdentifier: app.bundleIdentifier ?? "",
                 element: element,

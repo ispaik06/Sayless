@@ -381,7 +381,7 @@ private struct HomeView: View {
                     SectionHeader(
                         icon: "square.stack.3d.up.fill",
                         title: tr("Supported Platforms", "지원 플랫폼"),
-                        subtitle: tr("KakaoTalk works now. More everyday chat surfaces are planned.", "지금은 카카오톡을 지원하고, 앞으로 자주 쓰는 채팅 플랫폼을 더 추가할 예정입니다.")
+                        subtitle: tr("KakaoTalk and Web Instagram work now. More everyday chat surfaces are planned.", "지금은 카카오톡과 Web Instagram을 지원하고, 앞으로 자주 쓰는 채팅 플랫폼을 더 추가할 예정입니다.")
                     )
 
                     Spacer(minLength: 0)
@@ -411,18 +411,11 @@ private struct HomeView: View {
                         available: true
                     )
                     PlatformPill(
-                        title: tr("Web", "웹"),
-                        status: tr("Coming soon", "추가 예정"),
+                        title: "Web Instagram",
+                        status: tr("Available now", "현재 지원"),
                         icon: "globe",
                         accent: [Color(red: 0.58, green: 0.88, blue: 1.0), Color(red: 0.56, green: 1.0, blue: 0.78)],
-                        available: false
-                    )
-                    PlatformPill(
-                        title: "Instagram",
-                        status: tr("Coming soon", "추가 예정"),
-                        icon: "camera.fill",
-                        accent: [Color(red: 1.0, green: 0.58, blue: 0.72), Color(red: 1.0, green: 0.78, blue: 0.38)],
-                        available: false
+                        available: true
                     )
                     PlatformPill(
                         title: "Slack",
@@ -544,8 +537,8 @@ private struct HomeView: View {
 
             LiquidHomeCard(accent: [Color(red: 0.55, green: 0.95, blue: 0.72), Color(red: 0.46, green: 0.75, blue: 1.0)]) {
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionHeader(icon: "message.badge.waveform.fill", title: tr("How to summon Sayless", "Sayless 여는 법"), subtitle: tr("KakaoTalk must be focused before the overlay opens.", "오버레이를 열기 전에 카카오톡이 활성화되어 있어야 합니다."))
-                    GuideLine(number: 1, color: Color(red: 0.68, green: 1.0, blue: 0.54), title: tr("Open a KakaoTalk chat", "카카오톡 채팅방 열기"), detail: tr("Sayless reads the visible conversation from the active chat room.", "Sayless는 현재 채팅방에 보이는 대화를 읽습니다."))
+                    SectionHeader(icon: "message.badge.waveform.fill", title: tr("How to summon Sayless", "Sayless 여는 법"), subtitle: tr("KakaoTalk or Web Instagram must be focused before the overlay opens.", "오버레이를 열기 전에 카카오톡 또는 Web Instagram이 활성화되어 있어야 합니다."))
+                    GuideLine(number: 1, color: Color(red: 0.68, green: 1.0, blue: 0.54), title: tr("Open a KakaoTalk or Web Instagram chat", "카카오톡 또는 Web Instagram 채팅 열기"), detail: tr("Sayless reads the visible conversation from the active chat room.", "Sayless는 현재 채팅방에 보이는 대화를 읽습니다."))
                     GuideLine(number: 2, color: Color(red: 0.47, green: 0.86, blue: 1.0), title: tr("Click the message input", "메시지 입력창 클릭"), detail: tr("The text cursor must be inside the chat input before the overlay opens.", "오버레이를 열기 전에 커서가 채팅 입력창 안에 있어야 합니다."))
                     GuideLine(number: 3, color: Color(red: 0.92, green: 0.78, blue: 1.0), title: tr("Press \(appModel.summonShortcutTitle)", "\(appModel.summonShortcutTitle) 누르기"), detail: tr("Sayless appears near the input and prepares three replies.", "Sayless가 입력창 근처에 뜨고 답변 3개를 준비합니다."))
                 }
@@ -556,7 +549,7 @@ private struct HomeView: View {
                     SectionHeader(icon: "text.bubble.fill", title: tr("Using replies", "답변 사용하기"), subtitle: tr("Keep the chat open and choose the line that fits best.", "채팅방을 열어둔 채 가장 어울리는 답변을 고르세요."))
                     GuideLine(number: 1, color: Color(red: 1.0, green: 0.73, blue: 0.42), title: tr("Pick a reply", "답변 고르기"), detail: tr("Click a card or move with Tab until the right response is selected.", "카드를 클릭하거나 Tab으로 이동해서 원하는 답변을 선택하세요."))
                     GuideLine(number: 2, color: Color(red: 0.57, green: 0.95, blue: 0.68), title: tr("Adjust the tone", "말투 조정하기"), detail: tr("Use the three Style Preset buttons under the cards to reshape the current replies.", "카드 아래 세 개의 스타일 버튼으로 현재 답변의 톤을 바꿀 수 있습니다."))
-                    GuideLine(number: 3, color: Color(red: 0.60, green: 0.82, blue: 1.0), title: tr("Send when ready", "준비되면 보내기"), detail: tr("Press Enter to place the selected reply into the KakaoTalk input.", "Enter를 누르면 선택한 답변이 카카오톡 입력창에 들어갑니다."))
+                    GuideLine(number: 3, color: Color(red: 0.60, green: 0.82, blue: 1.0), title: tr("Send when ready", "준비되면 보내기"), detail: tr("Press Enter to place the selected reply into the chat input.", "Enter를 누르면 선택한 답변이 채팅 입력창에 들어갑니다."))
                 }
             }
 
@@ -584,7 +577,7 @@ private struct HomeView: View {
             LiquidHomeCard(accent: [Color(red: 1.0, green: 0.64, blue: 0.72), Color(red: 0.72, green: 0.95, blue: 1.0)]) {
                 VStack(alignment: .leading, spacing: 12) {
                     SectionHeader(icon: "checkmark.shield.fill", title: tr("If it does not appear", "안 뜰 때 확인할 것"), subtitle: tr("Most issues come from focus or macOS Accessibility permission.", "대부분은 포커스나 macOS 손쉬운 사용 권한 문제입니다."))
-                    GuideLine(number: 1, color: Color(red: 1.0, green: 0.62, blue: 0.68), title: tr("Check the active app", "활성 앱 확인"), detail: tr("Sayless only reads the currently focused KakaoTalk chat.", "Sayless는 현재 포커스된 카카오톡 채팅방만 읽습니다."))
+                    GuideLine(number: 1, color: Color(red: 1.0, green: 0.62, blue: 0.68), title: tr("Check the active app", "활성 앱 확인"), detail: tr("Sayless reads the currently focused KakaoTalk or Web Instagram chat.", "Sayless는 현재 포커스된 카카오톡 또는 Web Instagram 채팅방을 읽습니다."))
                     GuideLine(number: 2, color: Color(red: 0.68, green: 1.0, blue: 0.62), title: tr("Check Accessibility", "손쉬운 사용 권한 확인"), detail: tr("Use Home > Preferences or the menu bar Check Accessibility action.", "홈 > 설정 또는 메뉴바의 권한 확인을 사용하세요."))
                     GuideLine(number: 3, color: Color(red: 0.66, green: 0.82, blue: 1.0), title: tr("Click the input again", "입력창 다시 클릭"), detail: tr("If the overlay opens in the wrong place, refocus the message input and summon Sayless again.", "오버레이 위치가 이상하면 입력창을 다시 클릭하고 Sayless를 다시 여세요."))
                 }
@@ -638,14 +631,6 @@ private struct HomeView: View {
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button(tr("Refresh Status", "상태 새로고침")) {
-                        Task {
-                            await accountStatus.load()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(accountStatus.isLoading)
-
                     Button(tr("Sign Out", "로그아웃")) {
                         authSession.signOut()
                     }
@@ -658,7 +643,21 @@ private struct HomeView: View {
     private var accountUsageCard: some View {
         LiquidHomeCard(accent: [.mint, .cyan]) {
             VStack(alignment: .leading, spacing: 14) {
-                SectionHeader(icon: "chart.bar.fill", title: tr("Plan & Usage", "플랜 및 사용량"), subtitle: tr("Local account status from the backend.", "백엔드에서 가져온 계정 상태입니다."))
+                HStack(alignment: .top, spacing: 12) {
+                    SectionHeader(icon: "chart.bar.fill", title: tr("Plan & Usage", "플랜 및 사용량"), subtitle: tr("Local account status from the backend.", "백엔드에서 가져온 계정 상태입니다."))
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        Task {
+                            await accountStatus.load()
+                        }
+                    } label: {
+                        Label(tr("Refresh Usage", "사용량 새로고침"), systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(accountStatus.isLoading)
+                }
 
                 if let account = accountStatus.account {
                     let dailyLimit = account.limits?.dailySuggestions ?? 100

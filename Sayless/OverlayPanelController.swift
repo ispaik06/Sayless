@@ -232,7 +232,7 @@ final class OverlayPanelController {
         state.hasNewerVisibleMessages = false
 
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
-            let signature = AccessibilityReader().latestVisibleKakaoMessageSignature(in: sourceWindow)
+            let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
 
             DispatchQueue.main.async { [weak self] in
                 guard let self,
@@ -263,14 +263,14 @@ final class OverlayPanelController {
                 return
             }
 
-            self.detectNewVisibleMessage(in: sourceWindow)
+            self.detectNewVisibleMessage(for: context)
         }
 
         sourceWindowMonitor = timer
         RunLoop.main.add(timer, forMode: .common)
     }
 
-    private func detectNewVisibleMessage(in sourceWindow: AXUIElement) {
+    private func detectNewVisibleMessage(for context: FocusedTextContext) {
         let now = CFAbsoluteTimeGetCurrent()
         guard now - latestMessageCheckTime >= 1.0 else {
             return
@@ -279,8 +279,25 @@ final class OverlayPanelController {
         latestMessageCheckTime = now
 
         guard !state.hasNewerVisibleMessages,
-              let latestMessageSignature,
-              let currentSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: sourceWindow) else {
+              let latestMessageSignature else {
+            return
+        }
+
+        guard let currentSignature = accessibilityReader.latestVisibleMessageSignature(for: context) else {
+            if context.source == .webInstagram {
+                onSourceWindowInvalidated?()
+                resetSuggestionState()
+                hide()
+            }
+            return
+        }
+
+        if context.source == .webInstagram,
+           currentSignature != latestMessageSignature,
+           !currentSignature.hasMeaningfulOverlap(with: latestMessageSignature) {
+            onSourceWindowInvalidated?()
+            resetSuggestionState()
+            hide()
             return
         }
 

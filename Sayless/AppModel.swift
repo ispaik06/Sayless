@@ -134,7 +134,7 @@ final class AppModel: ObservableObject {
             return
         }
 
-        switch accessibilityReader.fastFocusedKakaoTextContext() {
+        switch accessibilityReader.focusedTextContext() {
         case .ready(let context):
             showCachedSuggestionsOrStartLoading(for: context)
 
@@ -290,18 +290,24 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let messages = await collectVisibleMessages(in: window, limit: 20)
+        let messages = await collectVisibleMessages(for: context, limit: 20)
         guard !Task.isCancelled,
               !messages.isEmpty,
               accessibilityReader.isWindowUsable(window) else {
             finishUnavailableSuggestionRequest(context: context, generation: generation, existingBatches: existingBatches)
             return
         }
-        let timelineSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window)
+        let timelineSignature = accessibilityReader.latestVisibleMessageSignature(for: context)
 
         do {
             let draftText = draftTextForRequest(intent: intent, activeSuggestions: activeSuggestions, context: context)
-            let participantCount = context.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
+            let participantCount: Int?
+            switch context.source {
+            case .kakaoTalk:
+                participantCount = context.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
+            case .webInstagram:
+                participantCount = context.participantCount
+            }
             let suggestions = try await suggestionService.suggestions(
                 chatRoom: context.windowTitle,
                 participantCount: participantCount,
@@ -367,7 +373,7 @@ final class AppModel: ObservableObject {
         return currentDraftText(for: context)
     }
 
-    private func collectVisibleMessages(in window: AXUIElement, limit: Int) async -> [ChatMessage] {
+    private func collectVisibleMessages(for context: FocusedTextContext, limit: Int) async -> [ChatMessage] {
         let retryDelaysNanoseconds: [UInt64] = [0, 120_000_000, 280_000_000]
 
         for delay in retryDelaysNanoseconds {
@@ -376,11 +382,12 @@ final class AppModel: ObservableObject {
             }
 
             guard !Task.isCancelled,
+                  let window = context.windowElement,
                   accessibilityReader.isWindowUsable(window) else {
                 return []
             }
 
-            let messages = accessibilityReader.collectVisibleKakaoMessages(in: window, limit: limit)
+            let messages = accessibilityReader.collectVisibleMessages(for: context, limit: limit)
             if !messages.isEmpty {
                 return messages
             }
@@ -440,7 +447,7 @@ final class AppModel: ObservableObject {
 
         if let cachedSignature = suggestionCache.timelineSignature,
            let window = context.windowElement,
-           let currentSignature = accessibilityReader.latestVisibleKakaoMessageSignature(in: window),
+           let currentSignature = accessibilityReader.latestVisibleMessageSignature(for: context),
            currentSignature.containsNewerMessages(than: cachedSignature) {
             self.suggestionCache = nil
             overlayController.resetSuggestionState()
@@ -451,6 +458,20 @@ final class AppModel: ObservableObject {
     }
 
     private func cacheKey(for context: FocusedTextContext) -> String {
+        if context.source == .webInstagram,
+           let signature = accessibilityReader.latestVisibleMessageSignature(for: context) {
+            let signatureKey = signature.tail
+                .map { fingerprint in
+                    [
+                        fingerprint.role,
+                        fingerprint.senderHash.map(String.init) ?? "-",
+                        String(fingerprint.textHash)
+                    ].joined(separator: ":")
+                }
+                .joined(separator: "|")
+            return "\(context.bundleIdentifier)|instagram|\(signatureKey)"
+        }
+
         let title = context.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         if !title.isEmpty {
             return "\(context.bundleIdentifier)|\(title)"

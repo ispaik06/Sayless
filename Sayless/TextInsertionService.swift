@@ -3,7 +3,10 @@ import ApplicationServices
 
 final class TextInsertionService {
     func insert(_ text: String, into context: FocusedTextContext) {
-        if AccessibilityReader().setValue(text, into: context.element) {
+        let reader = AccessibilityReader()
+        _ = reader.focusInput(for: context)
+
+        if reader.setValue(text, into: context.element) {
             return
         }
 
