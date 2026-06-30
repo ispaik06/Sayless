@@ -519,6 +519,7 @@ button {
   box-shadow: 0 18px 42px rgba(31, 41, 55, 0.12);
   backdrop-filter: blur(18px) saturate(150%);
   cursor: pointer;
+  animation: shortcutHintIn 420ms cubic-bezier(0.18, 0.9, 0.28, 1.2) both;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -567,7 +568,9 @@ button {
   backdrop-filter: blur(26px) saturate(175%);
   cursor: grab;
   touch-action: none;
+  transform: translate(var(--overlay-x, 0), var(--overlay-y, 0));
   will-change: transform;
+  animation: overlayBounceIn 540ms cubic-bezier(0.2, 1.2, 0.32, 1) both;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -1582,6 +1585,43 @@ button {
   }
 }
 
+@keyframes shortcutHintIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shortcutHintInMobile {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes overlayBounceIn {
+  0% {
+    opacity: 0;
+    transform: translate(var(--overlay-x, 0), var(--overlay-y, 0)) scale(0.86);
+  }
+  58% {
+    opacity: 1;
+    transform: translate(var(--overlay-x, 0), var(--overlay-y, 0)) scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--overlay-x, 0), var(--overlay-y, 0)) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1705,6 +1745,7 @@ button {
     top: 22px;
     left: 50%;
     transform: translateX(-50%);
+    animation-name: shortcutHintInMobile;
   }
 
   .shortcut-hint:hover {

@@ -316,6 +316,8 @@ function AssistantMockup() {
   const [isDragging, setIsDragging] = useState(false);
   const [typedMessage, setTypedMessage] = useState("");
   const [typingStarted, setTypingStarted] = useState(false);
+  const [typingComplete, setTypingComplete] = useState(false);
+  const [shortcutPromptDismissed, setShortcutPromptDismissed] = useState(false);
   const hasTypedMessageRef = useRef(false);
   const replies = DEMO_REPLY_PRESETS[activePreset];
 
@@ -333,7 +335,7 @@ function AssistantMockup() {
           observer.disconnect();
         }
       },
-      { threshold: 0.36 }
+      { rootMargin: "-12% 0px -12% 0px", threshold: 0.52 }
     );
 
     observer.observe(stage);
@@ -348,12 +350,14 @@ function AssistantMockup() {
 
     if (hasTypedMessageRef.current) {
       setTypedMessage(DEMO_TYPED_MESSAGE);
+      setTypingComplete(true);
       return undefined;
     }
 
     const characters = Array.from(DEMO_TYPED_MESSAGE);
     let index = 0;
     setTypedMessage("");
+    setTypingComplete(false);
 
     const typingTimer = window.setInterval(() => {
       index += 1;
@@ -361,9 +365,10 @@ function AssistantMockup() {
 
       if (index >= characters.length) {
         hasTypedMessageRef.current = true;
+        setTypingComplete(true);
         window.clearInterval(typingTimer);
       }
-    }, 42);
+    }, 78);
 
     return () => window.clearInterval(typingTimer);
   }, [typingStarted, selectedReply]);
@@ -372,6 +377,10 @@ function AssistantMockup() {
     function handleShortcut(event) {
       if (event.altKey && event.code === "Space") {
         event.preventDefault();
+        if (!typingComplete) {
+          return;
+        }
+        setShortcutPromptDismissed(true);
         setOverlayVisible((visible) => !visible);
       }
     }
@@ -379,7 +388,12 @@ function AssistantMockup() {
     window.addEventListener("keydown", handleShortcut);
 
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [typingComplete]);
+
+  function openOverlayFromPrompt() {
+    setShortcutPromptDismissed(true);
+    setOverlayVisible(true);
+  }
 
   function selectPreset(presetId) {
     setActivePreset(presetId);
@@ -468,24 +482,26 @@ function AssistantMockup() {
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
             {selectedReply ? selectedReply.text : typedMessage}
-            {!selectedReply && typedMessage.length < Array.from(DEMO_TYPED_MESSAGE).length && (
+            {!selectedReply && typingStarted && !typingComplete && (
               <span className="typing-caret" aria-hidden="true"></span>
             )}
           </div>
         </div>
       </div>
 
-      <button className="shortcut-hint" type="button" onClick={() => setOverlayVisible((visible) => !visible)}>
-        <span>Press</span>
-        <kbd>Option</kbd>
-        <kbd>Space</kbd>
-      </button>
+      {typingComplete && !shortcutPromptDismissed && (
+        <button className="shortcut-hint" type="button" onClick={openOverlayFromPrompt}>
+          <span>Press</span>
+          <kbd>Option</kbd>
+          <kbd>Space</kbd>
+        </button>
+      )}
 
       {overlayVisible && (
         <div
           ref={overlayRef}
           className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
-          style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
+          style={{ "--overlay-x": `${overlayPosition.x}px`, "--overlay-y": `${overlayPosition.y}px` }}
           onPointerDown={startOverlayDrag}
         >
           <div className="overlay-head">
