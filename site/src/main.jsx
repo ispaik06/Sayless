@@ -311,18 +311,23 @@ const DEMO_CHAT_MESSAGES = [
 
 const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow...?";
 const DEMO_TYPING_START_DELAY = 1000;
+const DEMO_INSTALL_URL = "https://ispaik06.github.io/Sayless/install.html";
 
 function AssistantMockup() {
   const stageRef = useRef(null);
   const overlayRef = useRef(null);
+  const chatThreadRef = useRef(null);
   const [activePreset, setActivePreset] = useState("rizz");
   const [customDraft, setCustomDraft] = useState("");
   const [showCustom, setShowCustom] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [overlayOpened, setOverlayOpened] = useState(false);
   const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
   const [selectedReply, setSelectedReply] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [typedMessage, setTypedMessage] = useState("");
+  const [composerText, setComposerText] = useState("");
+  const [followUpMessages, setFollowUpMessages] = useState([]);
   const [visibleMessageCount, setVisibleMessageCount] = useState(0);
   const [demoInView, setDemoInView] = useState(false);
   const [documentActive, setDocumentActive] = useState(() => document.visibilityState === "visible" && document.hasFocus());
@@ -333,6 +338,11 @@ function AssistantMockup() {
   const replies = DEMO_REPLY_PRESETS[activePreset];
   const demoFocused = demoInView && documentActive;
   const canUseShortcut = showShortcutPrompt || shortcutPromptDismissed || overlayVisible;
+  const chatInputEnabled = typingComplete && overlayOpened;
+  const renderedMessages = [
+    ...DEMO_CHAT_MESSAGES.slice(0, visibleMessageCount),
+    ...followUpMessages
+  ];
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -437,7 +447,13 @@ function AssistantMockup() {
         }
         setShowShortcutPrompt(false);
         setShortcutPromptDismissed(true);
-        setOverlayVisible((visible) => !visible);
+        setOverlayVisible((visible) => {
+          const nextVisible = !visible;
+          if (nextVisible) {
+            setOverlayOpened(true);
+          }
+          return nextVisible;
+        });
       }
     }
 
@@ -446,9 +462,21 @@ function AssistantMockup() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [canUseShortcut]);
 
+  useEffect(() => {
+    if (!chatThreadRef.current) {
+      return;
+    }
+
+    chatThreadRef.current.scrollTo({
+      top: chatThreadRef.current.scrollHeight,
+      behavior: "smooth"
+    });
+  }, [renderedMessages.length]);
+
   function openOverlayFromPrompt() {
     setShowShortcutPrompt(false);
     setShortcutPromptDismissed(true);
+    setOverlayOpened(true);
     setOverlayVisible(true);
   }
 
@@ -460,6 +488,63 @@ function AssistantMockup() {
 
   function selectReply(reply) {
     setSelectedReply(reply);
+    if (chatInputEnabled) {
+      setComposerText(reply.text);
+    }
+  }
+
+  function submitDemoMessage() {
+    const messageText = composerText.trim();
+
+    if (!messageText) {
+      return;
+    }
+
+    const timestamp = Date.now();
+    const firstLoadingId = `isabel-loading-${timestamp}`;
+    const secondLoadingId = `download-loading-${timestamp}`;
+
+    setSelectedReply(null);
+    setShowShortcutPrompt(false);
+    setShortcutPromptDismissed(true);
+    setComposerText("");
+    setFollowUpMessages((messages) => [
+      ...messages,
+      { id: `user-${timestamp}`, side: "right", text: messageText }
+    ]);
+
+    window.setTimeout(() => {
+      setFollowUpMessages((messages) => [
+        ...messages,
+        { id: firstLoadingId, side: "left", loading: true }
+      ]);
+    }, 520);
+
+    window.setTimeout(() => {
+      setFollowUpMessages((messages) => [
+        ...messages.filter((message) => message.id !== firstLoadingId),
+        { id: `isabel-reply-${timestamp}`, side: "left", text: "Actually, never mind. I have a boyfriend. Sorry." }
+      ]);
+    }, 1750);
+
+    window.setTimeout(() => {
+      setFollowUpMessages((messages) => [
+        ...messages,
+        { id: secondLoadingId, side: "left", loading: true }
+      ]);
+    }, 2450);
+
+    window.setTimeout(() => {
+      setFollowUpMessages((messages) => [
+        ...messages.filter((message) => message.id !== secondLoadingId),
+        {
+          id: `download-reply-${timestamp}`,
+          side: "left",
+          text: "Go download Sayless and find another girl to hang out with.",
+          link: DEMO_INSTALL_URL
+        }
+      ]);
+    }, 3850);
   }
 
   function startOverlayDrag(event) {
@@ -467,7 +552,7 @@ function AssistantMockup() {
       return;
     }
 
-    if (event.target.closest("button, input")) {
+    if (event.target.closest("button, input, textarea, a")) {
       return;
     }
 
@@ -531,22 +616,61 @@ function AssistantMockup() {
             <strong>Isabel</strong>
             <span>Active now</span>
           </div>
-          <div className="chat-thread">
-            {DEMO_CHAT_MESSAGES.slice(0, visibleMessageCount).map((message) => (
+          <div className="chat-thread" ref={chatThreadRef}>
+            {renderedMessages.map((message) => (
               <div
-                key={message.text}
-                className={`chat-row ${message.side} ${message.compact ? "compact" : ""}`}
+                key={message.id ?? message.text}
+                className={`chat-row ${message.side} ${message.compact ? "compact" : ""} ${message.loading ? "is-loading" : ""}`}
               >
-                {message.text}
+                {message.loading ? (
+                  <span className="chat-loading-dots" aria-label="Isabel is typing">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </span>
+                ) : (
+                  <>
+                    {message.text}
+                    {message.link && (
+                      <a className="chat-download-card" href={message.link} aria-label="Download Sayless">
+                        <img src="assets/img/app-icon.png" alt="" />
+                        <span>
+                          <strong>Download Sayless</strong>
+                          <em>Open install page</em>
+                        </span>
+                      </a>
+                    )}
+                  </>
+                )}
               </div>
             ))}
           </div>
-          <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
-            {selectedReply ? selectedReply.text : typedMessage}
-            {!selectedReply && demoFocused && typingReady && visibleMessageCount === DEMO_CHAT_MESSAGES.length && !typingComplete && (
-              <span className="typing-caret" aria-hidden="true"></span>
-            )}
-          </div>
+          {chatInputEnabled ? (
+            <textarea
+              className={`input-line ${composerText ? "has-reply" : ""}`}
+              value={composerText}
+              onChange={(event) => {
+                setComposerText(event.target.value);
+                setSelectedReply(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  submitDemoMessage();
+                }
+              }}
+              aria-label="Message Isabel"
+              placeholder={DEMO_TYPED_MESSAGE}
+              rows={2}
+            />
+          ) : (
+            <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
+              {selectedReply ? selectedReply.text : typedMessage}
+              {!selectedReply && demoFocused && typingReady && visibleMessageCount === DEMO_CHAT_MESSAGES.length && !typingComplete && (
+                <span className="typing-caret" aria-hidden="true"></span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

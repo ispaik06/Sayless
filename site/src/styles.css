@@ -446,7 +446,28 @@ button {
 .chat-thread {
   display: grid;
   gap: 12px;
-  width: 100%;
+  align-content: start;
+  position: absolute;
+  top: 70px;
+  right: 16px;
+  bottom: 100px;
+  left: 24px;
+  overflow-y: auto;
+  padding-right: 8px;
+  scroll-behavior: smooth;
+}
+
+.chat-thread::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-thread::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-thread::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(139, 147, 161, 0.24);
 }
 
 .chat-row,
@@ -476,16 +497,106 @@ button {
   background: #262b35;
 }
 
+.chat-row.is-loading {
+  min-width: 70px;
+  padding: 13px 16px;
+}
+
+.chat-loading-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 17px;
+}
+
+.chat-loading-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(98, 106, 120, 0.72);
+  animation: chatDotPulse 920ms ease-in-out infinite;
+}
+
+.chat-loading-dots span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.chat-loading-dots span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.chat-download-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  margin-top: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 10px;
+  padding: 9px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.76);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chat-download-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 99, 235, 0.34);
+  background: #fff;
+}
+
+.chat-download-card img {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.chat-download-card span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.chat-download-card strong {
+  color: #202633;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.chat-download-card em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 750;
+}
+
 .input-line {
   position: absolute;
   right: 24px;
   bottom: 24px;
   left: 24px;
   min-height: 58px;
+  max-height: 58px;
   border-radius: 8px;
   padding: 17px 18px;
   color: var(--muted);
   background: #fff;
+  font: inherit;
+  line-height: 1.45;
+  outline: none;
+  resize: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.input-line:focus {
+  border-color: rgba(37, 99, 235, 0.34);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+.input-line::placeholder {
+  color: var(--muted);
+  opacity: 0.72;
 }
 
 .input-line.has-reply {
@@ -1594,6 +1705,19 @@ button {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chatDotPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.42;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
   }
 }
 
