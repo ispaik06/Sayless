@@ -17,11 +17,7 @@ struct SaylessOverlayView: View {
             header
 
             switch state.content {
-            case .generating(let context):
-                if !context.value.isEmpty {
-                    composingPreview(context.value)
-                }
-
+            case .generating(_):
                 GeneratingSuggestionsView(
                     title: "Generating replies",
                     subtitle: "Reading the latest visible messages"
@@ -29,20 +25,12 @@ struct SaylessOverlayView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
-            case .generationFailed(let context, let message):
-                if !context.value.isEmpty {
-                    composingPreview(context.value)
-                }
-
+            case .generationFailed(_, let message):
                 GenerationFailedView(message: message)
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
             case .suggestions(let context, let batches, let activeBatchIndex):
-                if !context.value.isEmpty {
-                    composingPreview(context.value)
-                }
-
                 suggestionsView(context: context, batches: batches, activeBatchIndex: activeBatchIndex)
 
             case .notice(let title, let message, let buttonTitle):
@@ -353,17 +341,6 @@ struct SaylessOverlayView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    private func composingPreview(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func openAccessibilitySettings() {
