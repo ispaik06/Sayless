@@ -180,15 +180,15 @@ const COPY = {
     },
     home: {
       eyebrow: "macOS용 AI 대화 윙맨",
-      title: "다음 답장, 이미 분위기까지 읽고.",
+      title: "답장 고민, 이제 Sayless에 맡기세요",
       subtitle:
-        "Sayless는 지금 보고 있는 대화 흐름을 읽고, 상대와 상황, 그리고 네가 진짜 보내고 싶은 느낌에 맞는 답장을 제안합니다.",
+        "분위기 파악부터 톤앤매너 조절까지. 대화의 흐름을 읽고, 당신이 진짜 보내고 싶은 느낌 그대로 센스 있는 답장을 만들어 줍니다.",
       downloadCta: "macOS용 다운로드",
-      demoCta: "어떻게 되는지 보기",
+      demoCta: "작동 방식 알아보기",
       note: "macOS, 손쉬운 사용 권한, Sayless 계정이 필요합니다.",
       proof: ["보이는 대화 읽기", "분위기 파악하기", "보낼 말 건네주기"],
       productKicker: "프롬프트 쇼 안 해도 됨",
-      productTitle: "이미 열어둔 채팅방 옆에 붙는 답장 조력자.",
+      productTitle: "채팅창 바로 옆, 나만의 대화 어시스턴트",
       productText:
         "Sayless는 말투만 바꿔주는 앱이 아닙니다. 지금 대화의 맥락을 읽고 입력창 옆에서 바로 쓸 수 있는 답장을 준비합니다. 말문이 막힐 때 열고, 제일 너다운 답을 고르고, 흐름을 놓치지 마세요.",
       features: [
@@ -224,8 +224,8 @@ const COPY = {
       privacyText:
         "Sayless는 네가 도움을 요청할 때만 나타납니다. 현재 macOS 빌드는 화면에 보이는 지원 가능한 텍스트를 읽고 대화 옆에 가벼운 assistant를 띄우기 위해 손쉬운 사용 권한이 필요합니다.",
       finalKicker: "채팅이 어려울 때 바로",
-      finalTitle: "분위기 읽고. Sayless로 답장하기.",
-      finalCta: "설치 안내 보기",
+      finalTitle: "눈치 빠른 AI와 함께하는 대화",
+      finalCta: "지금 바로 Sayless 써보기",
       visualSubtitle: "맥을 먼저 생각한 AI 대화 assistant",
       menuBar: "메뉴바",
       shortcutReady: "단축키 한 번이면 준비",
@@ -259,9 +259,9 @@ const COPY = {
       downloadHelp: "최신 macOS 빌드를 바로 다운로드합니다."
     },
     demo: {
-      person: "이서벨",
+      person: "설윤아",
       status: "방금 전 활동",
-      typedMessage: "이서벨... 오늘 같이 있어서 계속 생각났는데, 내일 저녁 같이 먹을래?",
+      typedMessage: "윤아야... 오늘 같이 있어서 계속 생각났는데, 내일 저녁 같이 먹을래?",
       chatMessages: [
         { side: "left", delay: 420, text: "오늘 진짜 재밌었어." },
         { side: "left", compact: true, delay: 780, text: "영화도 생각보다 좋았고 🙂" },
@@ -270,31 +270,31 @@ const COPY = {
       ],
       replyPresets: {
         rizz: [
-          { label: "은근 설렘", text: "이서벨, 오늘 너랑 있는 거 진짜 좋았어. 내일 저녁은 내가 사도 돼?" },
+          { label: "은근 설렘", text: "오늘 너랑 있는 거 진짜 좋았어. 내일 저녁은 내가 사도 돼?" },
           { label: "직진", text: "솔직히 오늘 이후로 계속 생각나. 내일 저녁, 우리 둘이 볼래?" },
           { label: "부드럽게", text: "오늘 여기서 끝내기엔 좀 아쉬운데. 내일 저녁 같이 먹자." }
         ],
         sweet: [
           { label: "다정하게", text: "오늘 너랑 보내는 시간이 되게 좋았어. 괜찮으면 내일 저녁 같이 먹을래?" },
           { label: "따뜻하게", text: "오늘 덕분에 기분이 오래 남을 것 같아. 내일도 잠깐 볼 수 있을까?" },
-          { label: "조심스럽게", text: "부담 주려는 건 아닌데, 내일 저녁에 너랑 한 번 더 보고 싶어." }
+          { label: "조심스럽게", text: "부담 주려는 건 아닌데, 내일 저녁에 너랑 한 번 더 보고 싶어" }
         ],
         playful: [
-          { label: "장난스럽게", text: "나 지금 아무렇지 않은 척 중인데, 내일 너랑 저녁 먹고 싶은 건 좀 티 나는 듯." },
+          { label: "장난스럽게", text: "헤어진 지 얼마나 됐다고 벌써 나 보고 싶냐 ㅋㅋㅋ 내일 저녁에 또 놀아드림" },
           { label: "귀엽게", text: "영화도 좋았는데, 내일 너랑 저녁 먹으면 그게 더 재밌을 것 같은데?" },
-          { label: "능청", text: "내가 내일 저녁 먹자고 하면, 너 혹시 예상 못 한 척할 거야?" }
+          { label: "자신감", text: "나랑 노는 게 제일 재밌지? 그럴 줄 알고 내일 저녁 스케줄 미리 비워뒀음" }
         ],
         custom: [
-          { label: "커스텀", text: "조금 떨리지만 자신감 있게, 너무 부담스럽지 않게 말해줘." },
-          { label: "시도", text: "너무 진지하지 않게, 그래도 호감은 확실히 느껴지게." },
-          { label: "초안", text: "따뜻하고 짧게. 상대가 부담 없이 웃을 수 있게." }
+          { label: "커스텀", text: "조금 떨리지만 자신감 있게, 너무 부담스럽지 않게 말해줘" },
+          { label: "시도", text: "너무 진지하지 않게, 그래도 호감은 확실히 느껴지게" },
+          { label: "초안", text: "따뜻하고 짧게. 상대가 부담 없이 웃을 수 있게" }
         ]
       },
       adjustments: [
         { id: "rizz", label: "설렘" },
         { id: "sweet", label: "다정" },
         { id: "playful", label: "장난" },
-        { id: "custom", label: "커스텀" }
+        { id: "custom", label: "직접 입력" }
       ],
       customPlaceholder: "원하는 말투를 그대로 적어보세요",
       loadingLabel: "이서벨이 입력 중",
@@ -309,8 +309,8 @@ const COPY = {
       downloadReply: "Sayless 다운받고 다른 사람 찾아보는 게 좋을 듯 🥀"
     },
     footer: {
-      rights: "© 2026 Sayless. 모든 권리 보유.",
-      createdBy: "인성 백이 만들었습니다"
+      rights: "© 2026 Sayless. All rights reserved",
+      createdBy: "Created by Inseong Paik"
     }
   }
 };
