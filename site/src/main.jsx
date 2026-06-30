@@ -355,8 +355,8 @@ function Shell({ children, install = false, lang, setLang, t }) {
             aria-label={t.nav.toggleLabel}
             onClick={() => setLang(lang === "en" ? "ko" : "en")}
           >
-            <span>{lang.toUpperCase()}</span>
-            <strong>{t.nav.toggleText}</strong>
+            <span className={lang === "en" ? "is-active" : ""}>EN</span>
+            <span className={lang === "ko" ? "is-active" : ""}>KO</span>
           </button>
           <a className="nav-cta" href={INSTALL_URL}>
             <Download size={17} />

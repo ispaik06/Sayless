@@ -137,18 +137,15 @@ button {
   box-shadow: 0 14px 28px rgba(31, 41, 55, 0.12);
 }
 
-.language-toggle span,
-.language-toggle strong {
+.language-toggle span {
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.04em;
-}
-
-.language-toggle span {
   color: var(--dim);
+  transition: color 160ms ease;
 }
 
-.language-toggle strong {
+.language-toggle span.is-active {
   color: var(--blue);
 }
 
