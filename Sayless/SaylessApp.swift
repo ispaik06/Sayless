@@ -17,9 +17,7 @@ struct SaylessApp: App {
 
     var body: some Scene {
         MenuBarExtra("Sayless", systemImage: appModel.menuBarIconOption.systemImage) {
-            Button("Show Sayless") {
-                appModel.handleSummon()
-            }
+            showSaylessMenuItem
 
             Button("Check Accessibility") {
                 appModel.checkAccessibilityFromMenu()
@@ -40,5 +38,38 @@ struct SaylessApp: App {
             }
         }
         .environment(authSession.clerk)
+    }
+
+    @ViewBuilder
+    private var showSaylessMenuItem: some View {
+        switch appModel.shortcutOption {
+        case .optionSpace:
+            Button("Show Sayless") {
+                appModel.handleSummon()
+            }
+            .keyboardShortcut(.space, modifiers: [.option])
+
+        case .optionShiftSpace:
+            Button("Show Sayless") {
+                appModel.handleSummon()
+            }
+            .keyboardShortcut(.space, modifiers: [.option, .shift])
+
+        case .optionShiftCommandSpace:
+            Button("Show Sayless") {
+                appModel.handleSummon()
+            }
+            .keyboardShortcut(.space, modifiers: [.option, .shift, .command])
+
+        case .custom:
+            Button("Show Sayless  \(appModel.summonShortcutTitle)") {
+                appModel.handleSummon()
+            }
+
+        case .doubleTapOption, .doubleTapRightOption, .doubleTapRightCommand:
+            Button("Show Sayless  \(appModel.summonShortcutTitle)") {
+                appModel.handleSummon()
+            }
+        }
     }
 }

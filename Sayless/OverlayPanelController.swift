@@ -3,6 +3,11 @@ import ApplicationServices
 import SwiftUI
 
 final class OverlayPanelController {
+    enum Placement {
+        case automatic
+        case centered
+    }
+
     private var panel: KeyHandlingPanel?
     private let insertionService = TextInsertionService()
     private let accessibilityReader = AccessibilityReader()
@@ -42,44 +47,7 @@ final class OverlayPanelController {
 
     @discardableResult
     func show(content: OverlayContent, near axFrame: CGRect?) -> Int {
-        displayGeneration += 1
-        let generation = displayGeneration
-        let panel = makePanelIfNeeded()
-        let shouldAnimateAppearance = !panel.isVisible
-
-        if shouldAnimateAppearance {
-            state.isDismissing = false
-            state.isPresented = false
-        }
-
-        state.update(content: content)
-
-        panel.keyHandler = { [weak self] event in
-            self?.handleKey(event) == true
-        }
-
-        let targetFrame = frameForPanel(content: content, near: axFrame)
-        panel.setFrame(targetFrame, display: true)
-        panel.alphaValue = 1
-        panel.orderFrontRegardless()
-        panel.makeKey()
-
-        if shouldAnimateAppearance {
-            DispatchQueue.main.async { [weak self] in
-                guard let self,
-                      self.displayGeneration == generation,
-                      self.panel?.isVisible == true else {
-                    return
-                }
-
-                self.state.isPresented = true
-            }
-        } else {
-            state.isPresented = true
-        }
-
-        startSourceWindowMonitor(for: content)
-        return displayGeneration
+        show(content: content, near: axFrame, placement: .automatic)
     }
 
     @discardableResult
@@ -164,8 +132,13 @@ final class OverlayPanelController {
         startSourceWindowMonitor(for: content)
     }
 
-    func showTemporary(content: OverlayContent, near axFrame: CGRect? = nil, duration: TimeInterval = 2.2) {
-        show(content: content, near: axFrame)
+    func showTemporary(
+        content: OverlayContent,
+        near axFrame: CGRect? = nil,
+        placement: Placement = .automatic,
+        duration: TimeInterval = 2.2
+    ) {
+        show(content: content, near: axFrame, placement: placement)
         let generation = displayGeneration
 
         DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
@@ -174,6 +147,48 @@ final class OverlayPanelController {
             }
             self.hide()
         }
+    }
+
+    @discardableResult
+    private func show(content: OverlayContent, near axFrame: CGRect?, placement: Placement) -> Int {
+        displayGeneration += 1
+        let generation = displayGeneration
+        let panel = makePanelIfNeeded()
+        let shouldAnimateAppearance = !panel.isVisible
+
+        if shouldAnimateAppearance {
+            state.isDismissing = false
+            state.isPresented = false
+        }
+
+        state.update(content: content)
+
+        panel.keyHandler = { [weak self] event in
+            self?.handleKey(event) == true
+        }
+
+        let targetFrame = frameForPanel(content: content, near: axFrame, placement: placement)
+        panel.setFrame(targetFrame, display: true)
+        panel.alphaValue = 1
+        panel.orderFrontRegardless()
+        panel.makeKey()
+
+        if shouldAnimateAppearance {
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.displayGeneration == generation,
+                      self.panel?.isVisible == true else {
+                    return
+                }
+
+                self.state.isPresented = true
+            }
+        } else {
+            state.isPresented = true
+        }
+
+        startSourceWindowMonitor(for: content)
+        return displayGeneration
     }
 
     func hide() {
@@ -696,7 +711,7 @@ final class OverlayPanelController {
         }
     }
 
-    private func frameForPanel(content: OverlayContent, near axFrame: CGRect?) -> CGRect {
+    private func frameForPanel(content: OverlayContent, near axFrame: CGRect?, placement: Placement = .automatic) -> CGRect {
         let size = panelSize(for: content)
         let windowFrame: CGRect?
         windowFrame = content.focusedContext?.windowFrame
@@ -711,6 +726,10 @@ final class OverlayPanelController {
 
         let cocoaWindowFrame = windowFrame.map { cocoaFrame(fromAXFrame: $0, screenFrame: screenFrame) }
         let anchorFrame = cocoaWindowFrame ?? visibleFrame
+
+        if placement == .centered {
+            return centeredFloatingFrame(size: size, anchorFrame: visibleFrame, visibleFrame: visibleFrame)
+        }
 
         if axFrame == nil,
            isUpperFloatingContent(content) {
@@ -838,7 +857,7 @@ final class OverlayPanelController {
             let customInputHeight: CGFloat = state.isCustomInstructionVisible ? 44 : 0
             return CGSize(width: 470, height: 342 + previewHeight + customInputHeight)
         case .notice(_, _, let buttonTitle):
-            return buttonTitle == nil ? CGSize(width: 330, height: 118) : CGSize(width: 430, height: 248)
+            return buttonTitle == nil ? CGSize(width: 470, height: 118) : CGSize(width: 470, height: 248)
         }
     }
 

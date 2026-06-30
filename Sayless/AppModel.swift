@@ -83,6 +83,22 @@ final class AppModel: ObservableObject {
         }
     }
 
+    var summonShortcutTitle: String {
+        if shortcutOption == .custom {
+            return customShortcut?.title ?? "Custom"
+        }
+
+        return shortcutOption.title
+    }
+
+    var refreshShortcutTitle: String {
+        if refreshShortcutOption == .custom {
+            return customRefreshShortcut?.title ?? "Custom"
+        }
+
+        return refreshShortcutOption.title
+    }
+
     func handleSummon() {
         let now = CFAbsoluteTimeGetCurrent()
         guard now - lastSummonTime > 0.18 else {
