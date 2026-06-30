@@ -1,6 +1,7 @@
 import ClerkKit
 import Combine
 import Foundation
+import Security
 
 @MainActor
 final class AuthSessionManager: ObservableObject {
@@ -11,6 +12,8 @@ final class AuthSessionManager: ObservableObject {
     @Published private(set) var isLoadingRemoteConfiguration = false
 
     private init() {
+        Self.prepareClerkKeychainStorageIfNeeded()
+
         if let publishableKey = Self.publishableKey {
             clerk = Clerk.configure(publishableKey: publishableKey, options: Self.clerkOptions)
         } else {
@@ -81,16 +84,42 @@ final class AuthSessionManager: ObservableObject {
 
     private static var clerkOptions: Clerk.Options {
         let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ispaik.Sayless"
-        #if DEBUG
-        let keychainService = "\(bundleIdentifier).clerk.debug.\(ProcessInfo.processInfo.processIdentifier)"
-        #else
-        let keychainService = "\(bundleIdentifier).clerk.v2"
-        #endif
+        let keychainService = "\(bundleIdentifier).clerk.v3"
 
         return Clerk.Options(
             telemetryEnabled: false,
             keychainConfig: .init(service: keychainService)
         )
+    }
+
+    private static func prepareClerkKeychainStorageIfNeeded() {
+        let storageGenerationKey = "clerkKeychainStorageGeneration"
+        let currentGeneration = 3
+        guard UserDefaults.standard.integer(forKey: storageGenerationKey) < currentGeneration else {
+            return
+        }
+
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ispaik.Sayless"
+        let legacyServices = [
+            bundleIdentifier,
+            "\(bundleIdentifier).clerk.v2",
+            "\(bundleIdentifier).clerk.debug.\(ProcessInfo.processInfo.processIdentifier)"
+        ]
+
+        for service in legacyServices {
+            deleteGenericPasswordItems(service: service)
+        }
+
+        UserDefaults.standard.set(currentGeneration, forKey: storageGenerationKey)
+    }
+
+    private static func deleteGenericPasswordItems(service: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service
+        ]
+
+        SecItemDelete(query as CFDictionary)
     }
 
     private static var publishableKey: String? {
