@@ -647,7 +647,7 @@ function AssistantMockup() {
           </div>
           {chatInputEnabled ? (
             <textarea
-              className={`input-line ${composerText ? "has-reply" : ""}`}
+              className={`input-line chat-composer ${composerText ? "has-reply" : ""}`}
               value={composerText}
               onChange={(event) => {
                 setComposerText(event.target.value);

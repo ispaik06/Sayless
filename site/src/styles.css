@@ -596,6 +596,16 @@ button {
   transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
 }
 
+.chat-composer {
+  display: block;
+  height: 58px;
+  min-height: 58px;
+  max-height: 58px;
+  padding: 9px 18px;
+  line-height: 18px;
+  vertical-align: top;
+}
+
 .input-line:focus {
   border-color: rgba(37, 99, 235, 0.34);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
