@@ -325,10 +325,10 @@ function App() {
   const isInstallPage = path.endsWith("/install.html") || path.endsWith("/install");
   const [lang, setLang] = useState(() => {
     if (typeof window === "undefined") {
-      return "en";
+      return "ko";
     }
 
-    return window.localStorage.getItem(LANG_STORAGE_KEY) === "ko" ? "ko" : "en";
+    return window.localStorage.getItem(LANG_STORAGE_KEY) === "en" ? "en" : "ko";
   });
   const t = COPY[lang];
 
