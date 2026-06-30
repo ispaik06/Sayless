@@ -540,11 +540,11 @@ function AssistantMockup() {
         {
           id: `download-reply-${timestamp}`,
           side: "left",
-          text: "Go download Sayless and find another girl to hang out with.",
+          text: "Go download Sayless and find another girl to hang out with 🥀",
           link: DEMO_INSTALL_URL
         }
       ]);
-    }, 3850);
+    }, 4550);
   }
 
   function startOverlayDrag(event) {

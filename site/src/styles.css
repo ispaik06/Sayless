@@ -498,15 +498,21 @@ button {
 }
 
 .chat-row.is-loading {
-  min-width: 70px;
-  padding: 13px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 43px;
+  padding: 12px 16px;
 }
 
 .chat-loading-dots {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  min-height: 17px;
+  width: 100%;
+  min-height: 18px;
 }
 
 .chat-loading-dots span {
@@ -579,12 +585,13 @@ button {
   min-height: 58px;
   max-height: 58px;
   border-radius: 8px;
-  padding: 17px 18px;
+  padding: 15px 18px;
   color: var(--muted);
   background: #fff;
   font: inherit;
-  line-height: 1.45;
+  line-height: 1.35;
   outline: none;
+  overflow: hidden;
   resize: none;
   transition: border-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
 }
