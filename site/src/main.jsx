@@ -303,13 +303,14 @@ const DEMO_ADJUSTMENTS = [
 ];
 
 const DEMO_CHAT_MESSAGES = [
-  { side: "left", text: "Hey! I had a great time tonight." },
-  { side: "left", compact: true, text: "The movie was fun 🙂" },
-  { side: "right", text: "Me too! Really enjoyed hanging out with you 🍿" },
-  { side: "left", text: "Let's do it again soon! 😌" }
+  { side: "left", delay: 420, text: "Hey! I had a great time tonight." },
+  { side: "left", compact: true, delay: 780, text: "The movie was fun 🙂" },
+  { side: "right", delay: 1650, text: "Me too! Really enjoyed hanging out with you 🍿" },
+  { side: "left", delay: 2150, text: "Let's do it again soon! 😌" }
 ];
 
 const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow...?";
+const DEMO_TYPING_START_DELAY = 2600;
 
 function AssistantMockup() {
   const stageRef = useRef(null);
@@ -328,6 +329,7 @@ function AssistantMockup() {
   const [typingComplete, setTypingComplete] = useState(false);
   const [showShortcutPrompt, setShowShortcutPrompt] = useState(false);
   const [shortcutPromptDismissed, setShortcutPromptDismissed] = useState(false);
+  const [typingReady, setTypingReady] = useState(false);
   const replies = DEMO_REPLY_PRESETS[activePreset];
   const demoFocused = demoInView && documentActive;
   const canUseShortcut = showShortcutPrompt || shortcutPromptDismissed || overlayVisible;
@@ -373,16 +375,29 @@ function AssistantMockup() {
       return undefined;
     }
 
+    const nextMessage = DEMO_CHAT_MESSAGES[visibleMessageCount];
     const messageTimer = window.setTimeout(
       () => setVisibleMessageCount((count) => Math.min(count + 1, DEMO_CHAT_MESSAGES.length)),
-      visibleMessageCount === 0 ? 420 : 820
+      nextMessage.delay
     );
 
     return () => window.clearTimeout(messageTimer);
   }, [demoFocused, selectedReply, visibleMessageCount]);
 
   useEffect(() => {
-    if (!demoFocused || selectedReply || visibleMessageCount < DEMO_CHAT_MESSAGES.length || typingComplete) {
+    if (!demoFocused || selectedReply || visibleMessageCount < DEMO_CHAT_MESSAGES.length || typingReady) {
+      return undefined;
+    }
+
+    const typingStartTimer = window.setTimeout(() => {
+      setTypingReady(true);
+    }, DEMO_TYPING_START_DELAY);
+
+    return () => window.clearTimeout(typingStartTimer);
+  }, [demoFocused, selectedReply, typingReady, visibleMessageCount]);
+
+  useEffect(() => {
+    if (!demoFocused || !typingReady || selectedReply || visibleMessageCount < DEMO_CHAT_MESSAGES.length || typingComplete) {
       return undefined;
     }
 
@@ -396,10 +411,10 @@ function AssistantMockup() {
     const typingTimer = window.setTimeout(() => {
       const nextLength = Math.min(Array.from(typedMessage).length + 1, characters.length);
       setTypedMessage(characters.slice(0, nextLength).join(""));
-    }, 108);
+    }, 100);
 
     return () => window.clearTimeout(typingTimer);
-  }, [demoFocused, selectedReply, typedMessage, typingComplete, visibleMessageCount]);
+  }, [demoFocused, selectedReply, typedMessage, typingComplete, typingReady, visibleMessageCount]);
 
   useEffect(() => {
     if (!demoFocused || !typingComplete || showShortcutPrompt || shortcutPromptDismissed) {
@@ -528,7 +543,7 @@ function AssistantMockup() {
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
             {selectedReply ? selectedReply.text : typedMessage}
-            {!selectedReply && demoFocused && visibleMessageCount === DEMO_CHAT_MESSAGES.length && !typingComplete && (
+            {!selectedReply && demoFocused && typingReady && visibleMessageCount === DEMO_CHAT_MESSAGES.length && !typingComplete && (
               <span className="typing-caret" aria-hidden="true"></span>
             )}
           </div>
