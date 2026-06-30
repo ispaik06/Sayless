@@ -61,39 +61,55 @@ enum SuggestionIntent: Equatable {
 }
 
 enum SuggestionAdjustmentOption: CaseIterable, Equatable, Hashable, Identifiable {
-    case shorter
-    case softer
-    case wittier
+    case styleSlotOne
+    case styleSlotTwo
+    case styleSlotThree
     case custom
 
     var id: String {
-        title
+        switch self {
+        case .styleSlotOne: "styleSlotOne"
+        case .styleSlotTwo: "styleSlotTwo"
+        case .styleSlotThree: "styleSlotThree"
+        case .custom: "custom"
+        }
+    }
+
+    var styleSlotIndex: Int? {
+        switch self {
+        case .styleSlotOne: 0
+        case .styleSlotTwo: 1
+        case .styleSlotThree: 2
+        case .custom: nil
+        }
     }
 
     var title: String {
         switch self {
-        case .shorter: "더 짧게"
-        case .softer: "더 부드럽게"
-        case .wittier: "더 센스있게"
+        case .styleSlotOne, .styleSlotTwo, .styleSlotThree:
+            ReplyStyleSettings.shared.preset(for: self)?.title ?? "스타일"
         case .custom: "직접 입력"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .shorter: "textformat.size.smaller"
-        case .softer: "leaf"
-        case .wittier: "sparkles"
+        case .styleSlotOne, .styleSlotTwo, .styleSlotThree:
+            ReplyStyleSettings.shared.preset(for: self)?.systemImage ?? "slider.horizontal.3"
         case .custom: "keyboard"
         }
     }
 
     var intent: SuggestionIntent? {
         switch self {
-        case .shorter: .shorter
-        case .softer: .softer
-        case .wittier: .wittier
-        case .custom: nil
+        case .styleSlotOne, .styleSlotTwo, .styleSlotThree:
+            guard let preset = ReplyStyleSettings.shared.preset(for: self) else {
+                return nil
+            }
+
+            return .custom("Transform the current replies using this style preset: \(preset.title). \(preset.instruction)")
+        case .custom:
+            return nil
         }
     }
 }

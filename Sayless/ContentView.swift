@@ -103,14 +103,6 @@ struct ContentView: View {
                 selectedTab = .guide
             }
 
-            SidebarItem(
-                icon: "person.crop.circle",
-                title: "Account",
-                selected: selectedTab == .account
-            ) {
-                selectedTab = .account
-            }
-
             Spacer(minLength: 0)
         }
         .padding(.top, 70)
@@ -140,8 +132,6 @@ struct ContentView: View {
             generalContent
         case .guide:
             guideContent
-        case .account:
-            accountContent
         }
     }
 
@@ -740,7 +730,6 @@ struct ContentView: View {
 private enum PreferencesTab: String, CaseIterable, Identifiable {
     case general
     case guide
-    case account
 
     var id: String {
         rawValue

@@ -43,6 +43,16 @@ const SuggestionPayloadSchema = z.object({
   text: z.string().trim().min(1).max(240)
 });
 
+const StylePresetPayloadSchema = z.object({
+  title: z.string().trim().min(1).max(24),
+  instruction: z.string().trim().min(1).max(240)
+});
+
+const StylePreferencesSchema = z.object({
+  adjustmentPresets: z.array(StylePresetPayloadSchema).length(3),
+  personalInstruction: z.string().trim().min(1).max(70).optional()
+});
+
 export const SuggestionRequestSchema = z.object({
   chatRoom: ChatRoomSchema,
   locale: z.string().trim().max(20).optional(),
@@ -55,6 +65,7 @@ export const SuggestionRequestSchema = z.object({
       instruction: z.string().trim().min(1).max(500).optional()
     })
     .optional(),
+  stylePreferences: StylePreferencesSchema.optional(),
   previousSuggestions: z
     .array(SuggestionPayloadSchema)
     .max(24)

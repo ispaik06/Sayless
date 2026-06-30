@@ -41,7 +41,8 @@ final class AppModel: ObservableObject {
     private let overlayController = OverlayPanelController()
     private let suggestionService = BackendSuggestionService()
     private var hotKeyManager: HotKeyManager?
-    private var preferencesWindowController: PreferencesWindowController?
+    private var homeWindowController: HomeWindowController?
+    private var styleSettingsCancellable: AnyCancellable?
     private var suggestionTask: Task<Void, Never>?
     private var suggestionCache: SuggestionCache?
     private var lastSummonTime: CFAbsoluteTime = 0
@@ -79,6 +80,9 @@ final class AppModel: ObservableObject {
             self?.suggestionTask?.cancel()
         }
         overlayController.onSourceWindowInvalidated = { [weak self] in
+            self?.suggestionCache = nil
+        }
+        styleSettingsCancellable = ReplyStyleSettings.shared.objectWillChange.sink { [weak self] _ in
             self?.suggestionCache = nil
         }
     }
@@ -352,11 +356,11 @@ final class AppModel: ObservableObject {
         context: FocusedTextContext
     ) -> String? {
         switch intent {
-        case .shorter, .softer, .wittier:
+        case .shorter, .softer, .wittier, .custom:
             if activeSuggestions?.count == 3 {
                 return nil
             }
-        case .initial, .refresh(_), .regenerate, .custom:
+        case .initial, .refresh(_), .regenerate:
             break
         }
 
@@ -482,11 +486,15 @@ final class AppModel: ObservableObject {
     }
 
     func openPreferences() {
-        if preferencesWindowController == nil {
-            preferencesWindowController = PreferencesWindowController(appModel: self)
+        openHome(section: .preferences)
+    }
+
+    func openHome(section: HomeSection = .home) {
+        if homeWindowController == nil {
+            homeWindowController = HomeWindowController(appModel: self)
         }
 
-        preferencesWindowController?.showPreferences()
+        homeWindowController?.showHome(section: section)
     }
 
     private func save(_ shortcut: KeyboardShortcutSpec?, key: String) {

@@ -32,7 +32,15 @@ enum WindowStyling {
     private static let trafficLightButtonGap: CGFloat = 8
 
     static func applyPreferencesGlass(to window: NSWindow) {
-        window.title = "Sayless Preferences"
+        applyLiquidGlass(to: window, title: "Sayless Preferences", minSize: NSSize(width: 560, height: 520))
+    }
+
+    static func applyHomeGlass(to window: NSWindow) {
+        applyLiquidGlass(to: window, title: "Sayless Home", minSize: NSSize(width: 830, height: 640))
+    }
+
+    private static func applyLiquidGlass(to window: NSWindow, title: String, minSize: NSSize) {
+        window.title = title
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
@@ -48,7 +56,7 @@ enum WindowStyling {
         window.toolbarStyle = .unified
         window.toolbar = nil
         window.titlebarSeparatorStyle = .none
-        window.minSize = NSSize(width: 560, height: 520)
+        window.minSize = minSize
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
 
         if let contentView = window.contentView {

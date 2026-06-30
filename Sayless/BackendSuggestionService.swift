@@ -5,6 +5,7 @@ private struct SuggestionRequest: Encodable {
     let locale: String
     let draftText: String?
     let intent: SuggestionIntentPayload
+    let stylePreferences: ReplyStyleSettingsSnapshot
     let previousSuggestions: [PreviousSuggestionPayload]
     let activeSuggestions: [PreviousSuggestionPayload]?
     let messages: [SuggestionMessageGroup]
@@ -78,12 +79,17 @@ final class BackendSuggestionService {
         if let token = try await AuthSessionManager.shared.sessionToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
+        let stylePreferences = await MainActor.run {
+            ReplyStyleSettings.shared.snapshot()
+        }
+
         request.httpBody = try JSONEncoder().encode(
             SuggestionRequest(
                 chatRoom: chatRoomPayload(title: chatRoom, participantCount: participantCount),
                 locale: locale,
                 draftText: normalizedDraftText(draftText),
                 intent: SuggestionIntentPayload(intent: intent),
+                stylePreferences: stylePreferences,
                 previousSuggestions: previousSuggestions.suffix(18).map {
                     PreviousSuggestionPayload(label: $0.label, text: $0.text)
                 },

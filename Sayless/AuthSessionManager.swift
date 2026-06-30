@@ -12,10 +12,10 @@ final class AuthSessionManager: ObservableObject {
 
     private init() {
         if let publishableKey = Self.publishableKey {
-            clerk = Clerk.configure(publishableKey: publishableKey)
+            clerk = Clerk.configure(publishableKey: publishableKey, options: Self.clerkOptions)
         } else {
             configurationError = "Loading Clerk configuration..."
-            clerk = Clerk.configure(publishableKey: Self.placeholderPublishableKey)
+            clerk = Clerk.configure(publishableKey: Self.placeholderPublishableKey, options: Self.clerkOptions)
             Task {
                 await loadRemoteConfiguration()
             }
@@ -72,11 +72,25 @@ final class AuthSessionManager: ObservableObject {
 
             let config = try JSONDecoder().decode(AuthConfigResponse.self, from: data)
             let publishableKey = try Self.validatedPublishableKey(config.clerkPublishableKey)
-            clerk = try await Clerk.reconfigure(publishableKey: publishableKey)
+            clerk = try await Clerk.reconfigure(publishableKey: publishableKey, options: Self.clerkOptions)
             configurationError = nil
         } catch {
             configurationError = "Unable to load Clerk configuration"
         }
+    }
+
+    private static var clerkOptions: Clerk.Options {
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ispaik.Sayless"
+        #if DEBUG
+        let keychainService = "\(bundleIdentifier).clerk.debug.\(ProcessInfo.processInfo.processIdentifier)"
+        #else
+        let keychainService = "\(bundleIdentifier).clerk.v2"
+        #endif
+
+        return Clerk.Options(
+            telemetryEnabled: false,
+            keychainConfig: .init(service: keychainService)
+        )
     }
 
     private static var publishableKey: String? {

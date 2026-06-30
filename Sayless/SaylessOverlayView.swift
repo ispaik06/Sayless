@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
+    @ObservedObject private var styleSettings = ReplyStyleSettings.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isCustomInstructionFocused: Bool
     @State private var appeared = false
@@ -578,7 +579,7 @@ private struct SuggestionButtonStyle: ButtonStyle {
         }
 
         if isSelected {
-            return .green.opacity(0.16)
+            return .white.opacity(0.1)
         }
 
         return .white.opacity(0.08)
@@ -586,7 +587,7 @@ private struct SuggestionButtonStyle: ButtonStyle {
 
     private func borderColor(isPressed: Bool) -> Color {
         if isPressed || isSelected {
-            return .green.opacity(0.36)
+            return .green.opacity(isSelected ? 0.72 : 0.36)
         }
 
         return .white.opacity(0.11)
