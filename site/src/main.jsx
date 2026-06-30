@@ -2,9 +2,9 @@ import React, { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
-  BookOpenText,
   CheckCircle2,
   ChevronRight,
+  CircleUser,
   Command,
   Download,
   Eye,
@@ -563,7 +563,7 @@ function Footer() {
     { label: "Instagram", href: "https://www.instagram.com/_ispaik/", icon: <Instagram size={19} /> },
     { label: "GitHub", href: "https://github.com/ispaik06", icon: <Github size={19} /> },
     { label: "LinkedIn", href: "https://www.linkedin.com/in/inseong-paik-7b2982354/", icon: <Linkedin size={19} /> },
-    { label: "About me", href: "https://ispaik06.github.io/about/", icon: <BookOpenText size={19} /> }
+    { label: "About me", href: "https://ispaik06.github.io/about/", icon: <CircleUser size={19} /> }
   ];
 
   return (
