@@ -712,13 +712,19 @@ struct ContentView: View {
             URLQueryItem(
                 name: "body",
                 value: """
-                Hi Sayless team,
+                Hi Sayless Team,
 
+                I’d like to share some feedback about Sayless.
 
+                Feedback type:
+                Bug / Feature request / General feedback
 
-                ---
-                App: Sayless
-                Version: \(updateManager.appVersionDisplay)
+                What happened or what would you like to see improved?
+
+                App version: \(updateManager.appVersionDisplay)
+                macOS version: \(ProcessInfo.processInfo.operatingSystemVersionString)
+
+                Thanks!
                 """
             )
         ]
