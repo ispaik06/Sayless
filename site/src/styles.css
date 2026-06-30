@@ -1131,7 +1131,7 @@ button {
 .install-scroll-hint {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  top: 82px;
   z-index: 40;
   display: inline-flex;
   align-items: center;
@@ -1154,7 +1154,7 @@ button {
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 14px);
+  transform: translate(-50%, -14px);
   transition: opacity 260ms ease, transform 260ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -2039,7 +2039,7 @@ button {
 
   .install-scroll-hint {
     width: calc(100% - 32px);
-    bottom: 16px;
+    top: 88px;
     gap: 8px;
   }
 
