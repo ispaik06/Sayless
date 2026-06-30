@@ -227,6 +227,10 @@ button {
   font-size: 6rem;
   line-height: 0.95;
   letter-spacing: 0;
+  white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 
 .hero-subtitle,
@@ -981,6 +985,10 @@ button {
   font-size: 4.2rem;
   line-height: 1;
   letter-spacing: 0;
+  white-space: pre-line;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 
 .feature-grid,

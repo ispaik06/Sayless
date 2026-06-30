@@ -180,7 +180,7 @@ const COPY = {
     },
     home: {
       eyebrow: "macOS용 AI 대화 윙맨",
-      title: "답장 고민, 이제 Sayless에 맡기세요",
+      title: "답장 고민,\n이제 Sayless에\n맡기세요",
       subtitle:
         "분위기 파악부터 톤앤매너 조절까지. 대화의 흐름을 읽고, 당신이 진짜 보내고 싶은 느낌 그대로 센스 있는 답장을 만들어 줍니다.",
       downloadCta: "macOS용 다운로드",
@@ -188,7 +188,7 @@ const COPY = {
       note: "macOS, 손쉬운 사용 권한, Sayless 계정이 필요합니다.",
       proof: ["보이는 대화 읽기", "분위기 파악하기", "보낼 말 건네주기"],
       productKicker: "프롬프트 쇼 안 해도 됨",
-      productTitle: "채팅창 바로 옆, 나만의 대화 어시스턴트",
+      productTitle: "채팅창 바로 옆,\n나만의 대화\n어시스턴트",
       productText:
         "Sayless는 말투만 바꿔주는 앱이 아닙니다. 지금 대화의 맥락을 읽고 입력창 옆에서 바로 쓸 수 있는 답장을 준비합니다. 말문이 막힐 때 열고, 제일 너다운 답을 고르고, 흐름을 놓치지 마세요.",
       features: [
