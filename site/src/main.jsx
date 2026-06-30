@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   ArrowRight,
@@ -302,16 +302,84 @@ const DEMO_ADJUSTMENTS = [
   { id: "custom", label: "Custom" }
 ];
 
+const DEMO_TYPED_MESSAGE = "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow? 😳";
+
 function AssistantMockup() {
   const stageRef = useRef(null);
   const overlayRef = useRef(null);
   const [activePreset, setActivePreset] = useState("rizz");
   const [customDraft, setCustomDraft] = useState("");
   const [showCustom, setShowCustom] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(false);
   const [overlayPosition, setOverlayPosition] = useState({ x: 0, y: 0 });
   const [selectedReply, setSelectedReply] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [typedMessage, setTypedMessage] = useState("");
+  const [typingStarted, setTypingStarted] = useState(false);
+  const hasTypedMessageRef = useRef(false);
   const replies = DEMO_REPLY_PRESETS[activePreset];
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTypingStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.36 }
+    );
+
+    observer.observe(stage);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!typingStarted || selectedReply) {
+      return undefined;
+    }
+
+    if (hasTypedMessageRef.current) {
+      setTypedMessage(DEMO_TYPED_MESSAGE);
+      return undefined;
+    }
+
+    const characters = Array.from(DEMO_TYPED_MESSAGE);
+    let index = 0;
+    setTypedMessage("");
+
+    const typingTimer = window.setInterval(() => {
+      index += 1;
+      setTypedMessage(characters.slice(0, index).join(""));
+
+      if (index >= characters.length) {
+        hasTypedMessageRef.current = true;
+        window.clearInterval(typingTimer);
+      }
+    }, 42);
+
+    return () => window.clearInterval(typingTimer);
+  }, [typingStarted, selectedReply]);
+
+  useEffect(() => {
+    function handleShortcut(event) {
+      if (event.altKey && event.code === "Space") {
+        event.preventDefault();
+        setOverlayVisible((visible) => !visible);
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcut);
+
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   function selectPreset(presetId) {
     setActivePreset(presetId);
@@ -380,7 +448,7 @@ function AssistantMockup() {
   }
 
   return (
-    <div className="demo-stage" ref={stageRef}>
+    <div className={`demo-stage ${overlayVisible ? "has-overlay" : ""}`} ref={stageRef}>
       <div className="chat-window-demo">
         <div className="window-bar">
           <span />
@@ -399,71 +467,82 @@ function AssistantMockup() {
             <div className="chat-row left">Let's do it again soon! 😌</div>
           </div>
           <div className={`input-line ${selectedReply ? "has-reply" : ""}`}>
-            {selectedReply ? selectedReply.text : "Hey, Isabel... I was thinking, maybe we could grab dinner tomorrow? 😳"}
+            {selectedReply ? selectedReply.text : typedMessage}
+            {!selectedReply && typedMessage.length < Array.from(DEMO_TYPED_MESSAGE).length && (
+              <span className="typing-caret" aria-hidden="true"></span>
+            )}
           </div>
         </div>
       </div>
 
-      <div
-        ref={overlayRef}
-        className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
-        style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
-        onPointerDown={startOverlayDrag}
-      >
-        <div className="overlay-head">
-          <div className="overlay-brand">
-            <span className="overlay-symbol">...</span>
-            <strong>Sayless</strong>
-            <em>Isabel</em>
+      <button className="shortcut-hint" type="button" onClick={() => setOverlayVisible((visible) => !visible)}>
+        <span>Press</span>
+        <kbd>Option</kbd>
+        <kbd>Space</kbd>
+      </button>
+
+      {overlayVisible && (
+        <div
+          ref={overlayRef}
+          className={`sayless-overlay-demo ${isDragging ? "is-dragging" : ""}`}
+          style={{ transform: `translate(${overlayPosition.x}px, ${overlayPosition.y}px)` }}
+          onPointerDown={startOverlayDrag}
+        >
+          <div className="overlay-head">
+            <div className="overlay-brand">
+              <span className="overlay-symbol">...</span>
+              <strong>Sayless</strong>
+              <em>Isabel</em>
+            </div>
+            <div className="overlay-actions">
+              <button type="button" aria-label="Refresh suggestions">
+                <RefreshCw size={13} />
+              </button>
+              <button type="button" aria-label="Close overlay" onClick={() => setOverlayVisible(false)}>
+                <X size={13} />
+              </button>
+            </div>
           </div>
-          <div className="overlay-actions">
-            <button type="button" aria-label="Refresh suggestions">
-              <RefreshCw size={13} />
-            </button>
-            <button type="button" aria-label="Close overlay">
-              <X size={13} />
-            </button>
+          <div className="overlay-suggestions">
+            {replies.map((reply) => (
+              <button
+                key={reply.label}
+                type="button"
+                className={selectedReply?.text === reply.text ? "is-selected" : ""}
+                onClick={() => selectReply(reply)}
+              >
+                <span>{reply.label}</span>
+                <p>{reply.text}</p>
+              </button>
+            ))}
           </div>
+          <div className="overlay-adjustments" aria-label="Reply adjustment controls">
+            {DEMO_ADJUSTMENTS.map((adjustment) => (
+              <button
+                key={adjustment.id}
+                type="button"
+                className={activePreset === adjustment.id ? "is-active" : ""}
+                onClick={() => selectPreset(adjustment.id)}
+              >
+                {adjustment.label}
+              </button>
+            ))}
+          </div>
+          {showCustom && (
+            <input
+              className="overlay-custom-input"
+              value={customDraft}
+              onChange={(event) => setCustomDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                }
+              }}
+              placeholder="Type the exact vibe you want"
+            />
+          )}
         </div>
-        <div className="overlay-suggestions">
-          {replies.map((reply, index) => (
-            <button
-              key={reply.label}
-              type="button"
-              className={selectedReply?.text === reply.text ? "is-selected" : ""}
-              onClick={() => selectReply(reply)}
-            >
-              <span>{reply.label}</span>
-              <p>{reply.text}</p>
-            </button>
-          ))}
-        </div>
-        <div className="overlay-adjustments" aria-label="Reply adjustment controls">
-          {DEMO_ADJUSTMENTS.map((adjustment) => (
-            <button
-              key={adjustment.id}
-              type="button"
-              className={activePreset === adjustment.id ? "is-active" : ""}
-              onClick={() => selectPreset(adjustment.id)}
-            >
-              {adjustment.label}
-            </button>
-          ))}
-        </div>
-        {showCustom && (
-          <input
-            className="overlay-custom-input"
-            value={customDraft}
-            onChange={(event) => setCustomDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-              }
-            }}
-            placeholder="Type the exact vibe you want"
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }
