@@ -255,6 +255,7 @@ private struct HomeView: View {
     private var homeContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             heroCard
+            supportedPlatformsCard
             styleSlotsCard
             personalStyleCard
             quickActions
@@ -371,6 +372,82 @@ private struct HomeView: View {
             RoundedRectangle(cornerRadius: 17, style: .continuous)
                 .stroke(.white.opacity(isAccountPanelHovered ? 0.28 : 0.12), lineWidth: 1)
         )
+    }
+
+    private var supportedPlatformsCard: some View {
+        LiquidHomeCard(accent: [Color(red: 0.70, green: 0.92, blue: 1.0), Color(red: 0.74, green: 1.0, blue: 0.58)]) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 12) {
+                    SectionHeader(
+                        icon: "square.stack.3d.up.fill",
+                        title: tr("Supported Platforms", "지원 플랫폼"),
+                        subtitle: tr("KakaoTalk works now. More everyday chat surfaces are planned.", "지금은 카카오톡을 지원하고, 앞으로 자주 쓰는 채팅 플랫폼을 더 추가할 예정입니다.")
+                    )
+
+                    Spacer(minLength: 0)
+
+                    Text(tr("Live", "지원 중"))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.black.opacity(0.72))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 0.68, green: 1.0, blue: 0.55), Color(red: 0.50, green: 0.90, blue: 1.0)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: Capsule()
+                        )
+                        .overlay(Capsule().stroke(.white.opacity(0.28), lineWidth: 1))
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 10)], alignment: .leading, spacing: 10) {
+                    PlatformPill(
+                        title: tr("KakaoTalk", "카카오톡"),
+                        status: tr("Available now", "현재 지원"),
+                        icon: "message.fill",
+                        accent: [Color(red: 1.0, green: 0.86, blue: 0.22), Color(red: 0.70, green: 1.0, blue: 0.42)],
+                        available: true
+                    )
+                    PlatformPill(
+                        title: tr("Web", "웹"),
+                        status: tr("Coming soon", "추가 예정"),
+                        icon: "globe",
+                        accent: [Color(red: 0.58, green: 0.88, blue: 1.0), Color(red: 0.56, green: 1.0, blue: 0.78)],
+                        available: false
+                    )
+                    PlatformPill(
+                        title: "Instagram",
+                        status: tr("Coming soon", "추가 예정"),
+                        icon: "camera.fill",
+                        accent: [Color(red: 1.0, green: 0.58, blue: 0.72), Color(red: 1.0, green: 0.78, blue: 0.38)],
+                        available: false
+                    )
+                    PlatformPill(
+                        title: "Slack",
+                        status: tr("Coming soon", "추가 예정"),
+                        icon: "number",
+                        accent: [Color(red: 0.52, green: 0.86, blue: 1.0), Color(red: 0.92, green: 0.72, blue: 1.0)],
+                        available: false
+                    )
+                    PlatformPill(
+                        title: "Discord",
+                        status: tr("Coming soon", "추가 예정"),
+                        icon: "gamecontroller.fill",
+                        accent: [Color(red: 0.66, green: 0.72, blue: 1.0), Color(red: 0.54, green: 0.94, blue: 1.0)],
+                        available: false
+                    )
+                }
+
+                Text(tr(
+                    "Sayless is being built platform-by-platform so each app can feel native instead of generic.",
+                    "Sayless는 플랫폼별로 자연스럽게 동작하도록 하나씩 확장하고 있습니다."
+                ))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var styleSlotsCard: some View {
@@ -920,6 +997,91 @@ private struct ShortcutLine: View {
                     Capsule()
                         .stroke(color.opacity(0.28), lineWidth: 1)
                 )
+        }
+    }
+}
+
+private struct PlatformPill: View {
+    let title: String
+    let status: String
+    let icon: String
+    let accent: [Color]
+    let available: Bool
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: accent.map { $0.opacity(isHovered ? 0.96 : 0.76) },
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: (accent.last ?? .cyan).opacity(isHovered ? 0.35 : 0.14), radius: isHovered ? 12 : 6, x: 0, y: isHovered ? 6 : 3)
+
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.black.opacity(0.72))
+            }
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold))
+                    .lineLimit(1)
+
+                Text(status)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(available ? Color(red: 0.72, green: 1.0, blue: 0.62) : .secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+        .background(
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(.white.opacity(isHovered ? 0.105 : 0.058))
+
+                LinearGradient(
+                    colors: [
+                        (accent.first ?? .mint).opacity(isHovered ? 0.18 : 0.07),
+                        (accent.last ?? .cyan).opacity(isHovered ? 0.13 : 0.045),
+                        .clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+
+                Capsule()
+                    .fill(.white.opacity(isHovered ? 0.18 : 0.08))
+                    .frame(width: 58, height: 6)
+                    .blur(radius: 5)
+                    .offset(x: 16, y: 8)
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [.white.opacity(isHovered ? 0.28 : 0.12), (accent.last ?? .cyan).opacity(isHovered ? 0.22 : 0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .scaleEffect(isHovered ? 1.018 : 1.0)
+        .shadow(color: .black.opacity(isHovered ? 0.13 : 0.055), radius: isHovered ? 18 : 9, x: 0, y: isHovered ? 9 : 5)
+        .animation(.spring(response: 0.25, dampingFraction: 0.76), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 }
