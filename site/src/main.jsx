@@ -1145,7 +1145,6 @@ function PlatformCard({ platform, readyLabel, plannedLabel }) {
 }
 
 function PlatformLogo({ platform }) {
-  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
 
   if (!platform.logo || failed) {
@@ -1154,13 +1153,10 @@ function PlatformLogo({ platform }) {
 
   return (
     <div className={`platform-logo-frame ${platform.id}`}>
-      {!loaded && <span>{platform.title}</span>}
       <img
         src={platform.logo}
         alt={`${platform.title} logo`}
         loading="lazy"
-        className={loaded ? "is-loaded" : ""}
-        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
     </div>
