@@ -533,9 +533,13 @@ final class AccessibilityReader {
 
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         guard let focusedWindow = copyAttribute(appElement, kAXFocusedWindowAttribute) as AXUIElement?,
-              isWindowUsable(focusedWindow),
-              looksLikeInstagramMessagesWindow(focusedWindow) else {
+              isWindowUsable(focusedWindow) else {
             instagramAXLog("Instagram window found: false")
+            return .unsupportedApp
+        }
+
+        guard looksLikeInstagramMessagesWindow(focusedWindow, browserKind: browserKind) else {
+            instagramAXLog("Instagram window found: false title=\(shortDebugText(chatRoomTitle(for: focusedWindow)))")
             return .unsupportedApp
         }
         instagramAXLog("Instagram window found: true title=\(shortDebugText(chatRoomTitle(for: focusedWindow))) frame=\(frameText(frame(of: focusedWindow)))")
@@ -543,10 +547,12 @@ final class AccessibilityReader {
         let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: true)
         let input = snapshot.inputField
         guard let input else {
+            instagramAXLog("Instagram chat input found: false")
             return .noChatInput
         }
 
         guard let roomTitle = snapshot.chatTitle else {
+            instagramAXLog("Instagram room title found: false")
             return .unsupportedApp
         }
 
@@ -690,19 +696,31 @@ final class AccessibilityReader {
         return false
     }
 
-    private func looksLikeInstagramMessagesWindow(_ window: AXUIElement) -> Bool {
+    private func looksLikeInstagramMessagesWindow(_ window: AXUIElement, browserKind: BrowserKind = .unknown) -> Bool {
         let title = chatRoomTitle(for: window).lowercased()
         if title.contains("instagram") && (title.contains("messages") || title.contains("direct")) {
             return true
         }
 
+        if browserKind == .chrome,
+           title.contains("instagram") {
+            return true
+        }
+
         if title.contains("instagram") {
-            let texts = collectInstagramStaticTextCandidates(in: window, maxDepth: 10, maxNodes: 220)
+            let texts = collectInstagramStaticTextCandidates(
+                in: window,
+                maxDepth: browserKind == .chrome ? 36 : 10,
+                maxNodes: browserKind == .chrome ? 3000 : 220
+            )
             return texts.contains { candidate in
                 let normalized = candidate.text.lowercased()
                 return normalized == "messages"
                     || normalized == "send"
                     || normalized == "message..."
+                    || normalized == "instagram"
+                    || normalized.contains("log in")
+                    || normalized.contains("로그인")
                     || normalized.contains("active now")
             }
         }
