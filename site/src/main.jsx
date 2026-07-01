@@ -83,35 +83,37 @@ const COPY = {
       finalKicker: "Ready when the chat is not",
       finalTitle: "Read the room. Reply with Sayless.",
       finalCta: "Review install notes",
-      platformsKicker: "Supported platforms",
-      platformsTitle: "Works where you already chat.",
-      platformsText: "KakaoTalk and Web Instagram are supported now. Discord, Slack, and more are planned.",
+      platformsKicker: "Works with",
+      platformsTitle: "Works with your favorite messaging apps",
+      platformsText: "KakaoTalk, Instagram, Discord, Slack, and more.",
       platformStatusReady: "Available now",
       platformStatusPlanned: "Planned",
+      platformsDisclaimer:
+        "All product names, logos, and brands are property of their respective owners. Sayless is not affiliated with or endorsed by Kakao, Meta, Discord, Slack, or any listed platform.",
       platforms: [
         {
           id: "kakao",
           title: "KakaoTalk",
           status: "ready",
-          text: "Native KakaoTalk chat windows."
+          logo: "/logos/kakaotalk.svg"
         },
         {
           id: "instagram",
-          title: "Web Instagram",
+          title: "Instagram",
           status: "ready",
-          text: "Instagram DM in Safari, Chrome, Arc, and other browsers."
+          logo: "/logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
-          text: "Server and DM support is planned."
+          logo: "/logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          text: "Work chat support is planned."
+          logo: "/logos/slack.svg"
         }
       ],
       visualSubtitle: "Mac-first AI communication assistant",
@@ -260,35 +262,37 @@ const COPY = {
       finalKicker: "채팅이 어려울 때 바로",
       finalTitle: "눈치 빠른 AI와 함께하는 대화",
       finalCta: "지금 바로 Sayless 써보기",
-      platformsKicker: "지원 플랫폼",
-      platformsTitle: "이미 쓰는 채팅에서 바로.",
-      platformsText: "현재 카카오톡과 Web Instagram을 지원합니다. Discord, Slack 등도 확장 예정입니다.",
+      platformsKicker: "Works with",
+      platformsTitle: "Works with your favorite messaging apps",
+      platformsText: "KakaoTalk, Instagram, Discord, Slack, and more.",
       platformStatusReady: "현재 지원",
       platformStatusPlanned: "확장 예정",
+      platformsDisclaimer:
+        "All product names, logos, and brands are property of their respective owners. Sayless is not affiliated with or endorsed by Kakao, Meta, Discord, Slack, or any listed platform.",
       platforms: [
         {
           id: "kakao",
           title: "카카오톡",
           status: "ready",
-          text: "macOS 카카오톡 채팅방에서 바로 사용."
+          logo: "/logos/kakaotalk.svg"
         },
         {
           id: "instagram",
-          title: "Web Instagram",
+          title: "Instagram",
           status: "ready",
-          text: "Safari, Chrome, Arc 등 브라우저의 Instagram DM 지원."
+          logo: "/logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
-          text: "서버와 DM 지원 예정."
+          logo: "/logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          text: "업무용 채팅 지원 예정."
+          logo: "/logos/slack.svg"
         }
       ],
       visualSubtitle: "맥을 먼저 생각한 AI 대화 assistant",
@@ -1122,6 +1126,7 @@ function PlatformsSection({ t }) {
           />
         ))}
       </div>
+      <p className="platform-disclaimer">{t.home.platformsDisclaimer}</p>
     </section>
   );
 }
@@ -1130,37 +1135,35 @@ function PlatformCard({ platform, readyLabel, plannedLabel }) {
   const ready = platform.status === "ready";
   return (
     <article className={`platform-card ${ready ? "is-ready" : "is-planned"}`}>
-      <div className={`platform-app-icon ${platform.id}`} aria-hidden="true">
-        {platform.id === "kakao" && <KakaoTalkMark />}
-        {platform.id === "instagram" && <Instagram size={30} strokeWidth={2.2} />}
-        {platform.id === "discord" && <DiscordMark />}
-        {platform.id === "slack" && <Command size={30} strokeWidth={2.2} />}
-      </div>
+      <PlatformLogo platform={platform} />
       <div className="platform-card-copy">
         <span className="platform-status">{ready ? readyLabel : plannedLabel}</span>
         <h3>{platform.title}</h3>
-        <p>{platform.text}</p>
       </div>
     </article>
   );
 }
 
-function KakaoTalkMark() {
-  return (
-    <svg className="brand-platform-mark kakao-mark" viewBox="0 0 72 72" role="img" aria-label="KakaoTalk">
-      <path d="M36 17c-13.4 0-24 8.3-24 18.6 0 6.7 4.5 12.6 11.2 15.9l-2.2 7.6c-.2.8.7 1.4 1.4.9l9.1-5.2c1.5.2 3 .4 4.5.4 13.4 0 24-8.3 24-18.6S49.4 17 36 17Z" />
-      <text x="36" y="39.5" textAnchor="middle">TALK</text>
-    </svg>
-  );
-}
+function PlatformLogo({ platform }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-function DiscordMark() {
+  if (!platform.logo || failed) {
+    return <div className="platform-logo-placeholder" aria-hidden="true">{platform.title}</div>;
+  }
+
   return (
-    <svg className="brand-platform-mark discord-mark" viewBox="0 0 72 72" role="img" aria-label="Discord">
-      <path d="M52.3 22.8A39.2 39.2 0 0 0 43 20l-1.2 2.4a31.7 31.7 0 0 0-11.6 0L29 20a39.2 39.2 0 0 0-9.3 2.8c-5.9 8.7-7.5 17.2-6.7 25.6a38.9 38.9 0 0 0 11.4 5.7l2.8-4.6a24.7 24.7 0 0 1-4.4-2.1l1.1-.8a28.2 28.2 0 0 0 24.2 0l1.1.8a24.7 24.7 0 0 1-4.4 2.1l2.8 4.6A38.9 38.9 0 0 0 59 48.4c.9-9.7-1.7-18.1-6.7-25.6Z" />
-      <circle cx="29.5" cy="38.2" r="3.2" />
-      <circle cx="42.5" cy="38.2" r="3.2" />
-    </svg>
+    <div className="platform-logo-frame">
+      {!loaded && <span>{platform.title}</span>}
+      <img
+        src={platform.logo}
+        alt={`${platform.title} logo`}
+        loading="lazy"
+        className={loaded ? "is-loaded" : ""}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
 
