@@ -175,6 +175,8 @@ const COPY = {
         "Review the first-launch steps, then unlock the download. The current release is distributed outside the Mac App Store, so macOS may ask you to allow it manually.",
       appLabel: "macOS menu bar app",
       summary: "Accessibility permission required on first launch.",
+      minimumLabel: "Minimum macOS",
+      minimumVersion: "macOS 26.5 or later",
       notesKicker: "Installation notes",
       notesTitle: "macOS may block the app once.",
       notesText:
@@ -400,6 +402,8 @@ const COPY = {
         "처음 실행할 때 필요한 단계를 확인한 뒤 다운로드를 열 수 있습니다. 현재 릴리즈는 Mac App Store 밖에서 배포되기 때문에 macOS가 수동 허용을 요청할 수 있습니다.",
       appLabel: "macOS 메뉴바 앱",
       summary: "처음 실행할 때 손쉬운 사용 권한이\n필요합니다.",
+      minimumLabel: "최소 macOS",
+      minimumVersion: "macOS 26.5 이상",
       notesKicker: "설치 안내",
       notesTitle: "macOS가 앱을 한 번 막을 수 있습니다.",
       notesText:
@@ -683,6 +687,10 @@ function InstallPage({ lang, setLang, t }) {
             <img src="assets/img/app-icon.png" alt="Sayless app icon" />
             <span>{t.install.appLabel}</span>
             <strong>{t.install.summary}</strong>
+            <div className="minimum-system">
+              <small>{t.install.minimumLabel}</small>
+              <b>{t.install.minimumVersion}</b>
+            </div>
           </div>
         </section>
 
