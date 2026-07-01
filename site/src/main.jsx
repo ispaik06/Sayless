@@ -39,7 +39,7 @@ const COPY = {
       eyebrow: "AI communication wingman for macOS",
       title: "Your next reply, already in context.",
       subtitle:
-        "Sayless reads the conversation in front of you and suggests replies that fit the room, the relationship, and what you are trying to say.",
+        "Sayless reads the visible chat and gives you short replies that fit the moment.",
       downloadCta: "Download for macOS",
       demoCta: "See how it works",
       note: "Requires macOS, Accessibility permission, and a Sayless account.",
@@ -83,6 +83,37 @@ const COPY = {
       finalKicker: "Ready when the chat is not",
       finalTitle: "Read the room. Reply with Sayless.",
       finalCta: "Review install notes",
+      platformsKicker: "Supported platforms",
+      platformsTitle: "Works where you already chat.",
+      platformsText: "KakaoTalk and Web Instagram are supported now. Discord, Slack, and more are planned.",
+      platformStatusReady: "Available now",
+      platformStatusPlanned: "Planned",
+      platforms: [
+        {
+          id: "kakao",
+          title: "KakaoTalk",
+          status: "ready",
+          text: "Native KakaoTalk chat windows."
+        },
+        {
+          id: "instagram",
+          title: "Web Instagram",
+          status: "ready",
+          text: "Instagram DM in Safari, Chrome, Arc, and other browsers."
+        },
+        {
+          id: "discord",
+          title: "Discord",
+          status: "planned",
+          text: "Server and DM support is planned."
+        },
+        {
+          id: "slack",
+          title: "Slack",
+          status: "planned",
+          text: "Work chat support is planned."
+        }
+      ],
       visualSubtitle: "Mac-first AI communication assistant",
       menuBar: "Menu bar",
       shortcutReady: "Always one shortcut away",
@@ -185,7 +216,7 @@ const COPY = {
       eyebrow: "macOS용 AI 대화 윙맨",
       title: "답장 고민,\n이제 Sayless에\n맡기세요",
       subtitle:
-        "분위기 파악부터 톤앤매너 조절까지. 대화의 흐름을 읽고, 당신이 진짜 보내고 싶은 느낌 그대로 센스 있는 답장을 만들어 줍니다.",
+        "보이는 대화를 읽고, 지금 바로 보낼 만한 짧은 답장을 준비합니다.",
       downloadCta: "macOS용 다운로드",
       demoCta: "작동 방식 알아보기",
       note: "macOS, 손쉬운 사용 권한, Sayless 계정이 필요합니다.",
@@ -229,6 +260,37 @@ const COPY = {
       finalKicker: "채팅이 어려울 때 바로",
       finalTitle: "눈치 빠른 AI와 함께하는 대화",
       finalCta: "지금 바로 Sayless 써보기",
+      platformsKicker: "지원 플랫폼",
+      platformsTitle: "이미 쓰는 채팅에서 바로.",
+      platformsText: "현재 카카오톡과 Web Instagram을 지원합니다. Discord, Slack 등도 확장 예정입니다.",
+      platformStatusReady: "현재 지원",
+      platformStatusPlanned: "확장 예정",
+      platforms: [
+        {
+          id: "kakao",
+          title: "카카오톡",
+          status: "ready",
+          text: "macOS 카카오톡 채팅방에서 바로 사용."
+        },
+        {
+          id: "instagram",
+          title: "Web Instagram",
+          status: "ready",
+          text: "Safari, Chrome, Arc 등 브라우저의 Instagram DM 지원."
+        },
+        {
+          id: "discord",
+          title: "Discord",
+          status: "planned",
+          text: "서버와 DM 지원 예정."
+        },
+        {
+          id: "slack",
+          title: "Slack",
+          status: "planned",
+          text: "업무용 채팅 지원 예정."
+        }
+      ],
       visualSubtitle: "맥을 먼저 생각한 AI 대화 assistant",
       menuBar: "메뉴바",
       shortcutReady: "단축키 한 번이면 준비",
@@ -403,6 +465,8 @@ function HomePage({ lang, setLang, t }) {
         <section className="demo-section" id="demo">
           <AssistantMockup key={lang} demo={t.demo} />
         </section>
+
+        <PlatformsSection t={t} />
 
         <section className="proof-band" aria-label="Sayless workflow">
           {t.home.proof.map((item, index) => (
@@ -1036,6 +1100,47 @@ function FeatureCard({ icon, title, text }) {
       <div className="feature-icon">{icon}</div>
       <h3>{title}</h3>
       <p>{text}</p>
+    </article>
+  );
+}
+
+function PlatformsSection({ t }) {
+  return (
+    <section className="section platform-section" aria-label={t.home.platformsKicker}>
+      <div className="platform-heading">
+        <p className="section-kicker">{t.home.platformsKicker}</p>
+        <h2>{t.home.platformsTitle}</h2>
+        <p>{t.home.platformsText}</p>
+      </div>
+      <div className="platform-grid">
+        {t.home.platforms.map((platform) => (
+          <PlatformCard
+            key={platform.id}
+            platform={platform}
+            readyLabel={t.home.platformStatusReady}
+            plannedLabel={t.home.platformStatusPlanned}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PlatformCard({ platform, readyLabel, plannedLabel }) {
+  const ready = platform.status === "ready";
+  return (
+    <article className={`platform-card ${ready ? "is-ready" : "is-planned"}`}>
+      <div className={`platform-app-icon ${platform.id}`} aria-hidden="true">
+        {platform.id === "kakao" && <span>Talk</span>}
+        {platform.id === "instagram" && <Instagram size={30} strokeWidth={2.2} />}
+        {platform.id === "discord" && <MessageSquareText size={30} strokeWidth={2.2} />}
+        {platform.id === "slack" && <Command size={30} strokeWidth={2.2} />}
+      </div>
+      <div className="platform-card-copy">
+        <span className="platform-status">{ready ? readyLabel : plannedLabel}</span>
+        <h3>{platform.title}</h3>
+        <p>{platform.text}</p>
+      </div>
     </article>
   );
 }
