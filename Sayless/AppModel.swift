@@ -99,13 +99,20 @@ final class AppModel: ObservableObject {
         if !accessibilityTrusted {
             overlayController.show(
                 content: .notice(
-                    title: "Allow Accessibility Access",
-                    message: """
-                    Sayless needs Accessibility permission to find the KakaoTalk message input.
+                    title: tr("Allow Accessibility Access", "손쉬운 사용 권한을 허용해 주세요"),
+                    message: tr(
+                        """
+                        Sayless needs Accessibility permission to find the KakaoTalk or Web Instagram message input.
 
-                    Click Open System Settings, turn Sayless on in Privacy & Security > Accessibility, then quit and run Sayless again. If Sayless is already on, turn it off and on again, or remove it from the list and add the current build again.
-                    """,
-                    buttonTitle: "Open System Settings"
+                        Click Open System Settings, turn Sayless on in Privacy & Security > Accessibility, then quit and run Sayless again. If Sayless is already on, turn it off and on again, or remove it from the list and add the current build again.
+                        """,
+                        """
+                        Sayless가 카카오톡 또는 Web Instagram 메시지 입력창을 찾으려면 손쉬운 사용 권한이 필요합니다.
+
+                        시스템 설정 열기를 누른 뒤 개인정보 보호 및 보안 > 손쉬운 사용에서 Sayless를 켜고, Sayless를 종료한 다음 다시 실행해 주세요. 이미 켜져 있다면 껐다 켜거나 목록에서 제거한 뒤 현재 빌드를 다시 추가해 주세요.
+                        """
+                    ),
+                    buttonTitle: tr("Open System Settings", "시스템 설정 열기")
                 ),
                 near: nil
             )
@@ -119,13 +126,20 @@ final class AppModel: ObservableObject {
         case .accessibilityMissing:
             overlayController.show(
                 content: .notice(
-                    title: "Allow Accessibility Access",
-                    message: """
-                    Sayless needs Accessibility permission to find the KakaoTalk message input.
+                    title: tr("Allow Accessibility Access", "손쉬운 사용 권한을 허용해 주세요"),
+                    message: tr(
+                        """
+                        Sayless needs Accessibility permission to find the KakaoTalk or Web Instagram message input.
 
-                    Click Open System Settings, turn Sayless on in Privacy & Security > Accessibility, then quit and run Sayless again. If Sayless is already on, turn it off and on again, or remove it from the list and add the current build again.
-                    """,
-                    buttonTitle: "Open System Settings"
+                        Click Open System Settings, turn Sayless on in Privacy & Security > Accessibility, then quit and run Sayless again. If Sayless is already on, turn it off and on again, or remove it from the list and add the current build again.
+                        """,
+                        """
+                        Sayless가 카카오톡 또는 Web Instagram 메시지 입력창을 찾으려면 손쉬운 사용 권한이 필요합니다.
+
+                        시스템 설정 열기를 누른 뒤 개인정보 보호 및 보안 > 손쉬운 사용에서 Sayless를 켜고, Sayless를 종료한 다음 다시 실행해 주세요. 이미 켜져 있다면 껐다 켜거나 목록에서 제거한 뒤 현재 빌드를 다시 추가해 주세요.
+                        """
+                    ),
+                    buttonTitle: tr("Open System Settings", "시스템 설정 열기")
                 ),
                 near: nil
             )
@@ -165,7 +179,6 @@ final class AppModel: ObservableObject {
 
     private func startInitialSuggestionLoad(for context: FocusedTextContext, generation: Int) {
         suggestionTask = Task(priority: .utility) { [weak self] in
-            try? await Task.sleep(nanoseconds: 180_000_000)
             guard !Task.isCancelled else {
                 return
             }
@@ -176,8 +189,7 @@ final class AppModel: ObservableObject {
                 intent: .initial,
                 previousSuggestions: [],
                 activeSuggestions: nil,
-                existingBatches: [],
-                forceRefresh: false
+                existingBatches: []
             )
         }
     }
@@ -199,8 +211,7 @@ final class AppModel: ObservableObject {
                 intent: intent,
                 previousSuggestions: previousSuggestions,
                 activeSuggestions: activeSuggestions,
-                existingBatches: existingBatches,
-                forceRefresh: true
+                existingBatches: existingBatches
             )
         }
     }
@@ -221,8 +232,7 @@ final class AppModel: ObservableObject {
                 intent: .initial,
                 previousSuggestions: [],
                 activeSuggestions: nil,
-                existingBatches: [],
-                forceRefresh: true
+                existingBatches: []
             )
         }
     }
@@ -232,14 +242,20 @@ final class AppModel: ObservableObject {
         guard authSession.isSignedIn else {
             let message: String
             if authSession.configurationError != nil {
-                message = "Sayless is still loading account configuration. Open Preferences > Account if this does not resolve."
+                message = tr(
+                    "Sayless is still loading account configuration. Open Preferences > Account if this does not resolve.",
+                    "Sayless가 아직 계정 설정을 불러오는 중입니다. 계속 해결되지 않으면 설정 > 계정을 열어 확인해 주세요."
+                )
             } else {
-                message = "Open Preferences > Account and sign in before generating suggestions."
+                message = tr(
+                    "Open Preferences > Account and sign in before generating suggestions.",
+                    "추천을 생성하기 전에 설정 > 계정에서 로그인해 주세요."
+                )
             }
 
             overlayController.showTemporary(
                 content: .notice(
-                    title: "Sign in required",
+                    title: tr("Sign in required", "로그인이 필요합니다"),
                     message: message,
                     buttonTitle: nil
                 ),
@@ -258,8 +274,7 @@ final class AppModel: ObservableObject {
         intent: SuggestionIntent,
         previousSuggestions: [Suggestion],
         activeSuggestions: [Suggestion]?,
-        existingBatches: [SuggestionBatch],
-        forceRefresh: Bool
+        existingBatches: [SuggestionBatch]
     ) async {
         await Task.yield()
 
@@ -268,14 +283,14 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let messages = await collectVisibleMessages(for: context, limit: 20)
+        let messages = await messagesForRequest(context: context, intent: intent, limit: 20)
         guard !Task.isCancelled,
               !messages.isEmpty,
               accessibilityReader.isWindowUsable(window) else {
             finishUnavailableSuggestionRequest(context: context, generation: generation, existingBatches: existingBatches)
             return
         }
-        let timelineSignature = accessibilityReader.latestVisibleMessageSignature(for: context)
+        let timelineSignature = accessibilityReader.timelineSignature(from: messages)
 
         do {
             let draftText = draftTextForRequest(intent: intent, activeSuggestions: activeSuggestions, context: context)
@@ -374,6 +389,19 @@ final class AppModel: ObservableObject {
         return []
     }
 
+    private func messagesForRequest(
+        context: FocusedTextContext,
+        intent: SuggestionIntent,
+        limit: Int
+    ) async -> [ChatMessage] {
+        if intent == .initial,
+           !context.chatMessages.isEmpty {
+            return Array(context.chatMessages.suffix(limit))
+        }
+
+        return await collectVisibleMessages(for: context, limit: limit)
+    }
+
     private func failureMessage(for error: Error) -> String? {
         let message = (error as? LocalizedError)?.errorDescription?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -436,18 +464,14 @@ final class AppModel: ObservableObject {
     }
 
     private func cacheKey(for context: FocusedTextContext) -> String {
-        if context.source == .webInstagram,
-           let signature = accessibilityReader.latestVisibleMessageSignature(for: context) {
-            let signatureKey = signature.tail
-                .map { fingerprint in
-                    [
-                        fingerprint.role,
-                        fingerprint.senderHash.map(String.init) ?? "-",
-                        String(fingerprint.textHash)
-                    ].joined(separator: ":")
-                }
-                .joined(separator: "|")
-            return "\(context.bundleIdentifier)|instagram|\(signatureKey)"
+        if context.source == .webInstagram {
+            if let signature = accessibilityReader.timelineSignature(from: context.chatMessages) {
+                return instagramCacheKey(context: context, signature: signature)
+            }
+
+            if let signature = accessibilityReader.latestVisibleMessageSignature(for: context) {
+                return instagramCacheKey(context: context, signature: signature)
+            }
         }
 
         let title = context.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -456,6 +480,20 @@ final class AppModel: ObservableObject {
         }
 
         return "\(context.bundleIdentifier)|\(Int(context.frame.minX))|\(Int(context.frame.minY))"
+    }
+
+    private func instagramCacheKey(context: FocusedTextContext, signature: ChatTimelineSignature) -> String {
+        let signatureKey = signature.tail
+            .map { fingerprint in
+                [
+                    fingerprint.role,
+                    fingerprint.senderHash.map(String.init) ?? "-",
+                    String(fingerprint.textHash)
+                ].joined(separator: ":")
+            }
+            .joined(separator: "|")
+
+        return "\(context.bundleIdentifier)|instagram|\(signatureKey)"
     }
 
     func openAccessibilitySettingsIfNeeded() {

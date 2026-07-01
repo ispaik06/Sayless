@@ -308,6 +308,18 @@ final class AccessibilityReader {
         }
     }
 
+    func timelineSignature(from messages: [ChatMessage]) -> ChatTimelineSignature? {
+        let tail = messages.suffix(8).map { message in
+            ChatMessageFingerprint(
+                role: message.sender == "Me" ? "me" : "other",
+                senderHash: message.sender == "Me" ? nil : stableHash(message.sender),
+                textHash: stableHash(message.text)
+            )
+        }
+
+        return tail.isEmpty ? nil : ChatTimelineSignature(tail: Array(tail))
+    }
+
     func focusInput(for context: FocusedTextContext) -> Bool {
         switch context.source {
         case .kakaoTalk:
@@ -544,7 +556,7 @@ final class AccessibilityReader {
         }
         instagramAXLog("Instagram window found: true title=\(shortDebugText(chatRoomTitle(for: focusedWindow))) frame=\(frameText(frame(of: focusedWindow)))")
 
-        let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: true)
+        let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: false)
         let input = snapshot.inputField
         guard let input else {
             instagramAXLog("Instagram chat input found: false")

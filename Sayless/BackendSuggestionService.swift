@@ -55,7 +55,7 @@ private struct BackendErrorResponse: Decodable {
 
 final class BackendSuggestionService {
     private let endpoint = BackendConfiguration.endpoint
-    private let locale = "ko-KR"
+    private let locale = "auto"
     private let requestTimeout: TimeInterval = 18
     private let maxTextsPerMessageGroup = 15
 

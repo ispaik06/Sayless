@@ -3,6 +3,7 @@ import SwiftUI
 struct SaylessOverlayView: View {
     @ObservedObject var state: OverlayState
     @ObservedObject private var styleSettings = ReplyStyleSettings.shared
+    @ObservedObject private var languageSettings = AppLanguageSettings.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isCustomInstructionFocused: Bool
     @State private var appeared = false
@@ -19,14 +20,21 @@ struct SaylessOverlayView: View {
             switch state.content {
             case .generating(_):
                 GeneratingSuggestionsView(
-                    title: "Generating replies",
-                    subtitle: "Reading the latest visible messages"
+                    title: tr("Generating replies", "답장 생성 중"),
+                    subtitle: tr("Reading the latest visible messages", "최근 보이는 메시지를 읽고 있습니다")
                 )
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
             case .generationFailed(_, let message):
-                GenerationFailedView(message: message)
+                GenerationFailedView(
+                    title: tr("Could not generate replies", "추천 생성에 실패했습니다"),
+                    message: message,
+                    fallbackMessage: tr(
+                        "Try again or check the backend connection.",
+                        "다시 시도하거나 백엔드 연결을 확인해 주세요"
+                    )
+                )
                     .frame(maxWidth: .infinity)
                     .frame(height: 150)
 
@@ -180,10 +188,13 @@ struct SaylessOverlayView: View {
                 }
 
                 Button(action: onRefresh) {
-                    RefreshButtonLabel(shortcutTitle: state.refreshShortcutTitle)
+                    RefreshButtonLabel(
+                        title: tr("Refresh", "새로 받기"),
+                        shortcutTitle: state.refreshShortcutTitle
+                    )
                 }
                 .buttonStyle(.plain)
-                .help("AI 답장 새로 받기")
+                .help(tr("Get new AI replies", "AI 답장 새로 받기"))
             }
 
             Button(action: onClose) {
@@ -227,7 +238,7 @@ struct SaylessOverlayView: View {
                     ProgressView()
                         .controlSize(.small)
                         .scaleEffect(0.62)
-                    Text("새로 받는 중")
+                    Text(tr("Refreshing", "새로 받는 중"))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -309,7 +320,10 @@ struct SaylessOverlayView: View {
 
     private var customInstructionInput: some View {
         HStack(spacing: 8) {
-            TextField("원하는 느낌, 길이, 말투, 언어 입력", text: $state.customInstructionDraft)
+            TextField(
+                tr("Describe the tone, length, style, or language", "원하는 느낌, 길이, 말투, 언어 입력"),
+                text: $state.customInstructionDraft
+            )
                 .textFieldStyle(.plain)
                 .focused($isCustomInstructionFocused)
                 .font(.system(size: 13, weight: .medium))
@@ -350,10 +364,16 @@ struct SaylessOverlayView: View {
 
         NSWorkspace.shared.open(url)
     }
+
+    private func tr(_ english: String, _ korean: String) -> String {
+        languageSettings.text(english, korean)
+    }
 }
 
 private struct GenerationFailedView: View {
+    let title: String
     let message: String?
+    let fallbackMessage: String
 
     var body: some View {
         VStack(spacing: 12) {
@@ -361,11 +381,11 @@ private struct GenerationFailedView: View {
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.secondary)
 
-            Text("추천 생성에 실패했습니다")
+            Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            Text(message ?? "다시 시도하거나 백엔드 연결을 확인해 주세요")
+            Text(message ?? fallbackMessage)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -460,6 +480,7 @@ private struct NewMessageBadge: View {
 }
 
 private struct RefreshButtonLabel: View {
+    let title: String
     let shortcutTitle: String
 
     var body: some View {
@@ -467,7 +488,7 @@ private struct RefreshButtonLabel: View {
             IntelligenceGlyph()
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("새로 받기")
+                Text(title)
                     .font(.system(size: 11, weight: .heavy))
                     .lineLimit(1)
                 Text(shortcutTitle)

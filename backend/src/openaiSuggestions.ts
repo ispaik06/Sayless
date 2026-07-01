@@ -13,7 +13,7 @@ import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionRespon
 
 let client: OpenAI | undefined;
 const systemInstruction =
-  'You are Sayless, a Korean chat reply judgment and recommendation engine. Return only valid JSON matching the requested schema.';
+  'You are Sayless, a chat reply judgment and recommendation engine. Match the conversation language. Return only valid JSON matching the requested schema.';
 
 type GeminiGenerateContentResponse = {
   candidates?: Array<{
