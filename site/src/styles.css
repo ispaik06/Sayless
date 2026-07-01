@@ -355,6 +355,7 @@ button {
   color: var(--muted);
   text-align: center;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .floating-status {

@@ -303,11 +303,11 @@ const COPY = {
     },
     install: {
       eyebrow: "설치 안내",
-      title: "macOS에 Sayless 설치하기.",
+      title: "macOS에\nSayless 설치하기.",
       intro:
         "처음 실행할 때 필요한 단계를 확인한 뒤 다운로드를 열 수 있습니다. 현재 릴리즈는 Mac App Store 밖에서 배포되기 때문에 macOS가 수동 허용을 요청할 수 있습니다.",
       appLabel: "macOS 메뉴바 앱",
-      summary: "처음 실행할 때 손쉬운 사용 권한이 필요합니다.",
+      summary: "처음 실행할 때 손쉬운 사용 권한이\n필요합니다.",
       notesKicker: "설치 안내",
       notesTitle: "macOS가 앱을 한 번 막을 수 있습니다.",
       notesText:
