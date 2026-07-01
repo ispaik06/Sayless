@@ -56,14 +56,11 @@ jobs:
           rm -rf /tmp/sayless-pages
           git worktree add /tmp/sayless-pages gh-pages
 
-          find /tmp/sayless-pages -mindepth 1 \
-            ! -path "/tmp/sayless-pages/.git" \
-            ! -path "/tmp/sayless-pages/.git/*" \
-            -exec rm -rf {} +
-
-          cp -R site/dist/. /tmp/sayless-pages/
-
           cd /tmp/sayless-pages
+          git rm -rf --ignore-unmatch .
+
+          cp -R "$GITHUB_WORKSPACE/site/dist/." /tmp/sayless-pages/
+
           git add -A
           git commit -m "Deploy website" || exit 0
           git push origin gh-pages
