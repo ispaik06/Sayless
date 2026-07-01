@@ -1374,6 +1374,7 @@ button {
   font-size: 4.35rem;
   line-height: 1;
   letter-spacing: 0;
+  white-space: pre-line;
 }
 
 .install-hero p {
@@ -1407,6 +1408,7 @@ button {
 .install-summary strong {
   font-size: 1.25rem;
   line-height: 1.32;
+  white-space: pre-line;
 }
 
 .install-layout {
