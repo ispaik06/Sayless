@@ -227,7 +227,11 @@ final class OverlayPanelController {
         latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
         state.hasNewerVisibleMessages = false
 
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
+        if content.activeSuggestions.isEmpty {
+            return
+        }
+
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.8) {
             let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
 
             DispatchQueue.main.async { [weak self] in
@@ -242,7 +246,7 @@ final class OverlayPanelController {
             }
         }
 
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: context.source == .webInstagram ? 1.2 : 0.5, repeats: true) { [weak self] _ in
             guard let self else {
                 return
             }

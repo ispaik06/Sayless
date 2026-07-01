@@ -34,6 +34,11 @@ struct ChatMessage {
     let debugSource: String?
 }
 
+struct VisibleChatSnapshot {
+    let title: String
+    let messages: [ChatMessage]
+}
+
 struct ChatTimelineSignature: Equatable {
     let tail: [ChatMessageFingerprint]
 
@@ -201,8 +206,16 @@ final class AccessibilityReader {
     private typealias AXElementID = UInt
     private var cachedChatTable: AXUIElement?
     private var cachedChatWindowID: AXElementID?
+    private var cachedInstagramRoot: AXUIElement?
+    private var cachedInstagramWindowID: AXElementID?
+    private var cachedInstagramBrowserKind: BrowserKind?
 
     func focusedTextContext(includeParticipantCount: Bool = true) -> SummonResult {
+        let start = CFAbsoluteTimeGetCurrent()
+        defer {
+            NSLog("[Sayless AX Timing] focusedTextContext %.1fms", (CFAbsoluteTimeGetCurrent() - start) * 1000)
+        }
+
         guard isAccessibilityTrusted() else {
             return .accessibilityMissing
         }
@@ -298,6 +311,32 @@ final class AccessibilityReader {
             return collectVisibleKakaoMessages(in: window, limit: limit)
         case .webInstagram:
             return collectVisibleInstagramMessages(in: window, limit: limit)
+        }
+    }
+
+    func collectVisibleChatSnapshot(for context: FocusedTextContext, limit: Int = 20) -> VisibleChatSnapshot {
+        guard let window = context.windowElement else {
+            return VisibleChatSnapshot(title: context.windowTitle, messages: [])
+        }
+
+        switch context.source {
+        case .kakaoTalk:
+            return VisibleChatSnapshot(
+                title: context.windowTitle,
+                messages: collectVisibleKakaoMessages(in: window, limit: limit)
+            )
+        case .webInstagram:
+            let browserKind = browserKind(appName: context.appName, bundleIdentifier: context.bundleIdentifier)
+            let snapshot = instagramChatSnapshot(
+                in: window,
+                browserKind: browserKind,
+                limit: limit,
+                logExtraction: false
+            )
+            return VisibleChatSnapshot(
+                title: snapshot.chatTitle ?? context.windowTitle,
+                messages: snapshot.messages
+            )
         }
     }
 
@@ -721,9 +760,11 @@ final class AccessibilityReader {
         var queue: [AXUIElement] = [root]
         var matches: [AXUIElement] = []
         var visited = 0
+        var index = 0
 
-        while !queue.isEmpty, visited < maxVisited {
-            let element = queue.removeFirst()
+        while index < queue.count, visited < maxVisited {
+            let element = queue[index]
+            index += 1
             visited += 1
 
             if isKakaoChatInput(element) {
@@ -900,6 +941,19 @@ final class AccessibilityReader {
             return nil
         }
 
+        let windowID = elementID(window)
+        if cachedInstagramWindowID == windowID,
+           cachedInstagramBrowserKind == browserKind,
+           let cachedInstagramRoot,
+           frame(of: cachedInstagramRoot) != nil {
+            return cachedInstagramRoot
+        }
+
+        let start = CFAbsoluteTimeGetCurrent()
+        defer {
+            NSLog("[Sayless AX Timing] instagramParsingRoot %.1fms", (CFAbsoluteTimeGetCurrent() - start) * 1000)
+        }
+
         let elements = [window] + descendants(of: window, maxDepth: 18, maxVisited: 2200)
         let candidates = elements.compactMap { element -> (element: AXUIElement, score: Int)? in
             let snapshot = snapshot(of: element)
@@ -920,7 +974,11 @@ final class AccessibilityReader {
             return (element, score)
         }
 
-        return candidates.sorted { $0.score > $1.score }.first?.element
+        let root = candidates.sorted { $0.score > $1.score }.first?.element
+        cachedInstagramRoot = root
+        cachedInstagramWindowID = root == nil ? nil : windowID
+        cachedInstagramBrowserKind = root == nil ? nil : browserKind
+        return root
     }
 
     private func collectInstagramStaticTextCandidates(
@@ -928,15 +986,27 @@ final class AccessibilityReader {
         maxDepth: Int,
         maxNodes: Int
     ) -> [InstagramTextCandidate] {
+        let start = CFAbsoluteTimeGetCurrent()
+        defer {
+            NSLog(
+                "[Sayless AX Timing] collectInstagramStaticTextCandidates depth=%d max=%d %.1fms",
+                maxDepth,
+                maxNodes,
+                (CFAbsoluteTimeGetCurrent() - start) * 1000
+            )
+        }
+
         var queue: [(element: AXUIElement, depth: Int, parents: [InstagramAncestorSnapshot])] = [
             (root, 0, [])
         ]
         var visited = Set<AXElementID>()
         var candidates: [InstagramTextCandidate] = []
         var visitedCount = 0
+        var index = 0
 
-        while !queue.isEmpty, visitedCount < maxNodes {
-            let item = queue.removeFirst()
+        while index < queue.count, visitedCount < maxNodes {
+            let item = queue[index]
+            index += 1
             let id = elementID(item.element)
             guard !visited.contains(id) else {
                 continue
@@ -2458,9 +2528,11 @@ final class AccessibilityReader {
         var messageCandidates: [MessageTextCandidate] = []
         var senderCandidates: [(text: String, frame: CGRect)] = []
         var hasSystemFeedMarker = false
+        var index = 0
 
-        while !queue.isEmpty, visited.count < 32, messageCandidates.count < 3 {
-            let item = queue.removeFirst()
+        while index < queue.count, visited.count < 32, messageCandidates.count < 3 {
+            let item = queue[index]
+            index += 1
             let id = elementID(item.element)
             guard !visited.contains(id) else {
                 continue
@@ -2888,9 +2960,11 @@ final class AccessibilityReader {
         var results: [AXUIElement] = []
         var queue: [(element: AXUIElement, depth: Int)] = [(root, 0)]
         var visited = Set<AXElementID>()
+        var index = 0
 
-        while !queue.isEmpty, results.count < maxVisited {
-            let item = queue.removeFirst()
+        while index < queue.count, results.count < maxVisited {
+            let item = queue[index]
+            index += 1
             let id = elementID(item.element)
             guard !visited.contains(id) else {
                 continue

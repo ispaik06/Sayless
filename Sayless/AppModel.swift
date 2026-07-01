@@ -119,6 +119,10 @@ final class AppModel: ObservableObject {
             return
         }
 
+        guard canRequestAuthenticatedSuggestions(near: nil) else {
+            return
+        }
+
         switch accessibilityReader.focusedTextContext() {
         case .ready(let context):
             showCachedSuggestionsOrStartLoading(for: context)
@@ -160,7 +164,8 @@ final class AppModel: ObservableObject {
             return
         }
 
-        if let cached = cachedSuggestions(for: context, validateTimeline: false) {
+        if canUseImmediateCache(for: context),
+           let cached = cachedSuggestions(for: context, validateTimeline: false) {
             overlayController.showSuggestions(
                 context: context,
                 batches: cached.batches,
@@ -283,7 +288,9 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let messages = await messagesForRequest(context: context, intent: intent, limit: 20)
+        let visibleSnapshot = await visibleSnapshotForRequest(context: context, intent: intent, limit: 20)
+        let requestContext = contextWithVisibleSnapshot(visibleSnapshot, from: context)
+        let messages = visibleSnapshot.messages
         guard !Task.isCancelled,
               !messages.isEmpty,
               accessibilityReader.isWindowUsable(window) else {
@@ -293,16 +300,16 @@ final class AppModel: ObservableObject {
         let timelineSignature = accessibilityReader.timelineSignature(from: messages)
 
         do {
-            let draftText = draftTextForRequest(intent: intent, activeSuggestions: activeSuggestions, context: context)
+            let draftText = draftTextForRequest(intent: intent, activeSuggestions: activeSuggestions, context: requestContext)
             let participantCount: Int?
-            switch context.source {
+            switch requestContext.source {
             case .kakaoTalk:
-                participantCount = context.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
+                participantCount = requestContext.participantCount ?? accessibilityReader.participantCount(inChatWindow: window)
             case .webInstagram:
-                participantCount = context.participantCount
+                participantCount = requestContext.participantCount
             }
             let suggestions = try await suggestionService.suggestions(
-                chatRoom: context.windowTitle,
+                chatRoom: requestContext.windowTitle,
                 participantCount: participantCount,
                 messages: messages,
                 draftText: draftText,
@@ -318,15 +325,15 @@ final class AppModel: ObservableObject {
             let batch = SuggestionBatch(intent: intent, suggestions: suggestions)
             let batches = existingBatches + [batch]
             suggestionCache = SuggestionCache(
-                key: cacheKey(for: context),
+                key: cacheKey(for: requestContext),
                 batches: batches,
-                windowElement: context.windowElement,
+                windowElement: requestContext.windowElement,
                 timelineSignature: timelineSignature,
                 messages: messages,
                 createdAt: Date()
             )
 
-            overlayController.appendSuggestions(batch, context: context, for: generation)
+            overlayController.appendSuggestions(batch, context: requestContext, for: generation)
         } catch {
             guard !Task.isCancelled else {
                 return
@@ -400,6 +407,70 @@ final class AppModel: ObservableObject {
         }
 
         return await collectVisibleMessages(for: context, limit: limit)
+    }
+
+    private func visibleSnapshotForRequest(
+        context: FocusedTextContext,
+        intent: SuggestionIntent,
+        limit: Int
+    ) async -> VisibleChatSnapshot {
+        if intent == .initial,
+           !context.chatMessages.isEmpty {
+            return VisibleChatSnapshot(
+                title: context.windowTitle,
+                messages: Array(context.chatMessages.suffix(limit))
+            )
+        }
+
+        let retryDelaysNanoseconds: [UInt64] = [0, 120_000_000, 280_000_000]
+        for delay in retryDelaysNanoseconds {
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: delay)
+            }
+
+            guard !Task.isCancelled,
+                  let window = context.windowElement,
+                  accessibilityReader.isWindowUsable(window) else {
+                return VisibleChatSnapshot(title: context.windowTitle, messages: [])
+            }
+
+            let snapshot = accessibilityReader.collectVisibleChatSnapshot(for: context, limit: limit)
+            if !snapshot.messages.isEmpty {
+                return snapshot
+            }
+        }
+
+        return VisibleChatSnapshot(title: context.windowTitle, messages: [])
+    }
+
+    private func contextWithVisibleSnapshot(
+        _ snapshot: VisibleChatSnapshot,
+        from context: FocusedTextContext
+    ) -> FocusedTextContext {
+        let title = snapshot.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FocusedTextContext(
+            source: context.source,
+            appName: context.appName,
+            bundleIdentifier: context.bundleIdentifier,
+            element: context.element,
+            windowElement: context.windowElement,
+            windowTitle: title.isEmpty ? context.windowTitle : title,
+            participantCount: context.participantCount,
+            role: context.role,
+            value: context.value,
+            frame: context.frame,
+            windowFrame: context.windowFrame,
+            chatMessages: snapshot.messages
+        )
+    }
+
+    private func canUseImmediateCache(for context: FocusedTextContext) -> Bool {
+        if context.source == .webInstagram,
+           context.chatMessages.isEmpty {
+            return false
+        }
+
+        return true
     }
 
     private func failureMessage(for error: Error) -> String? {
