@@ -469,9 +469,8 @@ final class AppModel: ObservableObject {
                 return instagramCacheKey(context: context, signature: signature)
             }
 
-            if let signature = accessibilityReader.latestVisibleMessageSignature(for: context) {
-                return instagramCacheKey(context: context, signature: signature)
-            }
+            let title = context.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "\(context.bundleIdentifier)|instagram|\(title)|\(Int(context.frame.minX))|\(Int(context.frame.minY))"
         }
 
         let title = context.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -614,7 +614,21 @@ final class AccessibilityReader {
         }
         instagramAXLog("Instagram window found: true title=\(shortDebugText(chatRoomTitle(for: focusedWindow))) frame=\(frameText(frame(of: focusedWindow)))")
 
-        let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: false)
+        let snapshot: InstagramChatSnapshot
+        if browserKind == .safari,
+           let focusedInput = fastFocusedInstagramInput(in: focusedWindow, appElement: appElement, browserKind: browserKind) {
+            snapshot = InstagramChatSnapshot(
+                browserKind: browserKind,
+                chatTitle: chatRoomTitle(for: focusedWindow).isEmpty ? "Instagram Messages" : chatRoomTitle(for: focusedWindow),
+                activeStatus: nil,
+                messages: [],
+                inputField: focusedInput
+            )
+            instagramAXLog("Safari fast focused input path used; deferred message snapshot until generation")
+        } else {
+            snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: false)
+        }
+
         let input = snapshot.inputField
         guard let input else {
             instagramAXLog("Instagram chat input found: false")
@@ -1338,6 +1352,80 @@ final class AccessibilityReader {
         }
         .first?
         .element
+    }
+
+    private func fastFocusedInstagramInput(
+        in window: AXUIElement,
+        appElement: AXUIElement,
+        browserKind: BrowserKind
+    ) -> AXUIElement? {
+        guard let focused = copyAttribute(appElement, kAXFocusedUIElementAttribute) as AXUIElement? else {
+            return nil
+        }
+
+        let ancestorInfo = instagramInputAncestorInfo(for: focused, maxDepth: browserKind == .chrome ? 18 : 10)
+        let candidate = ancestorInfo.textEntryElement ?? focused
+        let snapshot = snapshot(of: candidate)
+        guard let candidateFrame = snapshot.frame ?? frame(of: candidate) else {
+            return nil
+        }
+
+        if let rejection = instagramInputRejectionReason(
+            snapshot: snapshot,
+            frame: candidateFrame,
+            windowFrame: frame(of: window),
+            ancestorChain: ancestorInfo.ancestorChain
+        ) {
+            instagramAXLog("fast focused input rejected: role=\(snapshot.role) frame=\(frameText(candidateFrame)) ancestors=\(ancestorInfo.ancestorChain) reason=\(rejection)")
+            return nil
+        }
+
+        guard validateInstagramInsertionTarget(
+            candidate,
+            window: window,
+            browserKind: browserKind,
+            logPrefix: "fast focused input validation"
+        ) else {
+            return nil
+        }
+
+        let identity = [
+            instagramElementIdentity(snapshot),
+            ancestorInfo.identity,
+            ancestorInfo.parentDescription
+        ]
+        .compactMap { $0?.lowercased() }
+        .joined(separator: " ")
+        let role = snapshot.role.lowercased()
+        let isTextRole = role.contains("text") || role.contains("textbox")
+        let mentionsMessage = identity.contains("message")
+            || identity.contains("메시지")
+            || identity.contains("입력")
+        let lowerArea = frame(of: window).map { candidateFrame.midY > $0.minY + $0.height * 0.62 } ?? true
+        let insideConversationColumn = isInsideInstagramConversationColumn(candidateFrame, windowFrame: frame(of: window))
+        let ambiguousSafariComposer = browserKind == .safari
+            && lowerArea
+            && insideConversationColumn
+            && isSafariAmbiguousInstagramComposerCandidate(snapshot, frame: candidateFrame)
+
+        guard isTextRole
+            || snapshot.isEditable
+            || ancestorInfo.hasTextEntryArea
+            || mentionsMessage
+            || ambiguousSafariComposer else {
+            instagramAXLog("fast focused input rejected: role=\(snapshot.role) frame=\(frameText(candidateFrame)) ancestors=\(ancestorInfo.ancestorChain) reason=no-input-hint")
+            return nil
+        }
+
+        if browserKind == .safari {
+            guard lowerArea, insideConversationColumn else {
+                instagramAXLog("fast focused input rejected: role=\(snapshot.role) frame=\(frameText(candidateFrame)) ancestors=\(ancestorInfo.ancestorChain) reason=safari-not-lower-conversation-area")
+                return nil
+            }
+        }
+
+        instagramAXLog("fast focused input accepted: role=\(snapshot.role) title=\(shortDebugText(snapshot.title ?? "")) desc=\(shortDebugText(snapshot.description ?? "")) value=\(shortDebugText(snapshot.value ?? "")) frame=\(frameText(candidateFrame)) ancestors=\(ancestorInfo.ancestorChain)")
+        return candidate
     }
 
     private func instagramInputCandidates(in window: AXUIElement, browserKind: BrowserKind = .unknown) -> [InstagramInputCandidate] {
