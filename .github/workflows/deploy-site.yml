@@ -42,16 +42,26 @@ jobs:
       - name: Preserve current appcast
         run: |
           git fetch origin gh-pages:gh-pages
-          git show gh-pages:appcast.xml > site/dist/appcast.xml
+          git show gh-pages:appcast.xml > /tmp/appcast.xml || true
+          if [ -s /tmp/appcast.xml ]; then
+            cp /tmp/appcast.xml site/dist/appcast.xml
+          fi
 
       - name: Deploy to gh-pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           rm -rf /tmp/sayless-pages
           git worktree add /tmp/sayless-pages gh-pages
-          rsync -a --checksum --delete --exclude=".git" --exclude="assets/main-*.js" --exclude="assets/main-*.css" site/dist/ /tmp/sayless-pages/
-          rsync -a site/dist/assets/main-*.js site/dist/assets/main-*.css /tmp/sayless-pages/assets/
+
+          find /tmp/sayless-pages -mindepth 1 \
+            ! -path "/tmp/sayless-pages/.git" \
+            ! -path "/tmp/sayless-pages/.git/*" \
+            -exec rm -rf {} +
+
+          cp -R site/dist/. /tmp/sayless-pages/
+
           cd /tmp/sayless-pages
           git add -A
           git commit -m "Deploy website" || exit 0
