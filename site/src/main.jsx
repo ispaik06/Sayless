@@ -95,24 +95,28 @@ const COPY = {
           id: "kakao",
           title: "KakaoTalk",
           status: "ready",
+          text: "Native KakaoTalk support.",
           logo: "logos/kakaotalk.svg"
         },
         {
           id: "instagram",
-          title: "Instagram",
+          title: "Web Instagram",
           status: "ready",
+          text: "Works in Safari and Chrome.",
           logo: "logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
+          text: "Coming soon.",
           logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
+          text: "Coming soon.",
           logo: "logos/slack.svg"
         }
       ],
@@ -264,7 +268,7 @@ const COPY = {
       finalCta: "지금 바로 Sayless 써보기",
       platformsKicker: "지원 플랫폼",
       platformsTitle: "자주 쓰는 메신저와 완벽하게 호환됩니다",
-      platformsText: "카카오톡, Instagram, Discord, Slack 등 다양한 앱을 지원합니다.",
+      platformsText: "카카오톡, Web Instagram, Discord, Slack 등 다양한 앱을 지원합니다.",
       platformStatusReady: "현재 지원",
       platformStatusPlanned: "확장 예정",
       platformsDisclaimer:
@@ -274,24 +278,28 @@ const COPY = {
           id: "kakao",
           title: "카카오톡",
           status: "ready",
+          text: "카카오톡 Mac 앱을 지원합니다.",
           logo: "logos/kakaotalk.svg"
         },
         {
           id: "instagram",
-          title: "Instagram",
+          title: "Web Instagram",
           status: "ready",
+          text: "Safari와 Chrome에서 동작합니다.",
           logo: "logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
+          text: "곧 확장 예정입니다.",
           logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
+          text: "곧 확장 예정입니다.",
           logo: "logos/slack.svg"
         }
       ],
@@ -1139,6 +1147,7 @@ function PlatformCard({ platform, readyLabel, plannedLabel }) {
       <div className="platform-card-copy">
         <span className="platform-status">{ready ? readyLabel : plannedLabel}</span>
         <h3>{platform.title}</h3>
+        {platform.text && <p>{platform.text}</p>}
       </div>
     </article>
   );
