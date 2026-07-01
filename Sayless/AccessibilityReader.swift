@@ -2422,9 +2422,6 @@ final class AccessibilityReader {
     }
 
     private func instagramAXLog(_ message: String) {
-        #if DEBUG
-        print("[Sayless][InstagramAX] \(message)")
-        #endif
     }
 
     private func children(of element: AXUIElement) -> [AXUIElement] {

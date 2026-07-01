@@ -245,21 +245,14 @@ final class ReplyStyleSettings: ObservableObject {
         let normalized = value
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
-            .components(separatedBy: "\n")
-            .map { line in
-                line
-                    .replacingOccurrences(of: "\t", with: " ")
-                    .replacingOccurrences(of: "  +", with: " ", options: .regularExpression)
-                    .trimmingCharacters(in: .whitespaces)
-            }
-            .joined(separator: "\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\t", with: " ")
 
         return String(normalized.prefix(personalInstructionLimit))
     }
 
     private static func optionalPersonalInstruction(_ value: String) -> String? {
         let normalized = normalizedPersonalInstruction(value)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return normalized.isEmpty ? nil : normalized
     }
 }

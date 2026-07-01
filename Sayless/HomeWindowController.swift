@@ -124,9 +124,19 @@ private struct HomeView: View {
     @State private var authSheetMode: HomeAuthSheetMode?
     @State private var isProfilePresented = false
     @State private var isAccountPanelHovered = false
+    @FocusState private var isPersonalInstructionFocused: Bool
 
     private func tr(_ english: String, _ korean: String) -> String {
         languageSettings.text(english, korean)
+    }
+
+    private func clearPersonalInstructionFocus() {
+        guard isPersonalInstructionFocused else {
+            return
+        }
+
+        isPersonalInstructionFocused = false
+        NSApp.keyWindow?.makeFirstResponder(nil)
     }
 
     var body: some View {
@@ -169,6 +179,11 @@ private struct HomeView: View {
         .background(WindowAccessor { window in
             WindowStyling.applyHomeGlass(to: window)
         })
+        .background(
+            TextEditorBlurMonitor(isActive: isPersonalInstructionFocused) {
+                clearPersonalInstructionFocus()
+            }
+        )
         .sheet(item: $authSheetMode) { mode in
             AuthView(mode: mode.clerkMode)
                 .environment(authSession.clerk)
@@ -474,6 +489,7 @@ private struct HomeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     GrowingTextEditor(
                         text: $settings.personalInstruction,
+                        isFocused: $isPersonalInstructionFocused,
                         placeholder: "예: 자주쓰는 말투\n할말 없을 때는 ㅋㅋ 치기\nOO 채팅방에서는 상대 킹받게 하기"
                     )
 
@@ -1064,6 +1080,7 @@ private struct PlatformPill: View {
 
 private struct GrowingTextEditor: View {
     @Binding var text: String
+    let isFocused: FocusState<Bool>.Binding
     let placeholder: String
 
     private var editorHeight: CGFloat {
@@ -1086,6 +1103,7 @@ private struct GrowingTextEditor: View {
                 .font(.system(size: 14, weight: .medium))
                 .scrollContentBackground(.hidden)
                 .background(.clear)
+                .focused(isFocused)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .frame(minHeight: editorHeight, maxHeight: editorHeight)
@@ -1097,6 +1115,93 @@ private struct GrowingTextEditor: View {
                 .stroke(.white.opacity(0.12), lineWidth: 1)
         )
         .animation(.spring(response: 0.22, dampingFraction: 0.86), value: editorHeight)
+    }
+}
+
+private struct TextEditorBlurMonitor: NSViewRepresentable {
+    let isActive: Bool
+    let onBlur: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.view = view
+        context.coordinator.install()
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isActive = isActive
+        context.coordinator.onBlur = onBlur
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
+    final class Coordinator {
+        weak var view: NSView?
+        var isActive = false
+        var onBlur: () -> Void = {}
+        private var monitor: Any?
+
+        func install() {
+            guard monitor == nil else {
+                return
+            }
+
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+                guard let self,
+                      self.isActive,
+                      let window = self.view?.window,
+                      event.window === window else {
+                    return event
+                }
+
+                guard !self.clickIsInsideFocusedTextEditor(event, in: window) else {
+                    return event
+                }
+
+                DispatchQueue.main.async {
+                    self.onBlur()
+                }
+
+                return event
+            }
+        }
+
+        func uninstall() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
+            }
+        }
+
+        private func clickIsInsideFocusedTextEditor(_ event: NSEvent, in window: NSWindow) -> Bool {
+            guard let textView = window.firstResponder as? NSTextView,
+                  let contentView = window.contentView else {
+                return false
+            }
+
+            let point = contentView.convert(event.locationInWindow, from: nil)
+            guard let hitView = contentView.hitTest(point) else {
+                return false
+            }
+
+            let editorRoot = textView.enclosingScrollView ?? textView
+            var current: NSView? = hitView
+            while let view = current {
+                if view === editorRoot || view === textView {
+                    return true
+                }
+                current = view.superview
+            }
+
+            return false
+        }
     }
 }
 

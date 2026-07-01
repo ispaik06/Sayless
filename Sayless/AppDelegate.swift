@@ -1,7 +1,9 @@
 import AppKit
+import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
+        suppressConsoleOutput()
         terminatePreviousInstances()
     }
 
@@ -23,5 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     app.forceTerminate()
                 }
             }
+    }
+
+    private func suppressConsoleOutput() {
+        freopen("/dev/null", "w", stdout)
+        freopen("/dev/null", "w", stderr)
     }
 }
