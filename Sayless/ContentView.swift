@@ -146,7 +146,6 @@ struct ContentView: View {
             }
 
             shortcutCard
-            refreshShortcutCard
             iconCard
             updatesCard
             accessibilityBlock
@@ -553,38 +552,6 @@ struct ContentView: View {
                     subtitle: "Press Record, then use a modifier combo like ⌥ S or ⌘ ⇧ Space. Esc cancels.",
                     requiresModifier: true,
                     shortcut: $appModel.customShortcut
-                )
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.white.opacity(0.052), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.085), lineWidth: 1)
-        )
-    }
-
-    private var refreshShortcutCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Refresh Context")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Picker("Refresh Context", selection: $appModel.refreshShortcutOption) {
-                ForEach(RefreshShortcutOption.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-
-            if appModel.refreshShortcutOption == .custom {
-                ShortcutRecorderView(
-                    title: "No custom refresh shortcut",
-                    subtitle: "Press Record, then choose a key for refreshing while the overlay is open. Esc cancels.",
-                    requiresModifier: false,
-                    shortcut: $appModel.customRefreshShortcut
                 )
             }
         }

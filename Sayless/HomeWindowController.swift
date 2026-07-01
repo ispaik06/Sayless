@@ -524,7 +524,6 @@ private struct HomeView: View {
             PageTitle(title: tr("Preferences", "설정"), subtitle: tr("Tune how Sayless appears, refreshes, and listens for shortcuts.", "Sayless의 표시 방식, 새로고침, 단축키를 조정하세요."))
             languageCard
             shortcutCard
-            refreshShortcutCard
             iconCard
             updatesCard
             accessibilityCard
@@ -558,7 +557,6 @@ private struct HomeView: View {
                     SectionHeader(icon: "keyboard.fill", title: tr("All Shortcuts", "전체 단축키"), subtitle: tr("Every keyboard control currently handled by Sayless.", "현재 Sayless가 실제로 처리하는 모든 키보드 조작입니다."))
                     ShortcutLine(icon: "sparkles", color: Color(red: 0.68, green: 1.0, blue: 0.54), title: tr("Show or hide overlay", "오버레이 열기/숨기기"), value: appModel.summonShortcutTitle)
                     ShortcutLine(icon: "arrow.clockwise", color: Color(red: 0.50, green: 0.85, blue: 1.0), title: tr("Refresh replies", "답변 새로고침"), value: appModel.refreshShortcutTitle)
-                    ShortcutLine(icon: "arrow.triangle.2.circlepath", color: Color(red: 0.50, green: 0.85, blue: 1.0), title: tr("Refresh replies", "답변 새로고침"), value: "⌘ R")
                     ShortcutLine(icon: "text.magnifyingglass", color: Color(red: 0.96, green: 0.74, blue: 1.0), title: tr("Reset context and regenerate", "문맥 다시 읽고 재생성"), value: "⌘ ⇧ R")
                     ShortcutLine(icon: "return", color: Color(red: 0.95, green: 0.76, blue: 1.0), title: tr("Accept selected item", "선택한 항목 적용"), value: "Enter")
                     ShortcutLine(icon: "return", color: Color(red: 0.74, green: 0.95, blue: 1.0), title: tr("Accept selected item", "선택한 항목 적용"), value: "Keypad Enter")
@@ -696,27 +694,6 @@ private struct HomeView: View {
                     subtitle: "Press Record, then use a modifier combo like Option S or Command Shift Space. Esc cancels.",
                     requiresModifier: true,
                     shortcut: $appModel.customShortcut
-                )
-            }
-        }
-    }
-
-    private var refreshShortcutCard: some View {
-        SettingsCard(title: tr("Refresh Context", "문맥 새로고침")) {
-            Picker(tr("Refresh Context", "문맥 새로고침"), selection: $appModel.refreshShortcutOption) {
-                ForEach(RefreshShortcutOption.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-
-            if appModel.refreshShortcutOption == .custom {
-                ShortcutRecorderView(
-                    title: "No custom refresh shortcut",
-                    subtitle: "Press Record, then choose a key for refreshing while the overlay is open. Esc cancels.",
-                    requiresModifier: false,
-                    shortcut: $appModel.customRefreshShortcut
                 )
             }
         }

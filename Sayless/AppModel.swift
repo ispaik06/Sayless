@@ -16,24 +16,12 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.set(menuBarIconOption.rawValue, forKey: Self.menuBarIconDefaultsKey)
         }
     }
-    @Published var refreshShortcutOption: RefreshShortcutOption {
-        didSet {
-            UserDefaults.standard.set(refreshShortcutOption.rawValue, forKey: Self.refreshShortcutDefaultsKey)
-            overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
-        }
-    }
     @Published var customShortcut: KeyboardShortcutSpec? {
         didSet {
             save(customShortcut, key: Self.customShortcutDefaultsKey)
             if shortcutOption == .custom {
                 hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
             }
-        }
-    }
-    @Published var customRefreshShortcut: KeyboardShortcutSpec? {
-        didSet {
-            save(customRefreshShortcut, key: Self.customRefreshShortcutDefaultsKey)
-            overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
         }
     }
 
@@ -48,9 +36,7 @@ final class AppModel: ObservableObject {
     private var lastSummonTime: CFAbsoluteTime = 0
     private static let shortcutDefaultsKey = "shortcutOption"
     private static let menuBarIconDefaultsKey = "menuBarIconOption"
-    private static let refreshShortcutDefaultsKey = "refreshShortcutOption"
     private static let customShortcutDefaultsKey = "customShortcut"
-    private static let customRefreshShortcutDefaultsKey = "customRefreshShortcut"
     private static let temporaryNoticeDuration: TimeInterval = 2.1
 
     init() {
@@ -58,10 +44,7 @@ final class AppModel: ObservableObject {
         shortcutOption = savedShortcut.flatMap(ShortcutOption.init(rawValue:)) ?? .optionSpace
         let savedMenuBarIcon = UserDefaults.standard.string(forKey: Self.menuBarIconDefaultsKey)
         menuBarIconOption = savedMenuBarIcon.flatMap(MenuBarIconOption.init(rawValue:)) ?? .quoteBubble
-        let savedRefreshShortcut = UserDefaults.standard.string(forKey: Self.refreshShortcutDefaultsKey)
-        refreshShortcutOption = savedRefreshShortcut.flatMap(RefreshShortcutOption.init(rawValue:)) ?? .commandR
         customShortcut = Self.loadShortcut(key: Self.customShortcutDefaultsKey)
-        customRefreshShortcut = Self.loadShortcut(key: Self.customRefreshShortcutDefaultsKey)
 
         hotKeyManager = HotKeyManager { [weak self] in
             DispatchQueue.main.async {
@@ -69,7 +52,6 @@ final class AppModel: ObservableObject {
             }
         }
         hotKeyManager?.configure(shortcutOption, customShortcut: customShortcut)
-        overlayController.configureRefreshShortcut(refreshShortcutOption, customShortcut: customRefreshShortcut)
         overlayController.onSuggestionGenerationRequested = { [weak self] context, intent in
             self?.generateSuggestions(for: context, intent: intent)
         }
@@ -96,11 +78,7 @@ final class AppModel: ObservableObject {
     }
 
     var refreshShortcutTitle: String {
-        if refreshShortcutOption == .custom {
-            return customRefreshShortcut?.title ?? "Custom"
-        }
-
-        return refreshShortcutOption.title
+        "⌘ R"
     }
 
     func handleSummon() {

@@ -41,10 +41,6 @@ final class OverlayPanelController {
         state.content.activeSuggestions
     }
 
-    func configureRefreshShortcut(_: RefreshShortcutOption, customShortcut _: KeyboardShortcutSpec?) {
-        state.refreshShortcutTitle = "⌘ R"
-    }
-
     @discardableResult
     func show(content: OverlayContent, near axFrame: CGRect?) -> Int {
         show(content: content, near: axFrame, placement: .automatic)
