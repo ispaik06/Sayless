@@ -108,7 +108,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				E215BA092FEDB3A000D557F0 /* XCRemoteSwiftPackageReference "Sparkle" */,
-				E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */,
+				E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "Vendor/clerk-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E215B9CE2FED4A0000D557F0 /* Products */;
@@ -270,7 +270,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -281,7 +281,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.9;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ispaik.Sayless;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -301,7 +301,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -312,7 +312,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.9;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = ispaik.Sayless;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -349,7 +349,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */ = {
+		E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "Vendor/clerk-ios" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Vendor/clerk-ios";
 		};
@@ -374,12 +374,12 @@
 		};
 		E215BA1A2FEDB92000D557F0 /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */;
+			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "Vendor/clerk-ios" */;
 			productName = ClerkKit;
 		};
 		E215BA1D2FEDB92000D557F0 /* ClerkKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */;
+			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "Vendor/clerk-ios" */;
 			productName = ClerkKitUI;
 		};
 /* End XCSwiftPackageProductDependency section */
