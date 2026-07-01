@@ -1142,11 +1142,7 @@ button {
 }
 
 .platform-app-icon.kakao {
-  color: #191600;
   background: #fee500;
-  font-size: 15px;
-  font-weight: 950;
-  letter-spacing: 0;
 }
 
 .platform-app-icon.instagram {
@@ -1163,6 +1159,29 @@ button {
 .platform-app-icon.slack {
   background:
     linear-gradient(135deg, #36c5f0 0 25%, #2eb67d 25% 50%, #ecb22e 50% 75%, #e01e5a 75%);
+}
+
+.brand-platform-mark {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+
+.kakao-mark path {
+  fill: #191600;
+}
+
+.kakao-mark text {
+  fill: #fee500;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.discord-mark path,
+.discord-mark circle {
+  fill: #fff;
 }
 
 .platform-status {

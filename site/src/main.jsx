@@ -1131,9 +1131,9 @@ function PlatformCard({ platform, readyLabel, plannedLabel }) {
   return (
     <article className={`platform-card ${ready ? "is-ready" : "is-planned"}`}>
       <div className={`platform-app-icon ${platform.id}`} aria-hidden="true">
-        {platform.id === "kakao" && <span>Talk</span>}
+        {platform.id === "kakao" && <KakaoTalkMark />}
         {platform.id === "instagram" && <Instagram size={30} strokeWidth={2.2} />}
-        {platform.id === "discord" && <MessageSquareText size={30} strokeWidth={2.2} />}
+        {platform.id === "discord" && <DiscordMark />}
         {platform.id === "slack" && <Command size={30} strokeWidth={2.2} />}
       </div>
       <div className="platform-card-copy">
@@ -1142,6 +1142,25 @@ function PlatformCard({ platform, readyLabel, plannedLabel }) {
         <p>{platform.text}</p>
       </div>
     </article>
+  );
+}
+
+function KakaoTalkMark() {
+  return (
+    <svg className="brand-platform-mark kakao-mark" viewBox="0 0 72 72" role="img" aria-label="KakaoTalk">
+      <path d="M36 17c-13.4 0-24 8.3-24 18.6 0 6.7 4.5 12.6 11.2 15.9l-2.2 7.6c-.2.8.7 1.4 1.4.9l9.1-5.2c1.5.2 3 .4 4.5.4 13.4 0 24-8.3 24-18.6S49.4 17 36 17Z" />
+      <text x="36" y="39.5" textAnchor="middle">TALK</text>
+    </svg>
+  );
+}
+
+function DiscordMark() {
+  return (
+    <svg className="brand-platform-mark discord-mark" viewBox="0 0 72 72" role="img" aria-label="Discord">
+      <path d="M52.3 22.8A39.2 39.2 0 0 0 43 20l-1.2 2.4a31.7 31.7 0 0 0-11.6 0L29 20a39.2 39.2 0 0 0-9.3 2.8c-5.9 8.7-7.5 17.2-6.7 25.6a38.9 38.9 0 0 0 11.4 5.7l2.8-4.6a24.7 24.7 0 0 1-4.4-2.1l1.1-.8a28.2 28.2 0 0 0 24.2 0l1.1.8a24.7 24.7 0 0 1-4.4 2.1l2.8 4.6A38.9 38.9 0 0 0 59 48.4c.9-9.7-1.7-18.1-6.7-25.6Z" />
+      <circle cx="29.5" cy="38.2" r="3.2" />
+      <circle cx="42.5" cy="38.2" r="3.2" />
+    </svg>
   );
 }
 
