@@ -21,6 +21,12 @@ enum ChatContextSource {
     case webInstagram
 }
 
+private enum BrowserKind: String {
+    case chrome
+    case safari
+    case unknown
+}
+
 struct ChatMessage {
     let sender: String
     let text: String
@@ -99,11 +105,19 @@ private struct ChatRoomMetadata {
 
 private struct AXElementSnapshot {
     let role: String
+    let subrole: String?
     let value: String?
     let title: String?
     let description: String?
     let help: String?
+    let label: String?
+    let placeholder: String?
+    let identifier: String?
+    let roleDescription: String?
     let frame: CGRect?
+    let isFocused: Bool?
+    let isEnabled: Bool?
+    let isEditable: Bool
     let children: [AXUIElement]
 }
 
@@ -126,7 +140,23 @@ private struct InstagramAncestorSnapshot {
 private struct InstagramInputCandidate {
     let element: AXUIElement
     let frame: CGRect
+    let role: String
+    let placeholder: String?
+    let identity: String
     let score: Int
+}
+
+private struct InstagramReplyInfo {
+    let description: String?
+    let quotedText: String?
+}
+
+private struct InstagramChatSnapshot {
+    let browserKind: BrowserKind
+    let chatTitle: String?
+    let activeStatus: String?
+    let messages: [ChatMessage]
+    let inputField: AXUIElement?
 }
 
 private enum ParsedChatRow {
@@ -482,25 +512,45 @@ final class AccessibilityReader {
         return browserTokens.contains { name.contains($0) || bundleID.contains($0) }
     }
 
+    private func browserKind(for app: NSRunningApplication) -> BrowserKind {
+        let name = (app.localizedName ?? "").lowercased()
+        let bundleID = (app.bundleIdentifier ?? "").lowercased()
+
+        if bundleID == "com.google.chrome" || name.contains("chrome") || bundleID.contains("chromium") {
+            return .chrome
+        }
+
+        if bundleID == "com.apple.safari" || name.contains("safari") {
+            return .safari
+        }
+
+        return .unknown
+    }
+
     private func focusedWebInstagramTextContext(app: NSRunningApplication) -> SummonResult {
+        let browserKind = browserKind(for: app)
+        instagramAXLog("detected browser kind: \(browserKind.rawValue)")
+
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         guard let focusedWindow = copyAttribute(appElement, kAXFocusedWindowAttribute) as AXUIElement?,
               isWindowUsable(focusedWindow),
               looksLikeInstagramMessagesWindow(focusedWindow) else {
+            instagramAXLog("Instagram window found: false")
             return .unsupportedApp
         }
+        instagramAXLog("Instagram window found: true title=\(shortDebugText(chatRoomTitle(for: focusedWindow))) frame=\(frameText(frame(of: focusedWindow)))")
 
-        let input = bestInstagramInput(in: focusedWindow)
+        let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: true)
+        let input = snapshot.inputField
         guard let input else {
             return .noChatInput
         }
 
-        guard let roomTitle = instagramRoomTitle(in: focusedWindow) else {
+        guard let roomTitle = snapshot.chatTitle else {
             return .unsupportedApp
         }
 
         let inputFrame = frame(of: input) ?? frame(of: focusedWindow) ?? .zero
-        let messages: [ChatMessage] = []
 
         return .ready(
             FocusedTextContext(
@@ -515,7 +565,7 @@ final class AccessibilityReader {
                 value: textValue(of: input) ?? "",
                 frame: inputFrame,
                 windowFrame: frame(of: focusedWindow),
-                chatMessages: messages
+                chatMessages: snapshot.messages
             )
         )
     }
@@ -669,18 +719,105 @@ final class AccessibilityReader {
             return []
         }
 
-        let roomTitle = instagramRoomTitle(in: focusedWindow) ?? "Instagram DM"
+        let browserKind = NSWorkspace.shared.frontmostApplication.map(browserKind(for:)) ?? .unknown
+        return instagramChatSnapshot(
+            in: focusedWindow,
+            browserKind: browserKind,
+            limit: limit,
+            logExtraction: logExtraction
+        ).messages
+    }
+
+    private func instagramChatSnapshot(
+        in focusedWindow: AXUIElement,
+        browserKind: BrowserKind,
+        limit: Int,
+        logExtraction: Bool
+    ) -> InstagramChatSnapshot {
+        let root = instagramParsingRoot(in: focusedWindow, browserKind: browserKind) ?? focusedWindow
+        let rootFrame = frame(of: root)
+        if logExtraction {
+            instagramAXLog("HTML content subtree found: \(sameElement(root, focusedWindow) ? "fallback-window" : "true") frame=\(frameText(rootFrame))")
+        }
+
         let windowFrame = frame(of: focusedWindow)
-        let allCandidates = collectInstagramStaticTextCandidates(in: focusedWindow, maxDepth: 30, maxNodes: 3000)
-        let messageCandidates = instagramMessageTextCandidates(allCandidates, windowFrame: windowFrame, roomTitle: roomTitle)
+        let allCandidates = collectInstagramStaticTextCandidates(
+            in: root,
+            maxDepth: browserKind == .chrome ? 60 : 34,
+            maxNodes: browserKind == .chrome ? 9000 : 3600
+        )
+        let roomTitle = instagramRoomTitle(in: focusedWindow, browserKind: browserKind, candidates: allCandidates)
+        let activeStatus = instagramActiveStatus(from: allCandidates, windowFrame: windowFrame)
+        let input = bestInstagramInput(in: focusedWindow, browserKind: browserKind)
+
+        if logExtraction {
+            instagramAXLog("number of text nodes collected: \(allCandidates.count)")
+            instagramAXLog("chat title candidates: \(instagramRoomTitleCandidates(from: allCandidates, windowFrame: windowFrame).map { "\(shortDebugText($0.text)) \(frameText($0.frame))" }.joined(separator: " | "))")
+            instagramAXLog("input field candidates: \(instagramInputCandidates(in: focusedWindow, browserKind: browserKind).prefix(8).map { "role=\($0.role) placeholder=\($0.placeholder ?? "") score=\($0.score) \(frameText($0.frame))" }.joined(separator: " | "))")
+        }
+
+        guard let roomTitle else {
+            if logExtraction {
+                instagramAXLog("final parsed messages: skipped because chat title was not found")
+            }
+            return InstagramChatSnapshot(
+                browserKind: browserKind,
+                chatTitle: nil,
+                activeStatus: activeStatus,
+                messages: [],
+                inputField: input
+            )
+        }
+
+        let messageCandidates = instagramMessageTextCandidates(
+            allCandidates,
+            windowFrame: windowFrame,
+            roomTitle: roomTitle,
+            logExtraction: logExtraction
+        )
         let messages = inferInstagramMessages(
             from: messageCandidates,
             windowFrame: windowFrame,
             roomTitle: roomTitle,
-            limit: limit
+            limit: limit,
+            logExtraction: logExtraction
         )
 
-        return messages
+        return InstagramChatSnapshot(
+            browserKind: browserKind,
+            chatTitle: roomTitle,
+            activeStatus: activeStatus,
+            messages: messages,
+            inputField: input
+        )
+    }
+
+    private func instagramParsingRoot(in window: AXUIElement, browserKind: BrowserKind) -> AXUIElement? {
+        guard browserKind == .chrome else {
+            return nil
+        }
+
+        let elements = [window] + descendants(of: window, maxDepth: 18, maxVisited: 2200)
+        let candidates = elements.compactMap { element -> (element: AXUIElement, score: Int)? in
+            let snapshot = snapshot(of: element)
+            let identity = instagramElementIdentity(snapshot)
+            var score = 0
+            if identity.contains("html content") || identity.contains("web area") {
+                score += 8
+            }
+            if identity.contains("instagram") {
+                score += 4
+            }
+            if snapshot.role.lowercased().contains("web") {
+                score += 2
+            }
+            guard score > 0 else {
+                return nil
+            }
+            return (element, score)
+        }
+
+        return candidates.sorted { $0.score > $1.score }.first?.element
     }
 
     private func collectInstagramStaticTextCandidates(
@@ -706,7 +843,7 @@ final class AccessibilityReader {
             visitedCount += 1
 
             let snapshot = snapshot(of: item.element)
-            if snapshot.role == kAXStaticTextRole as String,
+            if isInstagramTextNode(snapshot),
                let text = visibleText(from: snapshot),
                let frame = snapshot.frame {
                 candidates.append(
@@ -740,19 +877,54 @@ final class AccessibilityReader {
         return uniqueInstagramCandidates(candidates)
     }
 
+    private func isInstagramTextNode(_ snapshot: AXElementSnapshot) -> Bool {
+        let role = snapshot.role.lowercased()
+        guard !snapshot.isEditable else {
+            return false
+        }
+
+        return snapshot.role == kAXStaticTextRole as String
+            || role.contains("statictext")
+            || role == "axtext"
+            || role.contains("text")
+            || snapshot.roleDescription?.lowercased().contains("text") == true
+    }
+
     private func instagramMessageTextCandidates(
         _ candidates: [InstagramTextCandidate],
         windowFrame: CGRect?,
-        roomTitle: String
+        roomTitle: String,
+        logExtraction: Bool = false
     ) -> [InstagramTextCandidate] {
         let filtered = candidates.filter { candidate in
             let text = candidate.text
             guard !text.isEmpty,
                   candidate.frame.width > 2,
-                  candidate.frame.height > 2,
-                  isInsideInstagramConversationColumn(candidate.frame, windowFrame: windowFrame),
-                  !isInstagramUIChromeText(text),
-                  !isInstagramHeaderCandidate(candidate, windowFrame: windowFrame, roomTitle: roomTitle) else {
+                  candidate.frame.height > 2 else {
+                if logExtraction {
+                    instagramAXLog("filtered out text=\(shortDebugText(text)) reason=empty-or-small frame=\(frameText(candidate.frame))")
+                }
+                return false
+            }
+
+            guard isInsideInstagramConversationColumn(candidate.frame, windowFrame: windowFrame) else {
+                if logExtraction {
+                    instagramAXLog("filtered out text=\(shortDebugText(text)) reason=outside-conversation frame=\(frameText(candidate.frame))")
+                }
+                return false
+            }
+
+            guard !isInstagramUIChromeText(text) else {
+                if logExtraction {
+                    instagramAXLog("filtered out text=\(shortDebugText(text)) reason=ui-chrome frame=\(frameText(candidate.frame))")
+                }
+                return false
+            }
+
+            guard !isInstagramHeaderCandidate(candidate, windowFrame: windowFrame, roomTitle: roomTitle) else {
+                if logExtraction {
+                    instagramAXLog("filtered out text=\(shortDebugText(text)) reason=header-title frame=\(frameText(candidate.frame))")
+                }
                 return false
             }
 
@@ -788,22 +960,51 @@ final class AccessibilityReader {
         from candidates: [InstagramTextCandidate],
         windowFrame: CGRect?,
         roomTitle: String,
-        limit: Int
+        limit: Int,
+        logExtraction: Bool = false
     ) -> [ChatMessage] {
         let conversationFrame = unionFrame(candidates.map(\.frame))
         let referenceFrame = windowFrame ?? (conversationFrame.isNull ? nil : conversationFrame)
         let centerX = referenceFrame?.midX ?? conversationFrame.midX
         var messages: [ChatMessage] = []
         var pendingSender: String?
-        var senderLabels: [String] = []
+        var previousOtherSender: String?
+        var pendingReplyDescription: String?
+        var pendingQuotedText: String?
+        var skipNextAsQuote = false
 
         for index in candidates.indices {
             let candidate = candidates[index]
             let nextCandidate = candidates.indices.contains(index + 1) ? candidates[index + 1] : nil
 
+            if isInstagramReplyDescription(candidate.text) {
+                pendingReplyDescription = candidate.text
+                skipNextAsQuote = true
+                if logExtraction {
+                    instagramAXLog("reply metadata text=\(shortDebugText(candidate.text)) frame=\(frameText(candidate.frame))")
+                }
+                continue
+            }
+
+            if skipNextAsQuote,
+               let pendingReplyDescription,
+               !isInstagramSenderLabel(candidate, next: nextCandidate, centerX: centerX, windowFrame: referenceFrame),
+               !isInstagramReplyDescription(candidate.text) {
+                pendingQuotedText = candidate.text
+                skipNextAsQuote = false
+                if logExtraction {
+                    instagramAXLog("reply quoted text=\(shortDebugText(candidate.text)) for=\(shortDebugText(pendingReplyDescription)) frame=\(frameText(candidate.frame))")
+                }
+                continue
+            }
+            skipNextAsQuote = false
+
             if isInstagramSenderLabel(candidate, next: nextCandidate, centerX: centerX, windowFrame: referenceFrame) {
                 pendingSender = candidate.text
-                senderLabels.append(candidate.text)
+                previousOtherSender = candidate.text
+                if logExtraction {
+                    instagramAXLog("sender label text=\(shortDebugText(candidate.text)) frame=\(frameText(candidate.frame))")
+                }
                 continue
             }
 
@@ -814,21 +1015,36 @@ final class AccessibilityReader {
                 pendingSender = nil
             } else if let pendingSender {
                 sender = pendingSender
+            } else if let previousOtherSender {
+                sender = previousOtherSender
             } else {
                 sender = instagramFallbackSender(roomTitle: roomTitle)
             }
 
+            let replyInfo = InstagramReplyInfo(description: pendingReplyDescription, quotedText: pendingQuotedText)
+            let replyDebug = [replyInfo.description.map { "reply=\($0)" }, replyInfo.quotedText.map { "quote=\($0)" }]
+                .compactMap { $0 }
+                .joined(separator: " ")
             messages.append(
                 ChatMessage(
                     sender: sender,
                     text: candidate.text,
                     frame: candidate.frame,
-                    debugSource: "web-instagram x:\(Int(candidate.frame.minX)) y:\(Int(candidate.frame.minY))"
+                    debugSource: "web-instagram x:\(Int(candidate.frame.minX)) y:\(Int(candidate.frame.minY)) \(replyDebug)"
                 )
             )
+            pendingReplyDescription = nil
+            pendingQuotedText = nil
+
+            if logExtraction {
+                instagramAXLog("message candidate sender=\(sender) text=\(shortDebugText(candidate.text)) frame=\(frameText(candidate.frame))")
+            }
         }
 
         let deduped = dedupeAdjacentInstagramMessages(messages)
+        if logExtraction {
+            instagramAXLog("final parsed messages: \(deduped.map { "\($0.sender):\(shortDebugText($0.text, maxLength: 40))" }.joined(separator: " | "))")
+        }
         return Array(deduped.suffix(limit))
     }
 
@@ -944,9 +1160,12 @@ final class AccessibilityReader {
             .lowercased()
         let exact = [
             "instagram",
+            "instagram · 메시지",
+            "instagram · messages",
             "messages",
             "message",
             "message...",
+            "google chrome",
             "search",
             "home",
             "explore",
@@ -977,7 +1196,9 @@ final class AccessibilityReader {
             "답장",
             "좋아요",
             "더 보기",
-            "활동 중"
+            "활동 중",
+            "메시지 입력...",
+            "메시지 입력"
         ]
 
         if exact.contains(normalized) {
@@ -986,19 +1207,23 @@ final class AccessibilityReader {
 
         let prefixes = [
             "active ",
+            "활동 중",
             "seen ",
             "open the profile page",
+            "open the details pane of the chat",
             "liked a message",
             "you replied to",
             "sent an attachment",
-            "typing"
+            "typing",
+            "instagram · 메시지 - google chrome",
+            "instagram · messages - google chrome"
         ]
 
         return prefixes.contains { normalized.hasPrefix($0) }
     }
 
-    private func bestInstagramInput(in window: AXUIElement) -> AXUIElement? {
-        let candidates = instagramInputCandidates(in: window)
+    private func bestInstagramInput(in window: AXUIElement, browserKind: BrowserKind = .unknown) -> AXUIElement? {
+        let candidates = instagramInputCandidates(in: window, browserKind: browserKind)
         return candidates.sorted { lhs, rhs in
             if lhs.score != rhs.score {
                 return lhs.score > rhs.score
@@ -1014,9 +1239,11 @@ final class AccessibilityReader {
         .element
     }
 
-    private func instagramInputCandidates(in window: AXUIElement) -> [InstagramInputCandidate] {
+    private func instagramInputCandidates(in window: AXUIElement, browserKind: BrowserKind = .unknown) -> [InstagramInputCandidate] {
         let windowFrame = frame(of: window)
-        let elements = [window] + descendants(of: window, maxDepth: 30, maxVisited: 3000)
+        let maxDepth = browserKind == .chrome ? 60 : 34
+        let maxVisited = browserKind == .chrome ? 9000 : 3600
+        let elements = [window] + descendants(of: window, maxDepth: maxDepth, maxVisited: maxVisited)
         return elements.compactMap { element -> InstagramInputCandidate? in
             let snapshot = snapshot(of: element)
             guard let candidateFrame = snapshot.frame,
@@ -1030,7 +1257,11 @@ final class AccessibilityReader {
                 snapshot.value,
                 snapshot.title,
                 snapshot.description,
-                snapshot.help
+                snapshot.help,
+                snapshot.label,
+                snapshot.placeholder,
+                snapshot.identifier,
+                snapshot.roleDescription
             ]
             .compactMap { $0?.lowercased() }
             .joined(separator: " ")
@@ -1038,13 +1269,16 @@ final class AccessibilityReader {
                 || role == kAXTextFieldRole as String
                 || role == "AXTextArea"
                 || role == "AXTextField"
+                || role.lowercased().contains("textbox")
                 || role.lowercased().contains("text")
             let mentionsMessage = text.contains("message")
                 || text.contains("메시지")
                 || text.contains("입력")
             let lowerArea = windowFrame.map { candidateFrame.midY > $0.minY + $0.height * 0.62 } ?? true
+            let insideConversationColumn = isInsideInstagramConversationColumn(candidateFrame, windowFrame: windowFrame)
+            let editable = snapshot.isEditable || isSettableTextArea(element)
 
-            guard isTextRole || mentionsMessage else {
+            guard isTextRole || mentionsMessage || editable else {
                 return nil
             }
 
@@ -1052,10 +1286,21 @@ final class AccessibilityReader {
             if isTextRole { score += 4 }
             if mentionsMessage { score += 5 }
             if lowerArea { score += 4 }
-            if isSettableTextArea(element) { score += 2 }
+            if insideConversationColumn { score += 3 }
+            if editable { score += browserKind == .chrome ? 7 : 4 }
             if role == kAXTextAreaRole as String || role == kAXTextFieldRole as String { score += 2 }
+            if snapshot.placeholder.map(looksLikeInstagramInputPlaceholder) == true { score += 6 }
+            if candidateFrame.height > 80 { score -= 3 }
+            if candidateFrame.midY < (windowFrame?.midY ?? candidateFrame.midY) { score -= 4 }
 
-            return InstagramInputCandidate(element: element, frame: candidateFrame, score: score)
+            return InstagramInputCandidate(
+                element: element,
+                frame: candidateFrame,
+                role: role,
+                placeholder: snapshot.placeholder,
+                identity: text,
+                score: score
+            )
         }
     }
 
@@ -1064,10 +1309,17 @@ final class AccessibilityReader {
         appPID: pid_t?,
         fallbackElement: AXUIElement
     ) -> Bool {
-        let input = bestInstagramInput(in: window) ?? fallbackElement
+        let browserKind = NSWorkspace.shared.frontmostApplication.map(browserKind(for:)) ?? .unknown
+        let input = bestInstagramInput(in: window, browserKind: browserKind) ?? fallbackElement
         let pid = appPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
 
         if focusElementAndVerify(input, appPID: pid) {
+            return true
+        }
+
+        AXUIElementPerformAction(input, kAXPressAction as CFString)
+        Thread.sleep(forTimeInterval: 0.08)
+        if verifyFocusedInput(appPID: pid) {
             return true
         }
 
@@ -1112,7 +1364,11 @@ final class AccessibilityReader {
         .compactMap { $0?.lowercased() }
         .joined(separator: " ")
 
-        return role.contains("text") || identity.contains("message") || identity.contains("메시지")
+        return role.contains("text")
+            || role.contains("textbox")
+            || identity.contains("message")
+            || identity.contains("메시지")
+            || identity.contains("입력")
     }
 
     private func clickAXFrameCenter(_ frame: CGRect) {
@@ -1138,12 +1394,82 @@ final class AccessibilityReader {
         mouseUp?.post(tap: .cghidEventTap)
     }
 
-    private func instagramRoomTitle(in window: AXUIElement) -> String? {
+    private func instagramRoomTitle(
+        in window: AXUIElement,
+        browserKind: BrowserKind = .unknown,
+        candidates: [InstagramTextCandidate]? = nil
+    ) -> String? {
+        if browserKind == .chrome {
+            let textCandidates = candidates ?? collectInstagramStaticTextCandidates(in: window, maxDepth: 44, maxNodes: 6000)
+            if let title = instagramRoomTitleCandidates(from: textCandidates, windowFrame: frame(of: window)).first?.text {
+                return title
+            }
+        }
+
         if let title = instagramProfileHeaderTitle(in: window) {
             return title
         }
 
+        let textCandidates = candidates ?? collectInstagramStaticTextCandidates(in: window, maxDepth: 28, maxNodes: 3200)
+        if let title = instagramRoomTitleCandidates(from: textCandidates, windowFrame: frame(of: window)).first?.text {
+            return title
+        }
+
         return nil
+    }
+
+    private func instagramRoomTitleCandidates(
+        from candidates: [InstagramTextCandidate],
+        windowFrame: CGRect?
+    ) -> [InstagramTextCandidate] {
+        candidates.filter { candidate in
+            let text = candidate.text
+            guard isLikelyInstagramRoomTitle(text),
+                  !looksLikeInstagramActiveStatus(text),
+                  !looksLikeInstagramInputPlaceholder(text) else {
+                return false
+            }
+
+            if let windowFrame {
+                let headerMaxY = windowFrame.minY + min(max(windowFrame.height * 0.20, 96), 175)
+                let conversationMinX = windowFrame.minX + max(260, windowFrame.width * 0.24)
+                guard candidate.frame.midY <= headerMaxY,
+                      candidate.frame.midX >= conversationMinX,
+                      candidate.frame.midX <= windowFrame.maxX - 80 else {
+                    return false
+                }
+            }
+
+            return true
+        }
+        .sorted { lhs, rhs in
+            let lhsEmoji = isEmojiOnlyInstagramText(lhs.text)
+            let rhsEmoji = isEmojiOnlyInstagramText(rhs.text)
+            if lhsEmoji != rhsEmoji {
+                return lhsEmoji
+            }
+
+            if abs(lhs.frame.minY - rhs.frame.minY) > 3 {
+                return lhs.frame.minY < rhs.frame.minY
+            }
+
+            if lhs.text.count != rhs.text.count {
+                return lhs.text.count < rhs.text.count
+            }
+
+            return lhs.frame.minX < rhs.frame.minX
+        }
+    }
+
+    private func instagramActiveStatus(from candidates: [InstagramTextCandidate], windowFrame: CGRect?) -> String? {
+        candidates
+            .filter { candidate in
+                looksLikeInstagramActiveStatus(candidate.text)
+                    && (windowFrame.map { candidate.frame.midY <= $0.minY + min(max($0.height * 0.23, 110), 190) } ?? true)
+            }
+            .sorted { $0.frame.minY < $1.frame.minY }
+            .first?
+            .text
     }
 
     private func instagramProfileHeaderTitle(in window: AXUIElement) -> String? {
@@ -1243,13 +1569,56 @@ final class AccessibilityReader {
         return true
     }
 
+    private func isInstagramReplyDescription(_ text: String) -> Bool {
+        let normalized = normalizedInstagramText(text).lowercased()
+        return (normalized.contains("님이") && normalized.contains("에게") && normalized.contains("보낸 답장"))
+            || normalized.contains("replied to")
+            || normalized.contains("replying to")
+    }
+
+    private func looksLikeInstagramActiveStatus(_ text: String) -> Bool {
+        let normalized = normalizedInstagramText(text).lowercased()
+        return normalized.contains("활동 중입니다")
+            || normalized.contains("active now")
+            || normalized.contains("active ")
+            || normalized.contains("님이 활동 중")
+    }
+
+    private func looksLikeInstagramInputPlaceholder(_ text: String) -> Bool {
+        let normalized = normalizedInstagramText(text).lowercased()
+        return normalized == "message..."
+            || normalized == "message"
+            || normalized.contains("메시지 입력")
+            || normalized.contains("message input")
+    }
+
+    private func isEmojiOnlyInstagramText(_ text: String) -> Bool {
+        let scalars = normalizedInstagramText(text).unicodeScalars.filter { !$0.properties.isWhitespace }
+        guard !scalars.isEmpty else {
+            return false
+        }
+
+        return scalars.allSatisfy { scalar in
+            scalar.properties.isEmojiPresentation
+                || scalar.properties.isEmoji
+                || scalar.properties.generalCategory == .nonspacingMark
+                || scalar.value == 0xFE0F
+                || scalar.value == 0x200D
+        }
+    }
+
     private func instagramElementIdentity(_ snapshot: AXElementSnapshot) -> String {
         [
             snapshot.role,
+            snapshot.subrole,
             snapshot.value,
             snapshot.title,
             snapshot.description,
-            snapshot.help
+            snapshot.help,
+            snapshot.label,
+            snapshot.placeholder,
+            snapshot.identifier,
+            snapshot.roleDescription
         ]
         .compactMap { $0?.lowercased() }
         .joined(separator: " ")
@@ -1686,10 +2055,17 @@ final class AccessibilityReader {
     private func snapshot(of element: AXUIElement) -> AXElementSnapshot {
         let attributes = [
             kAXRoleAttribute as String,
+            kAXSubroleAttribute as String,
             kAXValueAttribute as String,
             kAXTitleAttribute as String,
             kAXDescriptionAttribute as String,
             kAXHelpAttribute as String,
+            "AXLabel",
+            "AXPlaceholderValue",
+            "AXIdentifier",
+            "AXRoleDescription",
+            kAXFocusedAttribute as String,
+            kAXEnabledAttribute as String,
             kAXPositionAttribute as String,
             kAXSizeAttribute as String,
             kAXChildrenAttribute as String
@@ -1697,14 +2073,26 @@ final class AccessibilityReader {
         let values = copyMultipleAttributes(element, attributes)
         let positionValue = axValue(from: values[kAXPositionAttribute as String])
         let sizeValue = axValue(from: values[kAXSizeAttribute as String])
+        var valueSettable = DarwinBoolean(false)
+        let isEditable = (AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &valueSettable) == .success
+            && valueSettable.boolValue)
+            || (values["AXRoleDescription"] as? String)?.lowercased().contains("editable") == true
 
         return AXElementSnapshot(
             role: values[kAXRoleAttribute as String] as? String ?? "",
+            subrole: values[kAXSubroleAttribute as String] as? String,
             value: values[kAXValueAttribute as String] as? String,
             title: values[kAXTitleAttribute as String] as? String,
             description: values[kAXDescriptionAttribute as String] as? String,
             help: values[kAXHelpAttribute as String] as? String,
+            label: values["AXLabel"] as? String,
+            placeholder: values["AXPlaceholderValue"] as? String,
+            identifier: values["AXIdentifier"] as? String,
+            roleDescription: values["AXRoleDescription"] as? String,
             frame: frame(positionValue: positionValue, sizeValue: sizeValue),
+            isFocused: values[kAXFocusedAttribute as String] as? Bool,
+            isEnabled: values[kAXEnabledAttribute as String] as? Bool,
+            isEditable: isEditable,
             children: values[kAXChildrenAttribute as String] as? [AXUIElement] ?? []
         )
     }
@@ -1776,7 +2164,9 @@ final class AccessibilityReader {
             snapshot.value,
             snapshot.title,
             snapshot.description,
-            snapshot.help
+            snapshot.help,
+            snapshot.label,
+            snapshot.placeholder
         ]
 
         for candidate in candidates {
@@ -2011,6 +2401,12 @@ final class AccessibilityReader {
         }
 
         return "(x:\(Int(frame.minX)), y:\(Int(frame.minY)), w:\(Int(frame.width)), h:\(Int(frame.height)))"
+    }
+
+    private func instagramAXLog(_ message: String) {
+        #if DEBUG
+        print("[Sayless][InstagramAX] \(message)")
+        #endif
     }
 
     private func children(of element: AXUIElement) -> [AXUIElement] {
