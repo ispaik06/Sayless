@@ -143,7 +143,21 @@ private struct InstagramInputCandidate {
     let role: String
     let placeholder: String?
     let identity: String
+    let parentDescription: String?
+    let ancestorChain: String
+    let hasTextEntryAreaAncestor: Bool
+    let hasBrowserAccessibilityAncestor: Bool
+    let keyboardFocused: Bool?
     let score: Int
+}
+
+private struct InstagramInputAncestorInfo {
+    let identity: String
+    let parentDescription: String?
+    let ancestorChain: String
+    let hasTextEntryArea: Bool
+    let hasBrowserAccessibility: Bool
+    let textEntryElement: AXUIElement?
 }
 
 private struct InstagramReplyInfo {
@@ -331,6 +345,46 @@ final class AccessibilityReader {
             }
 
             return focusInstagramInput(in: window, appPID: nil, fallbackElement: context.element)
+        }
+    }
+
+    func insertionElement(for context: FocusedTextContext) -> AXUIElement? {
+        switch context.source {
+        case .kakaoTalk:
+            return context.element
+        case .webInstagram:
+            guard let window = context.windowElement else {
+                instagramAXLog("pre-insert validation failed: missing Instagram window")
+                return nil
+            }
+
+            let browserKind = browserKind(appName: context.appName, bundleIdentifier: context.bundleIdentifier)
+            let sortedCandidates = instagramInputCandidates(in: window, browserKind: browserKind).sorted { lhs, rhs in
+                if lhs.score != rhs.score {
+                    return lhs.score > rhs.score
+                }
+
+                if abs(lhs.frame.minY - rhs.frame.minY) > 8 {
+                    return lhs.frame.minY > rhs.frame.minY
+                }
+
+                return lhs.frame.width > rhs.frame.width
+            }
+
+            for candidate in sortedCandidates {
+                if validateInstagramInsertionTarget(candidate.element, window: window, browserKind: browserKind, logPrefix: "pre-insert candidate validation") {
+                    instagramAXLog("pre-insert selected target: role=\(candidate.role) score=\(candidate.score) frame=\(frameText(candidate.frame)) ancestors=\(candidate.ancestorChain)")
+                    return candidate.element
+                }
+            }
+
+            if validateInstagramInsertionTarget(context.element, window: window, browserKind: browserKind, logPrefix: "pre-insert context validation") {
+                instagramAXLog("pre-insert selected existing context target: \(compactElementDescription(context.element))")
+                return context.element
+            }
+
+            instagramAXLog("pre-insert validation failed: no safe Instagram DM composer target; refusing fallback insertion")
+            return nil
         }
     }
 
@@ -525,8 +579,12 @@ final class AccessibilityReader {
     }
 
     private func browserKind(for app: NSRunningApplication) -> BrowserKind {
-        let name = (app.localizedName ?? "").lowercased()
-        let bundleID = (app.bundleIdentifier ?? "").lowercased()
+        browserKind(appName: app.localizedName ?? "", bundleIdentifier: app.bundleIdentifier ?? "")
+    }
+
+    private func browserKind(appName: String, bundleIdentifier: String) -> BrowserKind {
+        let name = appName.lowercased()
+        let bundleID = bundleIdentifier.lowercased()
 
         if bundleID == "com.google.chrome" || name.contains("chrome") || bundleID.contains("chromium") {
             return .chrome
@@ -562,6 +620,7 @@ final class AccessibilityReader {
             instagramAXLog("Instagram chat input found: false")
             return .noChatInput
         }
+        logInstagramInsertionCandidate(input, window: focusedWindow, browserKind: browserKind, method: "context-detection")
 
         guard let roomTitle = snapshot.chatTitle else {
             instagramAXLog("Instagram room title found: false")
@@ -1254,6 +1313,18 @@ final class AccessibilityReader {
 
     private func bestInstagramInput(in window: AXUIElement, browserKind: BrowserKind = .unknown) -> AXUIElement? {
         let candidates = instagramInputCandidates(in: window, browserKind: browserKind)
+        if browserKind == .chrome,
+           let pointerCandidate = instagramInputAtCurrentMouseLocation(in: window, candidates: candidates) {
+            logInstagramInsertionCandidate(pointerCandidate, window: window, browserKind: browserKind, method: "mouse-location")
+            return pointerCandidate.element
+        }
+
+        if browserKind == .chrome,
+           let focusedCandidate = instagramFocusedInputCandidate(in: window, candidates: candidates) {
+            logInstagramInsertionCandidate(focusedCandidate, window: window, browserKind: browserKind, method: "focused-candidate")
+            return focusedCandidate.element
+        }
+
         return candidates.sorted { lhs, rhs in
             if lhs.score != rhs.score {
                 return lhs.score > rhs.score
@@ -1276,9 +1347,17 @@ final class AccessibilityReader {
         let elements = [window] + descendants(of: window, maxDepth: maxDepth, maxVisited: maxVisited)
         return elements.compactMap { element -> InstagramInputCandidate? in
             let snapshot = snapshot(of: element)
-            guard let candidateFrame = snapshot.frame,
+            let ancestorInfo = instagramInputAncestorInfo(for: element, maxDepth: browserKind == .chrome ? 18 : 8)
+            let candidateElement = browserKind == .chrome ? (ancestorInfo.textEntryElement ?? element) : element
+            let candidateSnapshot = sameElement(candidateElement, element) ? snapshot : self.snapshot(of: candidateElement)
+            let frameForLog = candidateSnapshot.frame ?? snapshot.frame
+            let debugPrefix = "input candidate rejected: role=\(snapshot.role) title=\(shortDebugText(snapshot.title ?? "")) name=\(shortDebugText(snapshot.label ?? "")) desc=\(shortDebugText(snapshot.description ?? "")) value=\(shortDebugText(snapshot.value ?? "")) frame=\(frameText(frameForLog)) ancestors=\(ancestorInfo.ancestorChain) reason="
+            guard let candidateFrame = frameForLog,
                   candidateFrame.width > 80,
                   candidateFrame.height >= 14 else {
+                if browserKind == .safari, instagramPotentialInputIdentity(instagramElementIdentity(snapshot), ancestorChain: ancestorInfo.ancestorChain) {
+                    instagramAXLog("\(debugPrefix)missing-or-small-frame")
+                }
                 return nil
             }
 
@@ -1291,7 +1370,8 @@ final class AccessibilityReader {
                 snapshot.label,
                 snapshot.placeholder,
                 snapshot.identifier,
-                snapshot.roleDescription
+                snapshot.roleDescription,
+                ancestorInfo.identity
             ]
             .compactMap { $0?.lowercased() }
             .joined(separator: " ")
@@ -1307,31 +1387,361 @@ final class AccessibilityReader {
             let lowerArea = windowFrame.map { candidateFrame.midY > $0.minY + $0.height * 0.62 } ?? true
             let insideConversationColumn = isInsideInstagramConversationColumn(candidateFrame, windowFrame: windowFrame)
             let editable = snapshot.isEditable || isSettableTextArea(element)
+            let hasTextEntryAreaAncestor = ancestorInfo.hasTextEntryArea
+            let hasBrowserAccessibilityAncestor = ancestorInfo.hasBrowserAccessibility
+            let isChromeTextEntryGroup = browserKind == .chrome
+                && hasTextEntryAreaAncestor
+                && (role == "AXGroup" || role.lowercased().contains("group"))
+            let isSafariAmbiguousComposer = browserKind == .safari
+                && lowerArea
+                && insideConversationColumn
+                && isSafariAmbiguousInstagramComposerCandidate(snapshot, frame: candidateFrame)
 
-            guard isTextRole || mentionsMessage || editable else {
+            if let rejection = instagramInputRejectionReason(
+                snapshot: snapshot,
+                frame: candidateFrame,
+                windowFrame: windowFrame,
+                ancestorChain: ancestorInfo.ancestorChain
+            ) {
+                instagramAXLog("\(debugPrefix)\(rejection)")
+                return nil
+            }
+
+            guard isTextRole || mentionsMessage || editable || isChromeTextEntryGroup || isSafariAmbiguousComposer else {
+                if browserKind == .safari, lowerArea || insideConversationColumn || instagramPotentialInputIdentity(text, ancestorChain: ancestorInfo.ancestorChain) {
+                    instagramAXLog("\(debugPrefix)no-text-or-composer-hint")
+                }
                 return nil
             }
 
             var score = 0
+            if ancestorInfo.ancestorChain.lowercased().contains("main") { score += 4 }
             if isTextRole { score += 4 }
             if mentionsMessage { score += 5 }
             if lowerArea { score += 4 }
             if insideConversationColumn { score += 3 }
             if editable { score += browserKind == .chrome ? 7 : 4 }
+            if hasTextEntryAreaAncestor { score += browserKind == .chrome ? 14 : 5 }
+            if hasBrowserAccessibilityAncestor { score += browserKind == .chrome ? 3 : 1 }
+            if isSafariAmbiguousComposer { score += 5 }
             if role == kAXTextAreaRole as String || role == kAXTextFieldRole as String { score += 2 }
             if snapshot.placeholder.map(looksLikeInstagramInputPlaceholder) == true { score += 6 }
-            if candidateFrame.height > 80 { score -= 3 }
+            if snapshot.label.map(looksLikeInstagramInputPlaceholder) == true { score += 5 }
+            if snapshot.description.map(looksLikeInstagramInputPlaceholder) == true { score += 5 }
+            if snapshot.title.map(looksLikeInstagramInputPlaceholder) == true { score += 5 }
+            if candidateFrame.height > 80 { score -= browserKind == .chrome && hasTextEntryAreaAncestor ? 0 : 3 }
             if candidateFrame.midY < (windowFrame?.midY ?? candidateFrame.midY) { score -= 4 }
+            if browserKind == .chrome,
+               let windowFrame {
+                let distanceFromBottom = windowFrame.maxY - candidateFrame.midY
+                if distanceFromBottom < windowFrame.height * 0.22 { score += 6 }
+                if candidateFrame.midX < windowFrame.minX + windowFrame.width * 0.34 { score -= 7 }
+                if candidateFrame.width > max(260, windowFrame.width * 0.30) { score += 4 }
+            }
+
+            instagramAXLog("input candidate accepted: role=\(candidateSnapshot.role.isEmpty ? role : candidateSnapshot.role) title=\(shortDebugText(candidateSnapshot.title ?? snapshot.title ?? "")) name=\(shortDebugText(candidateSnapshot.label ?? snapshot.label ?? "")) desc=\(shortDebugText(candidateSnapshot.description ?? snapshot.description ?? "")) value=\(shortDebugText(candidateSnapshot.value ?? snapshot.value ?? "")) frame=\(frameText(candidateFrame)) ancestors=\(ancestorInfo.ancestorChain) score=\(score)")
 
             return InstagramInputCandidate(
-                element: element,
+                element: candidateElement,
                 frame: candidateFrame,
-                role: role,
-                placeholder: snapshot.placeholder,
+                role: candidateSnapshot.role.isEmpty ? role : candidateSnapshot.role,
+                placeholder: candidateSnapshot.placeholder ?? snapshot.placeholder,
                 identity: text,
+                parentDescription: ancestorInfo.parentDescription,
+                ancestorChain: ancestorInfo.ancestorChain,
+                hasTextEntryAreaAncestor: hasTextEntryAreaAncestor,
+                hasBrowserAccessibilityAncestor: hasBrowserAccessibilityAncestor,
+                keyboardFocused: candidateSnapshot.isFocused ?? snapshot.isFocused,
                 score: score
             )
         }
+    }
+
+    private func instagramInputAtCurrentMouseLocation(
+        in window: AXUIElement,
+        candidates: [InstagramInputCandidate]
+    ) -> InstagramInputCandidate? {
+        guard let windowFrame = frame(of: window) else {
+            return nil
+        }
+
+        let mouse = currentMousePointInAXCoordinates()
+        guard windowFrame.insetBy(dx: -4, dy: -4).contains(mouse) else {
+            return nil
+        }
+
+        let directHits = candidates.filter {
+            $0.hasTextEntryAreaAncestor
+                && $0.frame.insetBy(dx: -10, dy: -12).contains(mouse)
+        }
+        if let hit = directHits.sorted(by: instagramInputSort).first {
+            return hit
+        }
+
+        let appPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        guard let appPID else {
+            return nil
+        }
+
+        let appElement = AXUIElementCreateApplication(appPID)
+        var elementAtPoint: AXUIElement?
+        let result = AXUIElementCopyElementAtPosition(
+            appElement,
+            Float(mouse.x),
+            Float(mouse.y),
+            &elementAtPoint
+        )
+        guard result == .success,
+              let elementAtPoint else {
+            return nil
+        }
+
+        let info = instagramInputAncestorInfo(for: elementAtPoint, maxDepth: 18)
+        guard info.hasTextEntryArea,
+              let elementFrame = frame(of: info.textEntryElement ?? elementAtPoint),
+              isInsideInstagramConversationColumn(elementFrame, windowFrame: windowFrame),
+              elementFrame.midY > windowFrame.minY + windowFrame.height * 0.60 else {
+            return nil
+        }
+
+        let snapshot = snapshot(of: info.textEntryElement ?? elementAtPoint)
+        return InstagramInputCandidate(
+            element: info.textEntryElement ?? elementAtPoint,
+            frame: elementFrame,
+            role: snapshot.role,
+            placeholder: snapshot.placeholder,
+            identity: [
+                instagramElementIdentity(snapshot),
+                info.identity
+            ].joined(separator: " "),
+            parentDescription: info.parentDescription,
+            ancestorChain: info.ancestorChain,
+            hasTextEntryAreaAncestor: true,
+            hasBrowserAccessibilityAncestor: info.hasBrowserAccessibility,
+            keyboardFocused: snapshot.isFocused,
+            score: 100
+        )
+    }
+
+    private func instagramFocusedInputCandidate(
+        in window: AXUIElement,
+        candidates: [InstagramInputCandidate]
+    ) -> InstagramInputCandidate? {
+        guard let appPID = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+            return nil
+        }
+
+        let appElement = AXUIElementCreateApplication(appPID)
+        guard let focused = copyAttribute(appElement, kAXFocusedUIElementAttribute) as AXUIElement? else {
+            return nil
+        }
+
+        let info = instagramInputAncestorInfo(for: focused, maxDepth: 18)
+        guard info.hasTextEntryArea,
+              let focusedFrame = frame(of: info.textEntryElement ?? focused) else {
+            return candidates.filter { $0.keyboardFocused == true }.sorted(by: instagramInputSort).first
+        }
+
+        if let candidate = candidates.first(where: { sameElement($0.element, info.textEntryElement ?? focused) }) {
+            return candidate
+        }
+
+        let snapshot = snapshot(of: info.textEntryElement ?? focused)
+        return InstagramInputCandidate(
+            element: info.textEntryElement ?? focused,
+            frame: focusedFrame,
+            role: snapshot.role,
+            placeholder: snapshot.placeholder,
+            identity: [
+                instagramElementIdentity(snapshot),
+                info.identity
+            ].joined(separator: " "),
+            parentDescription: info.parentDescription,
+            ancestorChain: info.ancestorChain,
+            hasTextEntryAreaAncestor: true,
+            hasBrowserAccessibilityAncestor: info.hasBrowserAccessibility,
+            keyboardFocused: snapshot.isFocused,
+            score: 95
+        )
+    }
+
+    private func instagramInputSort(_ lhs: InstagramInputCandidate, _ rhs: InstagramInputCandidate) -> Bool {
+        if lhs.score != rhs.score {
+            return lhs.score > rhs.score
+        }
+
+        if abs(lhs.frame.minY - rhs.frame.minY) > 8 {
+            return lhs.frame.minY > rhs.frame.minY
+        }
+
+        return lhs.frame.width > rhs.frame.width
+    }
+
+    private func instagramInputAncestorInfo(
+        for element: AXUIElement,
+        maxDepth: Int
+    ) -> InstagramInputAncestorInfo {
+        var current = copyAttribute(element, kAXParentAttribute) as AXUIElement?
+        var depth = 0
+        var textEntryElement: AXUIElement?
+        var hasTextEntryArea = false
+        var hasBrowserAccessibility = false
+        var identities: [String] = []
+        var chainLines: [String] = [instagramAncestorLine(for: element)]
+        var parentDescription: String?
+
+        while let currentElement = current, depth < maxDepth {
+            let snapshot = snapshot(of: currentElement)
+            let identity = instagramElementIdentity(snapshot)
+            if depth == 0 {
+                parentDescription = [
+                    snapshot.description,
+                    snapshot.roleDescription,
+                    snapshot.title,
+                    snapshot.value
+                ]
+                .compactMap { $0 }
+                .joined(separator: " ")
+            }
+            identities.append(identity)
+            chainLines.append(instagramAncestorLine(for: currentElement, snapshot: snapshot))
+
+            if identity.contains("text entry area") {
+                hasTextEntryArea = true
+                if textEntryElement == nil {
+                    textEntryElement = currentElement
+                }
+            }
+
+            if identity.contains("browseraccessibilitycocoa")
+                || identity.contains("html content")
+                || identity.contains("web area") {
+                hasBrowserAccessibility = true
+            }
+
+            current = copyAttribute(currentElement, kAXParentAttribute) as AXUIElement?
+            depth += 1
+        }
+
+        return InstagramInputAncestorInfo(
+            identity: identities.joined(separator: " "),
+            parentDescription: parentDescription?.isEmpty == false ? parentDescription : nil,
+            ancestorChain: chainLines.joined(separator: " > "),
+            hasTextEntryArea: hasTextEntryArea,
+            hasBrowserAccessibility: hasBrowserAccessibility,
+            textEntryElement: textEntryElement
+        )
+    }
+
+    private func validateInstagramInsertionTarget(
+        _ element: AXUIElement,
+        window: AXUIElement,
+        browserKind: BrowserKind,
+        logPrefix: String
+    ) -> Bool {
+        let snapshot = snapshot(of: element)
+        let elementFrame = snapshot.frame ?? frame(of: element)
+        let ancestorInfo = instagramInputAncestorInfo(for: element, maxDepth: browserKind == .chrome ? 18 : 10)
+        let chain = ancestorInfo.ancestorChain.lowercased()
+        let identity = [
+            instagramElementIdentity(snapshot),
+            ancestorInfo.identity,
+            ancestorInfo.parentDescription
+        ]
+        .compactMap { $0?.lowercased() }
+        .joined(separator: " ")
+        let validationText = "\(identity) \(chain)"
+
+        if validationText.contains("thread list")
+            || validationText.contains("navigation")
+            || validationText.contains("search")
+            || validationText.contains("search text field")
+            || validationText.contains("사람 검색")
+            || validationText.contains("스레드 검색") {
+            instagramAXLog("\(logPrefix): rejected unsafe target reason=search-thread-navigation role=\(snapshot.role) frame=\(frameText(elementFrame)) ancestors=\(ancestorInfo.ancestorChain)")
+            return false
+        }
+
+        if let elementFrame,
+           !isInsideInstagramConversationColumn(elementFrame, windowFrame: frame(of: window)) {
+            instagramAXLog("\(logPrefix): rejected unsafe target reason=outside-conversation-column role=\(snapshot.role) frame=\(frameText(elementFrame)) ancestors=\(ancestorInfo.ancestorChain)")
+            return false
+        }
+
+        instagramAXLog("\(logPrefix): accepted role=\(snapshot.role) title=\(shortDebugText(snapshot.title ?? "")) desc=\(shortDebugText(snapshot.description ?? "")) value=\(shortDebugText(snapshot.value ?? "")) frame=\(frameText(elementFrame)) ancestors=\(ancestorInfo.ancestorChain)")
+        return true
+    }
+
+    private func instagramInputRejectionReason(
+        snapshot: AXElementSnapshot,
+        frame: CGRect,
+        windowFrame: CGRect?,
+        ancestorChain: String
+    ) -> String? {
+        let identity = instagramElementIdentity(snapshot)
+        let combined = "\(identity) \(ancestorChain)".lowercased()
+
+        if combined.contains("search") || combined.contains("검색") {
+            return "search-identity"
+        }
+
+        if combined.contains("search text field") || snapshot.role.lowercased().contains("search") {
+            return "search-text-field-role"
+        }
+
+        if combined.contains("thread list") || combined.contains("navigation") {
+            return "thread-list-or-navigation-ancestor"
+        }
+
+        if let windowFrame,
+           frame.midX < windowFrame.minX + max(340, windowFrame.width * 0.25) {
+            return "left-thread-list-region"
+        }
+
+        return nil
+    }
+
+    private func isSafariAmbiguousInstagramComposerCandidate(_ snapshot: AXElementSnapshot, frame: CGRect) -> Bool {
+        let role = snapshot.role.lowercased()
+        let identity = instagramElementIdentity(snapshot)
+        let looksLikeGroup = role.contains("group") || role.contains("webaccessibilityobjectwrapper")
+        let reasonableComposerSize = frame.width >= 160 && frame.height >= 18 && frame.height <= 96
+        return looksLikeGroup
+            && reasonableComposerSize
+            && !identity.contains("search")
+            && !identity.contains("검색")
+    }
+
+    private func instagramPotentialInputIdentity(_ identity: String, ancestorChain: String) -> Bool {
+        let combined = "\(identity) \(ancestorChain)".lowercased()
+        return combined.contains("search")
+            || combined.contains("message")
+            || combined.contains("메시지")
+            || combined.contains("입력")
+            || combined.contains("thread list")
+            || combined.contains("navigation")
+    }
+
+    private func instagramAncestorLine(for element: AXUIElement) -> String {
+        instagramAncestorLine(for: element, snapshot: snapshot(of: element))
+    }
+
+    private func instagramAncestorLine(for element: AXUIElement, snapshot: AXElementSnapshot) -> String {
+        let parts = [
+            snapshot.role,
+            snapshot.subrole,
+            snapshot.title,
+            snapshot.description,
+            snapshot.value,
+            snapshot.label,
+            snapshot.placeholder,
+            snapshot.roleDescription
+        ]
+        .compactMap { visibleText($0) }
+        .map { shortDebugText($0, maxLength: 42) }
+
+        let identity = parts.isEmpty ? "nil" : parts.joined(separator: " ")
+        return "\(identity) \(frameText(snapshot.frame ?? frame(of: element)))"
     }
 
     private func focusInstagramInput(
@@ -1340,16 +1750,28 @@ final class AccessibilityReader {
         fallbackElement: AXUIElement
     ) -> Bool {
         let browserKind = NSWorkspace.shared.frontmostApplication.map(browserKind(for:)) ?? .unknown
-        let input = bestInstagramInput(in: window, browserKind: browserKind) ?? fallbackElement
+        let input: AXUIElement
+        if let bestInput = bestInstagramInput(in: window, browserKind: browserKind),
+           validateInstagramInsertionTarget(bestInput, window: window, browserKind: browserKind, logPrefix: "focus target validation") {
+            input = bestInput
+        } else if validateInstagramInsertionTarget(fallbackElement, window: window, browserKind: browserKind, logPrefix: "focus fallback validation") {
+            input = fallbackElement
+        } else {
+            instagramAXLog("focus target validation failed: no safe Instagram DM composer target; refusing Search fallback")
+            return false
+        }
         let pid = appPID ?? NSWorkspace.shared.frontmostApplication?.processIdentifier
+        logInstagramInsertionCandidate(input, window: window, browserKind: browserKind, method: "focus-start")
 
         if focusElementAndVerify(input, appPID: pid) {
+            logInstagramInsertionCandidate(input, window: window, browserKind: browserKind, method: "AXValue-focus")
             return true
         }
 
         AXUIElementPerformAction(input, kAXPressAction as CFString)
         Thread.sleep(forTimeInterval: 0.08)
         if verifyFocusedInput(appPID: pid) {
+            logInstagramInsertionCandidate(input, window: window, browserKind: browserKind, method: "AXPress")
             return true
         }
 
@@ -1361,9 +1783,11 @@ final class AccessibilityReader {
         Thread.sleep(forTimeInterval: 0.08)
 
         if verifyFocusedInput(appPID: pid) {
+            logInstagramInsertionCandidate(input, window: window, browserKind: browserKind, method: "click")
             return true
         }
 
+        logInstagramInsertionCandidate(input, window: window, browserKind: browserKind, method: "focus-failed")
         return false
     }
 
@@ -2434,6 +2858,61 @@ final class AccessibilityReader {
     }
 
     private func instagramAXLog(_ message: String) {
+        NSLog("[Sayless Instagram AX] %@", message)
+    }
+
+    private func logInstagramInsertionCandidate(
+        _ element: AXUIElement,
+        window: AXUIElement,
+        browserKind: BrowserKind,
+        method: String
+    ) {
+        let snapshot = snapshot(of: element)
+        let ancestorInfo = instagramInputAncestorInfo(for: element, maxDepth: browserKind == .chrome ? 18 : 8)
+        instagramAXLog(
+            [
+                "browser: \(browserKind.rawValue)",
+                "window title: \(shortDebugText(chatRoomTitle(for: window)))",
+                "candidate role: \(snapshot.role)",
+                "candidate parent description: \(shortDebugText(ancestorInfo.parentDescription ?? ""))",
+                "candidate ancestors: \(ancestorInfo.ancestorChain)",
+                "text entry area ancestor: \(ancestorInfo.hasTextEntryArea)",
+                "BrowserAccessibility ancestor: \(ancestorInfo.hasBrowserAccessibility)",
+                "candidate frame: \(frameText(snapshot.frame ?? frame(of: element)))",
+                "keyboard focused: \(snapshot.isFocused.map(String.init) ?? "nil")",
+                "insertion method: \(method)"
+            ].joined(separator: " | ")
+        )
+    }
+
+    private func logInstagramInsertionCandidate(
+        _ candidate: InstagramInputCandidate,
+        window: AXUIElement,
+        browserKind: BrowserKind,
+        method: String
+    ) {
+        instagramAXLog(
+            [
+                "browser: \(browserKind.rawValue)",
+                "window title: \(shortDebugText(chatRoomTitle(for: window)))",
+                "candidate role: \(candidate.role)",
+                "candidate parent description: \(shortDebugText(candidate.parentDescription ?? ""))",
+                "text entry area ancestor: \(candidate.hasTextEntryAreaAncestor)",
+                "BrowserAccessibility ancestor: \(candidate.hasBrowserAccessibilityAncestor)",
+                "candidate frame: \(frameText(candidate.frame))",
+                "keyboard focused: \(candidate.keyboardFocused.map(String.init) ?? "nil")",
+                "insertion method: \(method)"
+            ].joined(separator: " | ")
+        )
+    }
+
+    private func currentMousePointInAXCoordinates() -> CGPoint {
+        let location = NSEvent.mouseLocation
+        guard let screenFrame = NSScreen.screens.first?.frame else {
+            return location
+        }
+
+        return CGPoint(x: location.x, y: screenFrame.maxY - location.y)
     }
 
     private func children(of element: AXUIElement) -> [AXUIElement] {
