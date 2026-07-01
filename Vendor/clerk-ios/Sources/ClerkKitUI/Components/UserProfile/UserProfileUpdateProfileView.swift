@@ -1,0 +1,278 @@
+//
+//  UserProfileUpdateProfileView.swift
+//  Clerk
+//
+
+#if os(iOS) || os(macOS)
+
+import ClerkKit
+import NukeUI
+import PhotosUI
+import SwiftUI
+
+struct UserProfileUpdateProfileView: View {
+  @Environment(Clerk.self) private var clerk
+  @Environment(\.clerkTheme) private var theme
+  @Environment(\.dismiss) private var dismiss
+
+  @State private var photosPickerIsPresented = false
+  @State private var photosPickerItem: PhotosPickerItem?
+  @State private var imageIsLoading = false
+
+  @State private var firstName: String
+  @State private var lastName: String
+  @State private var username: String
+  @State private var error: Error?
+
+  private var environment: Clerk.Environment? {
+    clerk.environment
+  }
+
+  private var usernameIsEditable: Bool {
+    environment?.usernameIsEnabled == true && environment?.usernameIsImmutable != true
+  }
+
+  private var showSaveButton: Bool {
+    usernameIsEditable || (environment?.firstNameIsEnabled ?? false) || (environment?.lastNameIsEnabled ?? false)
+  }
+
+  private let user: User
+
+  init(user: User) {
+    self.user = user
+    _username = State(initialValue: user.username ?? "")
+    _firstName = State(initialValue: user.firstName ?? "")
+    _lastName = State(initialValue: user.lastName ?? "")
+  }
+
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(spacing: 32) {
+          profileImageMenu
+
+          VStack(spacing: 24) {
+            if usernameIsEditable {
+              ClerkTextField("Username", text: $username)
+                .textContentType(.username)
+                .autocorrectionDisabled()
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                #endif
+            }
+
+            if environment?.firstNameIsEnabled == true {
+              ClerkTextField("First name", text: $firstName)
+                .textContentType(.givenName)
+            }
+
+            if environment?.lastNameIsEnabled == true {
+              ClerkTextField("Last name", text: $lastName)
+                .textContentType(.familyName)
+            }
+
+            if showSaveButton {
+              AsyncButton {
+                await save()
+              } label: { isRunning in
+                Text("Save", bundle: .module)
+                  .frame(maxWidth: .infinity)
+                  .overlayProgressView(isActive: isRunning) {
+                    SpinnerView(color: theme.colors.primaryForeground)
+                  }
+              }
+              .buttonStyle(.primary())
+            }
+          }
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
+        #if os(iOS)
+        .padding(.top, 60)
+        #elseif os(macOS)
+        .padding(.top, 24)
+        #endif
+      }
+      .clerkErrorPresenting($error)
+      #if os(iOS)
+      .navigationBarTitleDisplayMode(.inline)
+      #endif
+      .preGlassSolidNavBar()
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel") {
+            dismiss()
+          }
+          .foregroundStyle(theme.colors.primary)
+        }
+
+        ToolbarItem(placement: .principal) {
+          Text("Edit profile", bundle: .module)
+            .font(theme.fonts.headline)
+            .foregroundStyle(theme.colors.foreground)
+        }
+      }
+      .photosPicker(
+        isPresented: $photosPickerIsPresented,
+        selection: $photosPickerItem,
+        matching: .images
+      )
+      .onChange(of: photosPickerItem) { _, item in
+        guard let item else { return }
+
+        Task {
+          imageIsLoading = true
+
+          do {
+            guard
+              let data = try await item.loadTransferable(type: Data.self),
+              let resizedData = resizedImageData(from: data)
+            else {
+              throw ClerkClientError(message: "There was an error loading the image from the photos library.")
+            }
+
+            try await user.setProfileImage(imageData: resizedData)
+          } catch {
+            self.error = error
+            ClerkLogger.error("Failed to set profile image", error: error)
+            imageIsLoading = false
+          }
+        }
+      }
+    }
+    #if os(macOS)
+    .frame(minWidth: 420, maxWidth: 520)
+    #endif
+    .presentationBackground(theme.colors.background)
+    .background(theme.colors.background)
+  }
+
+  private var profileImageMenu: some View {
+    LazyImage(url: URL(string: user.imageUrl)) { state in
+      if let image = state.image {
+        image
+          .resizable()
+          .scaledToFill()
+          .onAppear {
+            imageIsLoading = false
+          }
+      } else if state.error != nil {
+        Image("icon-profile", bundle: .module)
+          .resizable()
+          .scaledToFit()
+          .foregroundStyle(theme.colors.primary.gradient)
+          .opacity(0.5)
+          .onAppear {
+            imageIsLoading = false
+          }
+      } else {
+        Image("icon-profile", bundle: .module)
+          .resizable()
+          .scaledToFit()
+          .foregroundStyle(theme.colors.primary.gradient)
+          .opacity(0.5)
+      }
+    }
+    .onChange(of: user.imageUrl) { _, newValue in
+      imageIsLoading = !newValue.isEmpty
+    }
+    .overlay {
+      if imageIsLoading {
+        theme.colors.inputBorderFocused
+        SpinnerView(color: theme.colors.primaryForeground)
+          .frame(width: 24, height: 24)
+      }
+    }
+    .frame(width: 96, height: 96)
+    .clipShape(.circle)
+    .transition(.opacity.animation(.easeInOut(duration: 0.25)))
+    .overlay(alignment: .bottomTrailing) {
+      Menu {
+        menuContent
+      } label: {
+        Image("icon-edit", bundle: .module)
+          .resizable()
+          .scaledToFit()
+          .frame(width: 16, height: 16)
+          .padding(8)
+          .foregroundStyle(theme.colors.mutedForeground)
+          .background(theme.colors.background)
+          .clipShape(.rect(cornerRadius: theme.design.borderRadius))
+          .overlay {
+            RoundedRectangle(cornerRadius: theme.design.borderRadius)
+              .strokeBorder(theme.colors.buttonBorder, lineWidth: 1)
+          }
+          .shadow(color: theme.colors.buttonBorder, radius: 1, x: 0, y: 1)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var menuContent: some View {
+    Button("Choose from photo library") {
+      photosPickerIsPresented = true
+    }
+
+    if user.hasImage == true {
+      AsyncButton(role: .destructive) {
+        imageIsLoading = true
+        defer { imageIsLoading = false }
+
+        do {
+          try await user.deleteProfileImage()
+        } catch {
+          self.error = error
+          ClerkLogger.error("Failed to delete profile image", error: error)
+        }
+      } label: { _ in
+        Text("Remove photo", bundle: .module)
+      }
+    }
+  }
+}
+
+extension UserProfileUpdateProfileView {
+  private func resizedImageData(from data: Data) -> Data? {
+    #if os(iOS)
+    guard let image = UIImage(data: data) else {
+      return nil
+    }
+
+    return image
+      .resizedMaintainingAspectRatio(to: .init(width: 200, height: 200))
+      .jpegData(compressionQuality: 0.8)
+    #elseif os(macOS)
+    guard let image = NSImage(data: data) else {
+      return nil
+    }
+
+    return image
+      .resizedMaintainingAspectRatio(to: .init(width: 200, height: 200))
+      .jpegData(compressionQuality: 0.8)
+    #endif
+  }
+
+  private func save() async {
+    do {
+      try await user.update(
+        .init(
+          username: usernameIsEditable ? username : nil,
+          firstName: environment?.firstNameIsEnabled == true ? firstName : nil,
+          lastName: environment?.lastNameIsEnabled == true ? lastName : nil
+        )
+      )
+      dismiss()
+    } catch {
+      self.error = error
+      ClerkLogger.error("Failed to update user profile", error: error)
+    }
+  }
+}
+
+#Preview {
+  UserProfileUpdateProfileView(user: .mock)
+    .clerkPreview()
+    .environment(\.clerkTheme, .clerk)
+}
+
+#endif

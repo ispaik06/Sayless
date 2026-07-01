@@ -1,7 +1,6 @@
 import ClerkKit
 import Combine
 import Foundation
-import Security
 
 @MainActor
 final class AuthSessionManager: ObservableObject {
@@ -12,8 +11,6 @@ final class AuthSessionManager: ObservableObject {
     @Published private(set) var isLoadingRemoteConfiguration = false
 
     private init() {
-        Self.prepareClerkKeychainStorageIfNeeded()
-
         if let publishableKey = Self.publishableKey {
             clerk = Clerk.configure(publishableKey: publishableKey, options: Self.clerkOptions)
         } else {
@@ -90,37 +87,6 @@ final class AuthSessionManager: ObservableObject {
             telemetryEnabled: false,
             keychainConfig: .init(service: keychainService)
         )
-    }
-
-    private static func prepareClerkKeychainStorageIfNeeded() {
-        let storageGenerationKey = "clerkKeychainStorageGeneration"
-        let currentGeneration = 4
-        guard UserDefaults.standard.integer(forKey: storageGenerationKey) < currentGeneration else {
-            return
-        }
-
-        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ispaik.Sayless"
-        let legacyServices = [
-            bundleIdentifier,
-            "\(bundleIdentifier).clerk.v2",
-            "\(bundleIdentifier).clerk.v3",
-            "\(bundleIdentifier).clerk.debug.\(ProcessInfo.processInfo.processIdentifier)"
-        ]
-
-        for service in legacyServices {
-            deleteGenericPasswordItems(service: service)
-        }
-
-        UserDefaults.standard.set(currentGeneration, forKey: storageGenerationKey)
-    }
-
-    private static func deleteGenericPasswordItems(service: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service
-        ]
-
-        SecItemDelete(query as CFDictionary)
     }
 
     private static var publishableKey: String? {

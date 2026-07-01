@@ -1,0 +1,105 @@
+//
+//  ClerkClientSyncResponseMiddleware.swift
+//  Clerk
+//
+
+import Foundation
+
+struct ClerkClientSyncResponseMiddleware: ClerkResponseMiddleware {
+  private let runtimeScope: ClerkRuntimeScope
+
+  init(runtimeScope: ClerkRuntimeScope) {
+    self.runtimeScope = runtimeScope
+  }
+
+  func validate(_ response: HTTPURLResponse, data: Data, for request: URLRequest) async throws {
+    let responseSequence = request.clerkRequestSequence
+    let serverDate = response.serverDate
+
+    if let client = Self.decodeClient(from: data) {
+      try await runtimeScope.withCurrentClerk {
+        $0.applyResponseClient(
+          client,
+          responseSequence: responseSequence,
+          serverDate: serverDate,
+          clientResponseGeneration: request.clerkClientResponseGeneration
+        )
+      }
+    } else if hasExplicitNullClientField(in: data) {
+      ClerkLogger.debug("API response explicitly returned client: null. Clearing local client state.")
+      try await runtimeScope.withCurrentClerk {
+        $0.applyResponseClient(
+          nil,
+          responseSequence: responseSequence,
+          serverDate: serverDate,
+          clientResponseGeneration: request.clerkClientResponseGeneration
+        )
+      }
+    }
+  }
+
+  static func decodeClient(from jsonData: Data) -> Client? {
+    struct ClientWrapper: Decodable {
+      let client: Client?
+
+      enum CodingKeys: String, CodingKey {
+        case response, client, meta
+      }
+
+      enum MetaCodingKeys: String, CodingKey {
+        case client
+      }
+
+      init(from decoder: Decoder) throws {
+        let container = try? decoder.container(keyedBy: CodingKeys.self)
+
+        if let responseClient = try? container?.decode(Client.self, forKey: .response) {
+          client = responseClient
+          return
+        }
+
+        if let clientClient = try? container?.decode(Client.self, forKey: .client) {
+          client = clientClient
+          return
+        }
+
+        if let metaContainer = try? container?.nestedContainer(keyedBy: MetaCodingKeys.self, forKey: .meta),
+           let metaClient = try? metaContainer.decode(Client.self, forKey: .client)
+        {
+          client = metaClient
+          return
+        }
+
+        if let topLevelClient = try? Client(from: decoder) {
+          client = topLevelClient
+          return
+        }
+
+        client = nil
+      }
+    }
+
+    return (try? JSONDecoder.clerkDecoder.decode(ClientWrapper.self, from: jsonData))?.client
+  }
+
+  private func hasExplicitNullClientField(in jsonData: Data) -> Bool {
+    struct ClientFieldProbe: Decodable {
+      let hasExplicitNullClientField: Bool
+
+      enum CodingKeys: String, CodingKey {
+        case client
+      }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if container.contains(.client) {
+          hasExplicitNullClientField = try container.decodeNil(forKey: .client)
+        } else {
+          hasExplicitNullClientField = false
+        }
+      }
+    }
+
+    return (try? JSONDecoder.clerkDecoder.decode(ClientFieldProbe.self, from: jsonData))?.hasExplicitNullClientField == true
+  }
+}

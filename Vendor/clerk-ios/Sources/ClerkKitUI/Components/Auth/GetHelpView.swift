@@ -1,0 +1,114 @@
+//
+//  GetHelpView.swift
+//  Clerk
+//
+
+#if os(iOS) || os(macOS)
+
+import ClerkKit
+import SwiftUI
+
+struct GetHelpView: View {
+  @Environment(Clerk.self) private var clerk
+  @Environment(\.clerkTheme) private var theme
+  @Environment(\.openURL) private var openURL
+
+  let context: Context
+
+  enum Context: Hashable {
+    case signIn
+    case signUp
+    case sessionTask(SessionTaskKind)
+
+    enum SessionTaskKind: Hashable {
+      case generic
+      case organizationRequired
+    }
+
+    var titleText: LocalizedStringKey {
+      switch self {
+      case .signIn, .signUp, .sessionTask(.generic):
+        "Get help"
+      case .sessionTask(.organizationRequired):
+        "You must belong to an organization"
+      }
+    }
+
+    var subtitleText: LocalizedStringKey {
+      switch self {
+      case .signIn:
+        "If you have trouble signing into your account, email us and we will work with you to restore access as soon as possible."
+      case .signUp:
+        "If you have trouble creating your account, email us and we will work with you to complete your registration as soon as possible."
+      case .sessionTask(.generic):
+        "If you have trouble completing required account setup, email us and we will help you finish as soon as possible."
+      case .sessionTask(.organizationRequired):
+        "Contact your organization admin for an invitation."
+      }
+    }
+  }
+
+  var body: some View {
+    ScrollView {
+      VStack(spacing: 0) {
+        VStack(spacing: 8) {
+          HeaderView(style: .title, text: context.titleText)
+          HeaderView(style: .subtitle, text: context.subtitleText)
+        }
+        .padding(.bottom, 32)
+
+        VStack(spacing: 16) {
+          Button {
+            openEmail(to: clerk.environment?.displayConfig.supportEmail ?? "")
+          } label: {
+            Text("Email support", bundle: .module)
+              .frame(maxWidth: .infinity)
+          }
+          .buttonStyle(.primary())
+          .simultaneousGesture(TapGesture())
+        }
+        .padding(.bottom, 32)
+
+        SecuredByClerkView()
+      }
+      .padding(16)
+    }
+    .background(theme.colors.background)
+  }
+}
+
+extension GetHelpView {
+  func openEmail(to emailAddress: String) {
+    let urlString = "mailto:\(emailAddress)"
+
+    if let url = URL(string: urlString) {
+      openURL(url)
+    }
+  }
+}
+
+#Preview("Sign In") {
+  GetHelpView(context: .signIn)
+    .clerkPreview()
+    .environment(\.clerkTheme, .clerk)
+}
+
+#Preview("Sign Up") {
+  GetHelpView(context: .signUp)
+    .clerkPreview()
+    .environment(\.clerkTheme, .clerk)
+}
+
+#Preview("Session Task") {
+  GetHelpView(context: .sessionTask(.generic))
+    .clerkPreview()
+    .environment(\.clerkTheme, .clerk)
+}
+
+#Preview("Organization Required") {
+  GetHelpView(context: .sessionTask(.organizationRequired))
+    .clerkPreview()
+    .environment(\.clerkTheme, .clerk)
+}
+
+#endif

@@ -108,7 +108,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				E215BA092FEDB3A000D557F0 /* XCRemoteSwiftPackageReference "Sparkle" */,
-				E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E215B9CE2FED4A0000D557F0 /* Products */;
@@ -348,6 +348,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Vendor/clerk-ios";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		E215BA092FEDB3A000D557F0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -355,14 +362,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.9.3;
-			};
-		};
-		E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/clerk/clerk-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.2.6;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -375,12 +374,12 @@
 		};
 		E215BA1A2FEDB92000D557F0 /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */;
 			productName = ClerkKit;
 		};
 		E215BA1D2FEDB92000D557F0 /* ClerkKitUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E215BA192FEDB92000D557F0 /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			package = E215BA192FEDB92000D557F0 /* XCLocalSwiftPackageReference "clerk-ios" */;
 			productName = ClerkKitUI;
 		};
 /* End XCSwiftPackageProductDependency section */

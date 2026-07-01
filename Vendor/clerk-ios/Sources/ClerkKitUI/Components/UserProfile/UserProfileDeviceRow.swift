@@ -1,0 +1,108 @@
+//
+//  UserProfileDeviceRow.swift
+//  Clerk
+//
+
+#if os(iOS) || os(macOS)
+
+import ClerkKit
+import SwiftUI
+
+struct UserProfileDeviceRow: View {
+  @Environment(Clerk.self) private var clerk
+  @Environment(\.clerkTheme) private var theme
+
+  let session: Session
+
+  @State private var isLoading = false
+  @State private var error: Error?
+
+  private var user: User? {
+    clerk.user
+  }
+
+  var body: some View {
+    HStack(spacing: 16) {
+      HStack(alignment: .top) {
+        if let activity = session.latestActivity {
+          activity.deviceImage
+            .resizable()
+            .scaledToFit()
+            .frame(width: 24, height: 24)
+
+          VStack(alignment: .leading, spacing: 8) {
+            if session.isThisDevice {
+              Badge(key: "This device", style: .secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+              activity.deviceText
+                .font(theme.fonts.body)
+                .foregroundStyle(theme.colors.foreground)
+                .frame(minHeight: 22)
+
+              VStack(alignment: .leading, spacing: 0) {
+                Group {
+                  Text(verbatim: activity.browserFormatted)
+                  Text(verbatim: activity.ipAndLocationFormatted)
+                  Text(session.lastActiveAt.relativeNamedFormat)
+                }
+                .font(theme.fonts.subheadline)
+                .foregroundStyle(theme.colors.mutedForeground)
+                .frame(minHeight: 20)
+              }
+            }
+          }
+        }
+      }
+
+      Spacer(minLength: 0)
+
+      if !session.isThisDevice {
+        Menu {
+          AsyncButton(role: .destructive) {
+            await signOutOfDevice()
+          } label: { _ in
+            Text("Sign out of device", bundle: .module)
+          }
+          .onIsRunningChanged { isLoading = $0 }
+        } label: {
+          ThreeDotsMenuLabel()
+        }
+        .frame(width: 30, height: 30)
+        .menuIndicator(.hidden)
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(.horizontal, 24)
+    .padding(.vertical, 16)
+    .overlayProgressView(isActive: isLoading)
+    .overlay(alignment: .bottom) {
+      Rectangle()
+        .frame(height: 1)
+        .foregroundStyle(theme.colors.border)
+    }
+    .clerkErrorPresenting($error)
+    .animation(.default, value: isLoading)
+  }
+}
+
+extension UserProfileDeviceRow {
+  @MainActor
+  private func signOutOfDevice() async {
+    do {
+      try await session.revoke()
+      try await user?.getSessions()
+    } catch {
+      self.error = error
+      ClerkLogger.error("Failed to sign out of device", error: error)
+    }
+  }
+}
+
+#Preview {
+  UserProfileDeviceRow(session: .mock)
+    .clerkPreview()
+}
+
+#endif
