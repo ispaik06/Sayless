@@ -1153,7 +1153,7 @@ function PlatformLogo({ platform }) {
   }
 
   return (
-    <div className="platform-logo-frame">
+    <div className={`platform-logo-frame ${platform.id}`}>
       {!loaded && <span>{platform.title}</span>}
       <img
         src={platform.logo}
