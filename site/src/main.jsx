@@ -95,25 +95,25 @@ const COPY = {
           id: "kakao",
           title: "KakaoTalk",
           status: "ready",
-          logo: "/logos/kakaotalk.svg"
+          logo: "logos/kakaotalk.svg"
         },
         {
           id: "instagram",
           title: "Instagram",
           status: "ready",
-          logo: "/logos/instagram.svg"
+          logo: "logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
-          logo: "/logos/discord.svg"
+          logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          logo: "/logos/slack.svg"
+          logo: "logos/slack.svg"
         }
       ],
       visualSubtitle: "Mac-first AI communication assistant",
@@ -274,25 +274,25 @@ const COPY = {
           id: "kakao",
           title: "카카오톡",
           status: "ready",
-          logo: "/logos/kakaotalk.svg"
+          logo: "logos/kakaotalk.svg"
         },
         {
           id: "instagram",
           title: "Instagram",
           status: "ready",
-          logo: "/logos/instagram.svg"
+          logo: "logos/instagram.svg"
         },
         {
           id: "discord",
           title: "Discord",
           status: "planned",
-          logo: "/logos/discord.svg"
+          logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          logo: "/logos/slack.svg"
+          logo: "logos/slack.svg"
         }
       ],
       visualSubtitle: "맥을 먼저 생각한 AI 대화 assistant",
