@@ -31,6 +31,12 @@ const CORE_PROMPT = [
   'The user is ONLY the speaker with role="me".',
   'Never treat role="other" as the user.',
   'Never answer as one of the named other speakers.',
+  'role="me" messages are the user’s previous outgoing messages. They are not messages to answer.',
+  'Use role="me" messages as the strongest evidence of the user’s context, facts, intent, boundaries, slang, pacing, and writing style.',
+  'The task is not to blindly answer the last transcript item. The task is to write the next outbound message the role="me" user can send.',
+  'If the latest visible message or most recent stretch is role="me", do not generate a reply to those user messages as if you were the other participant.',
+  'When recent context is mostly role="me", continue from the user’s side. Anchor on the latest meaningful role="other" message before those user messages if still relevant; otherwise suggest a natural follow-up, clarification, topic shift, or graceful close from role="me".',
+  'A bad output is one that comforts, advises, reacts to, or answers role="me" messages as though another person wrote them.',
   'Every suggestion must be a message the role="me" user can send from their own account right now.',
   'Before finalizing each suggestion, verify the implied speaker is role="me" and not role="other".',
   'Do not transform facts, feelings, states, possessions, responsibilities, or intentions from role="me" messages into advice or reactions addressed to role="me".',
@@ -121,6 +127,15 @@ export function buildSuggestionPrompt(input: SuggestionRequest, options: BuildSu
 
 export function buildStateInstruction(state: ConversationState): string {
   if (state.activeExchangeType === 'dm_direct') {
+    if (state.lastSpeakerRole === 'me') {
+      return `This is a direct message between the user and one other person.
+The latest visible message was sent by the user.
+Do not answer that role="me" message as the other person.
+Treat recent role="me" messages as the user's own context, facts, intent, boundaries, and writing style.
+Anchor on the latest meaningful role="other" message before the user's recent messages if it is still relevant.
+Generate the next natural message the user could send after their own latest message(s), such as a follow-up, clarification, topic shift, or graceful close.`;
+    }
+
     return `This is a direct message between the user and one other person.
 The latest other message is likely addressed to the user.
 Generate natural replies as the user.`;
@@ -136,12 +151,27 @@ Bad examples include claiming "that's mine", granting permission, saying "I left
   }
 
   if (state.activeExchangeType === 'group_direct_to_me') {
+    if (state.lastSpeakerRole === 'me') {
+      return `This is a group chat, and the latest visible message was sent by the user.
+Do not answer that role="me" message as another participant.
+Use role="me" messages as the user's tone, facts, intent, and current stance.
+Generate only the next message the user could naturally send from their own account.
+Do not assume ownership, promises, responsibility, or private context that is not explicitly present.`;
+    }
+
     return `This is a group chat, and the recent flow may involve the user.
 Generate replies as the user, but only use facts supported by role="me" messages or the typed draft.
 Do not assume ownership, promises, responsibility, or private context that is not explicitly present.`;
   }
 
   if (state.activeExchangeType === 'group_open') {
+    if (state.lastSpeakerRole === 'me') {
+      return `This is a group chat with an open message, and the latest visible message was sent by the user.
+Do not answer the user's own message as another participant.
+Use the user's recent messages as style and context, then continue naturally from role="me" only.
+Prefer light, non-committal replies unless the user clearly needs to follow up.`;
+    }
+
     return `This is a group chat with an open message.
 Prefer light, non-committal replies unless the message clearly addresses the user.
 Do not assume that pronouns like "너", "니", "니거", or "너희" refer to the user.`;

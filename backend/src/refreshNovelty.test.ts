@@ -91,6 +91,31 @@ describe('reply language policy', () => {
   });
 });
 
+describe('speaker role prompt', () => {
+  it('treats recent me messages as user voice instead of messages to answer', () => {
+    const prompt = buildSuggestionPrompt({
+      chatRoom: {
+        title: '최봉성',
+        participantCount: 2
+      },
+      messages: [
+        { role: 'other', name: '최봉성', texts: ['ㅅㅂㅋㅋㅋ'] },
+        { role: 'me', texts: ['발골절이라'] },
+        { role: 'me', texts: ['다른애찾아보셈'] }
+      ],
+      intent: {
+        kind: 'initial'
+      }
+    });
+
+    assert.match(prompt, /role="me" messages are the user’s previous outgoing messages/u);
+    assert.match(prompt, /They are not messages to answer/u);
+    assert.match(prompt, /The latest visible message was sent by the user/u);
+    assert.match(prompt, /Do not answer that role="me" message as the other person/u);
+    assert.match(prompt, /Generate the next natural message the user could send after their own latest message/u);
+  });
+});
+
 describe('refresh slot allocation', () => {
   it('does not hard-code deterministic refresh slots', () => {
     const checkedFiles = ['src/prompt.ts', 'src/openaiSuggestions.ts', 'src/routes.ts'];
