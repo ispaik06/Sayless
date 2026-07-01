@@ -226,19 +226,23 @@ final class OverlayPanelController {
         latestMessageSignature = nil
         latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
         state.hasNewerVisibleMessages = false
+        let initialPageURL = normalizedWebInstagramURL(accessibilityReader.webPageURL(for: context))
+        let usesURLMonitoring = context.source == .webInstagram && initialPageURL != nil
 
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
-            let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
+        if !usesURLMonitoring {
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
+                let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
 
-            DispatchQueue.main.async { [weak self] in
-                guard let self,
-                      self.displayGeneration == generation,
-                      self.isVisible else {
-                    return
+                DispatchQueue.main.async { [weak self] in
+                    guard let self,
+                          self.displayGeneration == generation,
+                          self.isVisible else {
+                        return
+                    }
+
+                    self.latestMessageSignature = signature
+                    self.latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
                 }
-
-                self.latestMessageSignature = signature
-                self.latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
             }
         }
 
@@ -259,11 +263,42 @@ final class OverlayPanelController {
                 return
             }
 
+            if let initialPageURL,
+               let currentURL = self.normalizedWebInstagramURL(self.accessibilityReader.webPageURL(for: context)),
+               currentURL != initialPageURL {
+                self.onSourceWindowInvalidated?()
+                self.resetSuggestionState()
+                self.hide()
+                return
+            }
+
+            if usesURLMonitoring {
+                return
+            }
+
             self.detectNewVisibleMessage(for: context)
         }
 
         sourceWindowMonitor = timer
         RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func normalizedWebInstagramURL(_ rawURL: String?) -> String? {
+        guard let rawURL,
+              let components = URLComponents(string: rawURL),
+              let host = components.host?.lowercased(),
+              host == "instagram.com" || host.hasSuffix(".instagram.com") else {
+            return nil
+        }
+
+        let path = components.path
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .lowercased()
+        guard path.hasPrefix("direct/") else {
+            return nil
+        }
+
+        return path
     }
 
     private func detectNewVisibleMessage(for context: FocusedTextContext) {

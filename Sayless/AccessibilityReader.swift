@@ -361,6 +361,15 @@ final class AccessibilityReader {
         }
     }
 
+    func webPageURL(for context: FocusedTextContext) -> String? {
+        guard context.source == .webInstagram,
+              let window = context.windowElement else {
+            return nil
+        }
+
+        return webPageURL(in: window)
+    }
+
     func timelineSignature(from messages: [ChatMessage]) -> ChatTimelineSignature? {
         let tail = messages.suffix(8).map { message in
             ChatMessageFingerprint(
@@ -838,6 +847,112 @@ final class AccessibilityReader {
         }
 
         return false
+    }
+
+    private func webPageURL(in window: AXUIElement) -> String? {
+        struct URLCandidate {
+            let url: String
+            let score: Int
+            let depth: Int
+        }
+
+        var queue: [(element: AXUIElement, depth: Int)] = [(window, 0)]
+        var visited = Set<AXElementID>()
+        var candidates: [URLCandidate] = []
+        var index = 0
+        let maxDepth = 14
+        let maxVisited = 1400
+
+        while index < queue.count, visited.count < maxVisited {
+            let item = queue[index]
+            index += 1
+
+            let id = elementID(item.element)
+            guard !visited.contains(id) else {
+                continue
+            }
+            visited.insert(id)
+
+            if let rawURL = axURLString(item.element),
+               isInstagramURL(rawURL) {
+                let identity = [
+                    copyStringAttribute(item.element, kAXRoleAttribute),
+                    copyStringAttribute(item.element, kAXRoleDescriptionAttribute),
+                    copyStringAttribute(item.element, kAXTitleAttribute),
+                    copyStringAttribute(item.element, kAXDescriptionAttribute)
+                ]
+                .compactMap { $0?.lowercased() }
+                .joined(separator: " ")
+
+                var score = 1
+                if isInstagramDirectURL(rawURL) { score += 10 }
+                if identity.contains("web")
+                    || identity.contains("html")
+                    || identity.contains("document")
+                    || identity.contains("page") {
+                    score += 8
+                }
+                if identity.contains("link") {
+                    score -= 3
+                }
+
+                candidates.append(URLCandidate(url: rawURL, score: score, depth: item.depth))
+            }
+
+            guard item.depth < maxDepth else {
+                continue
+            }
+
+            children(of: item.element).forEach {
+                queue.append(($0, item.depth + 1))
+            }
+        }
+
+        return candidates
+            .sorted {
+                if $0.score != $1.score {
+                    return $0.score > $1.score
+                }
+
+                return $0.depth < $1.depth
+            }
+            .first?
+            .url
+    }
+
+    private func axURLString(_ element: AXUIElement) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, "AXURL" as CFString, &value) == .success,
+              let value else {
+            return nil
+        }
+
+        if let url = value as? URL {
+            return url.absoluteString
+        }
+
+        if let string = value as? String {
+            return string
+        }
+
+        return nil
+    }
+
+    private func isInstagramURL(_ rawURL: String) -> Bool {
+        guard let components = URLComponents(string: rawURL),
+              let host = components.host?.lowercased() else {
+            return false
+        }
+
+        return host == "instagram.com" || host.hasSuffix(".instagram.com")
+    }
+
+    private func isInstagramDirectURL(_ rawURL: String) -> Bool {
+        guard let components = URLComponents(string: rawURL) else {
+            return false
+        }
+
+        return components.path.lowercased().contains("/direct/")
     }
 
     private func collectVisibleInstagramMessages(
