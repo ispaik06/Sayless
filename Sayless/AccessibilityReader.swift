@@ -495,9 +495,11 @@ final class AccessibilityReader {
             return .noChatInput
         }
 
+        guard let roomTitle = instagramRoomTitle(in: focusedWindow) else {
+            return .unsupportedApp
+        }
+
         let inputFrame = frame(of: input) ?? frame(of: focusedWindow) ?? .zero
-        let detectedRoomTitle = instagramRoomTitle(in: focusedWindow)
-        let roomTitle = detectedRoomTitle ?? "Instagram DM"
         let messages: [ChatMessage] = []
 
         return .ready(
@@ -508,7 +510,7 @@ final class AccessibilityReader {
                 element: input,
                 windowElement: focusedWindow,
                 windowTitle: roomTitle,
-                participantCount: detectedRoomTitle == nil ? nil : 2,
+                participantCount: 2,
                 role: copyStringAttribute(input, kAXRoleAttribute) ?? "",
                 value: textValue(of: input) ?? "",
                 frame: inputFrame,
