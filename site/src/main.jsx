@@ -89,15 +89,14 @@ const COPY = {
         {
           id: "foreign",
           label: "Foreign friends",
-          title: "When the room moves in another language",
-          thought: "I want to join in with slang and not sound like a textbook...",
-          chatName: "Yuki and Chen",
+          title: "Native-feeling slang without the translator smell",
+          thought: "I want to say I am also freezing at home, but not with a boring 'I agree'. I want something that actually sounds like Discord or IG DM slang.",
+          chatName: "Alex, Yuki",
           messages: [
-            { side: "other", text: "昨日の写真めっちゃ笑った lol" },
-            { side: "other", text: "你们昨天真的太搞笑了" },
-            { side: "me", text: "I understood like 70% of it" }
+            { side: "other", text: "Why are Korean winters so brutal 🥶 Literally freezing." },
+            { side: "other", text: "共感… こたつから出られない" }
           ],
-          suggestion: "Wait, I caught enough to know I was being roasted in two languages. Fair though, that photo was criminal."
+          suggestion: "Fr tho my soul just left my body 💀"
         },
         {
           id: "lazy",
@@ -315,16 +314,15 @@ const COPY = {
         },
         {
           id: "foreign",
-          label: "외국인 친구와 대화할 때",
-          title: "영어나 일본어 섞인 대화에 자연스럽게 끼고 싶을 때",
-          thought: "슬랭 섞으면서 재밌게 얘기 끼고 싶은데, 번역기 말투는 싫어...",
+          label: "외국인 친구",
+          title: "번역기 냄새 1도 없는 찐텐 슬랭",
+          thought: "나도 너무 추워서 방구석이라고 맞장구치고 싶은데, 뻔한 'I agree' 말고 외국 애들이 진짜 쓰는 찰진 슬랭 섞어서 센스 있게 끼어들고 싶어.",
           chatName: "Alex, Yuki",
           messages: [
-            { side: "other", text: "昨日の写真めっちゃ笑った lol" },
-            { side: "other", text: "Bro that was actually iconic" },
-            { side: "me", text: "나 그거 아직도 이해 중임" }
+            { side: "other", text: "Why are Korean winters so brutal 🥶 Literally freezing." },
+            { side: "other", text: "共感… こたつから出られない" }
           ],
-          suggestion: "Okay I got roasted in two languages, but honestly that photo deserved it."
+          suggestion: "Fr tho my soul just left my body 💀"
         },
         {
           id: "lazy",
