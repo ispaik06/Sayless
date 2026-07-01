@@ -14,8 +14,6 @@ import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionRespon
 let client: OpenAI | undefined;
 const systemInstruction =
   'You are Sayless, a Korean chat reply judgment and recommendation engine. Return only valid JSON matching the requested schema.';
-const blockedDisclaimerPattern =
-  /\b(confidential|sensitive|personal|private)\s+information\b|\bI\s+(?:can(?:not|'t)|won't)\b|cannot\s+(?:help|assist|provide)|can't\s+(?:help|assist|provide)/i;
 
 type GeminiGenerateContentResponse = {
   candidates?: Array<{
@@ -331,29 +329,7 @@ function parseSuggestionResponse(content: string): SuggestionResponse {
     );
   }
 
-  return removeBlockedDisclaimerSuggestions(result.data);
-}
-
-function removeBlockedDisclaimerSuggestions(response: SuggestionResponse): SuggestionResponse {
-  return {
-    suggestions: response.suggestions.map((suggestion, index) => {
-      if (!blockedDisclaimerPattern.test(suggestion.text) && !blockedDisclaimerPattern.test(suggestion.label)) {
-        return suggestion;
-      }
-
-      return fallbackSuggestion(index);
-    })
-  };
-}
-
-function fallbackSuggestion(index: number): SuggestionResponse['suggestions'][number] {
-  const fallbacks: SuggestionResponse['suggestions'] = [
-    { id: 's1', label: '가볍게', text: '음 그건 좀 조심스럽긴 하다' },
-    { id: 's2', label: '넘기기', text: '일단 그 얘기는 나중에 하자' },
-    { id: 's3', label: '짧게', text: '그건 지금 말하기 애매해' }
-  ];
-
-  return fallbacks[index] ?? fallbacks[0];
+  return result.data;
 }
 
 function geminiUsageToOpenAIUsage(usage: GeminiGenerateContentResponse['usageMetadata']): unknown {
