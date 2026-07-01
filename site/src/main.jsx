@@ -76,15 +76,14 @@ const COPY = {
         {
           id: "rizz",
           label: "Rizz",
-          title: "When you are talking to someone you like",
-          thought: "What do I even say here without sounding desperate...",
+          title: "When your crush asks about your weekend first",
+          thought: "They texted first asking what I am doing this weekend. I am completely free, but I cannot look too available... I absolutely want to meet though.",
           chatName: "Maya",
           messages: [
-            { side: "other", text: "Tonight was actually fun." },
-            { side: "other", text: "You are not as annoying as I thought" },
-            { side: "me", text: "I will take that as a compliment." }
+            { side: "other", text: "You worked hard today lol. Did you get home okay?" },
+            { side: "other", text: "What are you doing this weekend? Just resting?" }
           ],
-          suggestion: "Careful. One more compliment and I might ask you out properly."
+          suggestion: "I was going to keep it pretty chill, but I could be convinced to leave the house if the plan is good enough."
         },
         {
           id: "foreign",
@@ -302,15 +301,14 @@ const COPY = {
         {
           id: "rizz",
           label: "썸타는 상대에게",
-          title: "괜히 진지해 보이긴 싫은데, 호감은 보여야 할 때",
-          thought: "뭐라 해야 하지 하... 너무 들이대는 것처럼 보이면 안 되는데",
-          chatName: "지민",
+          title: "짝사랑 상대가 먼저 주말에 뭐하냐고 물어봤을 때",
+          thought: "미쳤다 짝사랑남(녀)한테 주말에 뭐하냐고 선톡 옴 ㅠㅠㅠㅠ 나 주말 일정 하나도 없는데 너무 한가해 보이고 싶진 않고... 근데 무조건 만나고 싶어!",
+          chatName: "상대",
           messages: [
-            { side: "other", text: "오늘 생각보다 재밌었어" },
-            { side: "other", text: "너 은근 웃기더라" },
-            { side: "me", text: "은근은 좀 아쉽네" }
+            { side: "other", text: "오늘 고생 많았어 ㅋㅋㅋ 집엔 잘 들어갔냐" },
+            { side: "other", text: "주말엔 뭐해? 푹 쉴 건가" }
           ],
-          suggestion: "그럼 다음엔 대놓고 웃겨볼게. 내일 커피 한 번 더 할래?"
+          suggestion: "응 잘 들어왔어 ㅋㅋ 주말엔 원래 좀 쉬려고 했는데, 재밌는 약속 생기면 바로 나갈 수는 있음"
         },
         {
           id: "foreign",
