@@ -262,13 +262,13 @@ const COPY = {
       finalKicker: "채팅이 어려울 때 바로",
       finalTitle: "눈치 빠른 AI와 함께하는 대화",
       finalCta: "지금 바로 Sayless 써보기",
-      platformsKicker: "Works with",
-      platformsTitle: "Works with your favorite messaging apps",
-      platformsText: "KakaoTalk, Instagram, Discord, Slack, and more.",
+      platformsKicker: "지원 플랫폼",
+      platformsTitle: "자주 쓰는 메신저와 완벽하게 호환됩니다",
+      platformsText: "카카오톡, Instagram, Discord, Slack 등 다양한 앱을 지원합니다.",
       platformStatusReady: "현재 지원",
       platformStatusPlanned: "확장 예정",
       platformsDisclaimer:
-        "All product names, logos, and brands are property of their respective owners. Sayless is not affiliated with or endorsed by Kakao, Meta, Discord, Slack, or any listed platform.",
+        "모든 제품명, 로고 및 브랜드의 지적재산권은 각 소유자에게 있습니다. Sayless는 카카오, Meta, Discord, Slack 또는 언급된 어떠한 플랫폼과도 공식적인 제휴를 맺거나 이들로부터 보증을 받지 않습니다.",
       platforms: [
         {
           id: "kakao",
