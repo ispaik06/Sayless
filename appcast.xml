@@ -6,6 +6,15 @@
         <description>Most recent changes with links to updates for Sayless.</description>
         <language>en</language>
         <item>
+            <title>0.1.8</title>
+            <pubDate>Wed, 01 Jul 2026 13:12:46 +0900</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.1.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.8/Sayless-0.1.8-9.zip" length="8646846" type="application/octet-stream" sparkle:edSignature="ZVcQzcGGBdhnvDqHoP7YG3j+9lRBcjowjYGZk25LElt1hZ2XlHmGsxXdQGbz4nMhdt2SG3hxBSMISduoi5njBw=="/>
+        </item>
+        <item>
             <title>0.1.7</title>
             <pubDate>Wed, 01 Jul 2026 00:09:15 +0900</pubDate>
             <sparkle:version>8</sparkle:version>
@@ -22,15 +31,6 @@
             <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.6/Sayless-0.1.6-7.zip" length="8603453" type="application/octet-stream" sparkle:edSignature="Tig11H4VUlwkNe12YZBJZ28yWoY+geZbqxRjr8/LUFnLJ+vIvMMTPrDHiZu7jtyvc3iqgLkeAH4aFzXn5t5NBQ=="/>
-        </item>
-        <item>
-            <title>0.1.4</title>
-            <pubDate>Tue, 30 Jun 2026 12:40:11 +0900</pubDate>
-            <sparkle:version>5</sparkle:version>
-            <sparkle:shortVersionString>0.1.4</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.5</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <enclosure url="https://github.com/ispaik06/Sayless/releases/download/v0.1.4/Sayless-0.1.4-5.zip" length="8504369" type="application/octet-stream" sparkle:edSignature="ou8RlDl/2H2kWmDIyW3Yrqwq+6lBXpwYatK+NvfF69WnQyQohrVtlmema+iiu1y3oRH6hCparPvfbKgWUi8WAQ=="/>
         </item>
     </channel>
 </rss>
