@@ -24,7 +24,12 @@ private struct SuggestionIntentPayload: Encodable {
     init(intent: SuggestionIntent) {
         kind = intent.backendKind
         refreshIndex = intent.refreshIndex
-        instruction = intent.instruction
+        instruction = Self.normalizedInstruction(intent.instruction)
+    }
+
+    private static func normalizedInstruction(_ instruction: String?) -> String? {
+        let trimmed = instruction?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : String(trimmed.prefix(500))
     }
 }
 
@@ -57,7 +62,11 @@ final class BackendSuggestionService {
     private let endpoint = BackendConfiguration.endpoint
     private let locale = "auto"
     private let requestTimeout: TimeInterval = 18
-    private let maxTextsPerMessageGroup = 15
+    private let maxTextsPerMessageGroup = 8
+    private let maxTextLength = 800
+    private let maxDraftTextLength = 500
+    private let maxChatRoomTitleLength = 120
+    private let maxSenderNameLength = 80
 
     func suggestions(
         chatRoom: String,
@@ -127,7 +136,7 @@ final class BackendSuggestionService {
 
     private func normalizedDraftText(_ text: String?) -> String? {
         let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? nil : trimmed
+        return trimmed.isEmpty ? nil : String(trimmed.prefix(maxDraftTextLength))
     }
 
     private func normalizedParticipantCount(_ count: Int?) -> Int? {
@@ -140,7 +149,7 @@ final class BackendSuggestionService {
     }
 
     private func chatRoomPayload(title: String, participantCount: Int?) -> ChatRoomPayload? {
-        let normalizedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedTitle = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxChatRoomTitleLength))
         let normalizedParticipantCount = normalizedParticipantCount(participantCount)
 
         guard !normalizedTitle.isEmpty || normalizedParticipantCount != nil else {
@@ -178,7 +187,7 @@ final class BackendSuggestionService {
             let name = name(for: message.sender, role: role)
             let texts = message.text
                 .split(whereSeparator: \.isNewline)
-                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { String(String($0).trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxTextLength)) }
                 .filter { !$0.isEmpty }
 
             guard !texts.isEmpty else {
@@ -220,7 +229,8 @@ final class BackendSuggestionService {
             return nil
         }
 
-        return sender
+        let trimmed = sender.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : String(trimmed.prefix(maxSenderNameLength))
     }
 }
 

@@ -260,6 +260,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.code(400).send({
           error: 'invalid_request',
+          message: 'Suggestion request was too large or malformed',
           details: error.issues.map((issue) => ({
             path: issue.path.join('.'),
             message: issue.message
