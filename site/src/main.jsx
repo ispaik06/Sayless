@@ -76,38 +76,38 @@ const COPY = {
         {
           id: "rizz",
           label: "Rizz",
-          title: "When your crush asks about your weekend first",
-          thought: "They texted first asking what I am doing this weekend. I am completely free, but I cannot look too available... I absolutely want to meet though.",
-          chatName: "Maya",
+          title: "When they casually open the door to plans",
+          thought: "They asked what I am doing this weekend. I am free, but I cannot sound like I have been waiting by my phone. Need playful, available, not desperate.",
+          chatName: "Avery",
           messages: [
-            { side: "other", text: "You worked hard today lol. Did you get home okay?" },
-            { side: "other", text: "What are you doing this weekend? Just resting?" }
+            { side: "other", text: "You survived today lol. Make it home okay?" },
+            { side: "other", text: "What are you up to this weekend? Laying low?" }
           ],
-          suggestion: "I was going to keep it pretty chill, but I could be convinced to leave the house if the plan is good enough."
+          suggestion: "I was planning on a low-key weekend, but I am very open to a plot twist if you have one."
         },
         {
           id: "foreign",
-          label: "Foreign friends",
-          title: "Native-feeling slang without the translator smell",
-          thought: "I want to say I am also freezing at home, but not with a boring 'I agree'. I want something that actually sounds like Discord or IG DM slang.",
-          chatName: "Alex, Yuki",
+          label: "Spanish-speaking friends",
+          title: "When the group chat is flying in Spanish slang",
+          thought: "They are joking in Spanish and I want to jump in without sounding like Google Translate. Need something casual, meme-y, and actually DM-worthy.",
+          chatName: "Sofi, Diego",
           messages: [
-            { side: "other", text: "Why are Korean winters so brutal 🥶 Literally freezing." },
-            { side: "other", text: "共感… こたつから出られない" }
+            { side: "other", text: "Este frío está criminal, no puedo más 🥶" },
+            { side: "other", text: "Literal, estoy modo burrito en la cobija jajaja" }
           ],
-          suggestion: "Fr tho my soul just left my body 💀"
+          suggestion: "Real, estoy en modo NPC congelado rn. No me saquen de la cobija 💀"
         },
         {
           id: "lazy",
           label: "Polite hard boundary",
-          title: "For awkward adults you need to reject perfectly",
-          thought: "I really do not want to meet, but I need to end this politely enough that nobody can call me rude later.",
-          chatName: "Older acquaintance",
+          title: "When someone keeps hinting at plans and you need out",
+          thought: "I do not want to meet up, but I need this to sound gracious and airtight. No awkward follow-up, no open invitation, no drama.",
+          chatName: "Family friend",
           messages: [
-            { side: "other", text: "It is the weekend, are you getting some rest?" },
-            { side: "other", text: "If you have time, we should meet for a meal sometime ^^" }
+            { side: "other", text: "Hope you are getting some rest this weekend." },
+            { side: "other", text: "If you have time, we should grab lunch and catch up sometime." }
           ],
-          suggestion: "Thank you so much for thinking of me. I have a few things I really need to focus on through the weekend, so I do not think I can make any plans for now. Once things settle down, I will reach out first. Hope you have a peaceful weekend."
+          suggestion: "Thank you for thinking of me. I am pretty tied up for the foreseeable future, so I am not able to make plans right now, but I really appreciate the kind thought. Hope you have a restful weekend."
         }
       ],
       steps: [
