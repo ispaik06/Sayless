@@ -5,6 +5,10 @@
 <h1 align="center">Sayless</h1>
 
 <p align="center">
+  <strong><a href="https://ispaik06.github.io/Sayless/">Visit the Sayless Website</a></strong>
+</p>
+
+<p align="center">
   A macOS menu bar app that reads your focused KakaoTalk conversation and suggests three replies you can send without breaking flow.
 </p>
 
