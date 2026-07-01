@@ -68,6 +68,51 @@ const COPY = {
       ],
       workflowKicker: "How it feels",
       workflowTitle: "Less explaining. More replying.",
+      useCasesKicker: "When to use it",
+      useCasesTitle: "For the moments where a reply is not just a reply.",
+      useCasesText:
+        "Sayless helps when the problem is not typing, but deciding what kind of person you want to sound like in that chat.",
+      useCases: [
+        {
+          id: "rizz",
+          label: "Rizz",
+          title: "When you are talking to someone you like",
+          thought: "What do I even say here without sounding desperate...",
+          chatName: "Maya",
+          messages: [
+            { side: "other", text: "Tonight was actually fun." },
+            { side: "other", text: "You are not as annoying as I thought" },
+            { side: "me", text: "I will take that as a compliment." }
+          ],
+          suggestion: "Careful. One more compliment and I might ask you out properly."
+        },
+        {
+          id: "foreign",
+          label: "Foreign friends",
+          title: "When the room moves in another language",
+          thought: "I want to join in with slang and not sound like a textbook...",
+          chatName: "Yuki and Chen",
+          messages: [
+            { side: "other", text: "昨日の写真めっちゃ笑った lol" },
+            { side: "other", text: "你们昨天真的太搞笑了" },
+            { side: "me", text: "I understood like 70% of it" }
+          ],
+          suggestion: "Wait, I caught enough to know I was being roasted in two languages. Fair though, that photo was criminal."
+        },
+        {
+          id: "lazy",
+          label: "Low-energy replies",
+          title: "When you do not really want to talk",
+          thought: "I do not want to be rude, but I also do not want to continue this...",
+          chatName: "Evan",
+          messages: [
+            { side: "other", text: "So what are you doing later?" },
+            { side: "other", text: "We could talk for a bit if you are free" },
+            { side: "me", text: "Maybe, not sure yet" }
+          ],
+          suggestion: "I am pretty wiped today, so I will probably keep it low-key. Hope your night is good though."
+        }
+      ],
       steps: [
         { title: "You are in KakaoTalk", text: "No copying the whole conversation into a separate AI app." },
         {
@@ -85,7 +130,7 @@ const COPY = {
       finalCta: "Review install notes",
       platformsKicker: "Works with",
       platformsTitle: "Works with your favorite messaging apps",
-      platformsText: "KakaoTalk, Instagram, Discord, Slack, and more.",
+      platformsText: "KakaoTalk, Web Instagram, Discord, Slack, and more.",
       platformStatusReady: "Available now",
       platformStatusPlanned: "Planned",
       platformsDisclaimer:
@@ -251,6 +296,51 @@ const COPY = {
       ],
       workflowKicker: "실제로는 이런 느낌",
       workflowTitle: "설명은 줄이고. 답장은 빨리.",
+      useCasesKicker: "어디에 쓰냐면",
+      useCasesTitle: "답장은 문장보다 타이밍과 온도가 더 중요할 때가 많습니다.",
+      useCasesText:
+        "Sayless는 그냥 자동 답장 생성기가 아니라, 지금 채팅방에서 어떤 사람처럼 보여야 할지까지 같이 잡아주는 대화 어시스턴트입니다.",
+      useCases: [
+        {
+          id: "rizz",
+          label: "썸타는 상대에게",
+          title: "괜히 진지해 보이긴 싫은데, 호감은 보여야 할 때",
+          thought: "뭐라 해야 하지 하... 너무 들이대는 것처럼 보이면 안 되는데",
+          chatName: "지민",
+          messages: [
+            { side: "other", text: "오늘 생각보다 재밌었어" },
+            { side: "other", text: "너 은근 웃기더라" },
+            { side: "me", text: "은근은 좀 아쉽네" }
+          ],
+          suggestion: "그럼 다음엔 대놓고 웃겨볼게. 내일 커피 한 번 더 할래?"
+        },
+        {
+          id: "foreign",
+          label: "외국인 친구와 대화할 때",
+          title: "영어나 일본어 섞인 대화에 자연스럽게 끼고 싶을 때",
+          thought: "슬랭 섞으면서 재밌게 얘기 끼고 싶은데, 번역기 말투는 싫어...",
+          chatName: "Alex, Yuki",
+          messages: [
+            { side: "other", text: "昨日の写真めっちゃ笑った lol" },
+            { side: "other", text: "Bro that was actually iconic" },
+            { side: "me", text: "나 그거 아직도 이해 중임" }
+          ],
+          suggestion: "Okay I got roasted in two languages, but honestly that photo deserved it."
+        },
+        {
+          id: "lazy",
+          label: "답장 귀찮은 상대일 때",
+          title: "말하긴 싫은데, 무시하기도 애매할 때",
+          thought: "별로 이어가고 싶진 않은데 뭐라고 끝내야 덜 이상하지",
+          chatName: "민수",
+          messages: [
+            { side: "other", text: "오늘 뭐해?" },
+            { side: "other", text: "시간 되면 좀 얘기하자" },
+            { side: "me", text: "아직 모르겠어" }
+          ],
+          suggestion: "오늘은 좀 정신없어서 길게 얘기하긴 어려울 것 같아. 나중에 여유 생기면 말할게."
+        }
+      ],
       steps: [
         { title: "카톡을 보고 있다가", text: "대화 전체를 다른 AI 앱에 복붙할 필요가 없습니다." },
         {
@@ -477,6 +567,8 @@ function HomePage({ lang, setLang, t }) {
         <section className="demo-section" id="demo">
           <AssistantMockup key={lang} demo={t.demo} />
         </section>
+
+        <UseCasesSection t={t} />
 
         <PlatformsSection t={t} />
 
@@ -1112,6 +1204,56 @@ function FeatureCard({ icon, title, text }) {
       <div className="feature-icon">{icon}</div>
       <h3>{title}</h3>
       <p>{text}</p>
+    </article>
+  );
+}
+
+function UseCasesSection({ t }) {
+  return (
+    <section className="section use-cases-section" aria-label={t.home.useCasesKicker}>
+      <div className="use-cases-heading">
+        <p className="section-kicker">{t.home.useCasesKicker}</p>
+        <h2>{t.home.useCasesTitle}</h2>
+        <p>{t.home.useCasesText}</p>
+      </div>
+      <div className="use-case-grid">
+        {t.home.useCases.map((useCase) => (
+          <UseCaseCard key={useCase.id} useCase={useCase} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function UseCaseCard({ useCase }) {
+  return (
+    <article className={`use-case-card ${useCase.id}`}>
+      <div className="use-case-top">
+        <span className="use-case-pill">{useCase.label}</span>
+        <MessageSquareText size={18} />
+      </div>
+      <h3>{useCase.title}</h3>
+      <div className="mini-chat" aria-label={useCase.chatName}>
+        <div className="mini-chat-head">
+          <span></span>
+          <strong>{useCase.chatName}</strong>
+        </div>
+        <div className="mini-chat-thread">
+          {useCase.messages.map((message, index) => (
+            <p key={`${message.text}-${index}`} className={`mini-message ${message.side}`}>
+              {message.text}
+            </p>
+          ))}
+        </div>
+        <div className="mini-thought">
+          <Wand2 size={15} />
+          <span>{useCase.thought}</span>
+        </div>
+      </div>
+      <div className="mini-suggestion">
+        <span>Sayless</span>
+        <p>{useCase.suggestion}</p>
+      </div>
     </article>
   );
 }
