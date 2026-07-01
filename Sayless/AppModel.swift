@@ -473,8 +473,11 @@ final class AppModel: ObservableObject {
         if accessibilityTrusted {
             overlayController.showTemporary(
                 content: .notice(
-                    title: "Accessibility Enabled",
-                    message: "Sayless already has permission to read the focused KakaoTalk input.",
+                    title: tr("Accessibility Enabled", "손쉬운 사용 권한 켜짐"),
+                    message: tr(
+                        "Sayless already has permission to read the focused KakaoTalk or Web Instagram input.",
+                        "Sayless가 이미 카카오톡 또는 Web Instagram 입력창을 읽을 수 있는 권한을 가지고 있습니다."
+                    ),
                     buttonTitle: nil
                 ),
                 duration: Self.temporaryNoticeDuration
@@ -486,6 +489,10 @@ final class AppModel: ObservableObject {
 
     func openPreferences() {
         openHome(section: .preferences)
+    }
+
+    private func tr(_ english: String, _ korean: String) -> String {
+        AppLanguageSettings.shared.text(english, korean)
     }
 
     func openHome(section: HomeSection = .home) {

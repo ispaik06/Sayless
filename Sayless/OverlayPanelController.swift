@@ -781,7 +781,7 @@ final class OverlayPanelController {
     private func upperFloatingFrame(size: CGSize, visibleFrame: CGRect) -> CGRect {
         let margin: CGFloat = 18
         let safeFrame = visibleFrame.insetBy(dx: margin, dy: margin)
-        let topGap = min(max(visibleFrame.height * 0.13, 84), 132)
+        let topGap = min(max(visibleFrame.height * 0.10, 64), 108)
         let x = clamp(visibleFrame.midX - size.width / 2, min: safeFrame.minX, max: safeFrame.maxX - size.width)
         let y = clamp(visibleFrame.maxY - size.height - topGap, min: safeFrame.minY, max: safeFrame.maxY - size.height)
 
