@@ -101,16 +101,15 @@ const COPY = {
         },
         {
           id: "lazy",
-          label: "Low-energy replies",
-          title: "When you do not really want to talk",
-          thought: "I do not want to be rude, but I also do not want to continue this...",
-          chatName: "Evan",
+          label: "Polite hard boundary",
+          title: "For awkward adults you need to reject perfectly",
+          thought: "I really do not want to meet, but I need to end this politely enough that nobody can call me rude later.",
+          chatName: "Older acquaintance",
           messages: [
-            { side: "other", text: "So what are you doing later?" },
-            { side: "other", text: "We could talk for a bit if you are free" },
-            { side: "me", text: "Maybe, not sure yet" }
+            { side: "other", text: "It is the weekend, are you getting some rest?" },
+            { side: "other", text: "If you have time, we should meet for a meal sometime ^^" }
           ],
-          suggestion: "I am pretty wiped today, so I will probably keep it low-key. Hope your night is good though."
+          suggestion: "Thank you so much for thinking of me. I have a few things I really need to focus on through the weekend, so I do not think I can make any plans for now. Once things settle down, I will reach out first. Hope you have a peaceful weekend."
         }
       ],
       steps: [
@@ -329,16 +328,15 @@ const COPY = {
         },
         {
           id: "lazy",
-          label: "답장 귀찮은 상대일 때",
-          title: "말하긴 싫은데, 무시하기도 애매할 때",
-          thought: "별로 이어가고 싶진 않은데 뭐라고 끝내야 덜 이상하지",
-          chatName: "민수",
+          label: "안 친한 어른",
+          title: "예의 바른 100% 철벽 방어",
+          thought: "진짜 1도 만나기 싫고 카톡도 빨리 끝내고 싶은데, 나중에 버릇없다고 뒷말 안 나오게 세상에서 제일 바쁜 척하면서 예의 바르게 차단하고 싶어.",
+          chatName: "부담스러운 어른",
           messages: [
-            { side: "other", text: "오늘 뭐해?" },
-            { side: "other", text: "시간 되면 좀 얘기하자" },
-            { side: "me", text: "아직 모르겠어" }
+            { side: "other", text: "주말인데 뭐하고 쉬나~" },
+            { side: "other", text: "시간 나면 얼굴이나 한번 보고 밥이나 먹자꾸나 ^^" }
           ],
-          suggestion: "오늘은 좀 정신없어서 길게 얘기하긴 어려울 것 같아. 나중에 여유 생기면 말할게."
+          suggestion: "말씀만으로도 챙겨주셔서 정말 감사드립니다! ㅠㅠ 다만 요즘 쳐내야 할 일들이 좀 쌓여 있어서 주말 내내 꼼짝없이 집중해야 할 것 같습니다. 이 일정 무사히 다 마무리되면 제가 나중에 먼저 연락 올리겠습니다. 평안한 주말 보내세요!"
         }
       ],
       steps: [
