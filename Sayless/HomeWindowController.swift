@@ -413,7 +413,7 @@ private struct HomeView: View {
                     PlatformPill(
                         title: "Web Insta",
                         status: tr("Available now", "현재 지원"),
-                        icon: "camera.fill",
+                        icon: "globe",
                         accent: [Color(red: 0.96, green: 0.20, blue: 0.58), Color(red: 1.0, green: 0.64, blue: 0.20), Color(red: 0.46, green: 0.28, blue: 0.95)],
                         available: true
                     )
