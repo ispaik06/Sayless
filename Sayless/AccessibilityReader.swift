@@ -608,30 +608,27 @@ final class AccessibilityReader {
             return .unsupportedApp
         }
 
-        let windowTitle = chatRoomTitle(for: focusedWindow)
-        let lowerWindowTitle = windowTitle.lowercased()
-        let titleMentionsInstagram = lowerWindowTitle.contains("instagram")
-
-        if titleMentionsInstagram,
-           let fastInput = fastFocusedInstagramInput(in: focusedWindow, appElement: appElement, browserKind: browserKind) {
-            instagramAXLog("Instagram window found: true title=\(shortDebugText(windowTitle)) frame=\(frameText(frame(of: focusedWindow)))")
-            instagramAXLog("fast focused input path used; deferred message snapshot until generation")
-            return webInstagramContext(
-                app: app,
-                window: focusedWindow,
-                input: fastInput,
-                roomTitle: windowTitle.isEmpty ? "Instagram Messages" : windowTitle,
-                chatMessages: []
-            )
-        }
-
-        guard looksLikeInstagramMessagesWindow(focusedWindow, browserKind: browserKind, title: windowTitle) else {
-            instagramAXLog("Instagram window found: false title=\(shortDebugText(windowTitle))")
+        guard looksLikeInstagramMessagesWindow(focusedWindow, browserKind: browserKind) else {
+            instagramAXLog("Instagram window found: false title=\(shortDebugText(chatRoomTitle(for: focusedWindow)))")
             return .unsupportedApp
         }
-        instagramAXLog("Instagram window found: true title=\(shortDebugText(windowTitle)) frame=\(frameText(frame(of: focusedWindow)))")
+        instagramAXLog("Instagram window found: true title=\(shortDebugText(chatRoomTitle(for: focusedWindow))) frame=\(frameText(frame(of: focusedWindow)))")
 
-        let snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: false)
+        let snapshot: InstagramChatSnapshot
+        if browserKind == .safari,
+           let focusedInput = fastFocusedInstagramInput(in: focusedWindow, appElement: appElement, browserKind: browserKind) {
+            snapshot = InstagramChatSnapshot(
+                browserKind: browserKind,
+                chatTitle: chatRoomTitle(for: focusedWindow).isEmpty ? "Instagram Messages" : chatRoomTitle(for: focusedWindow),
+                activeStatus: nil,
+                messages: [],
+                inputField: focusedInput
+            )
+            instagramAXLog("Safari fast focused input path used; deferred message snapshot until generation")
+        } else {
+            snapshot = instagramChatSnapshot(in: focusedWindow, browserKind: browserKind, limit: 20, logExtraction: false)
+        }
+
         let input = snapshot.inputField
         guard let input else {
             instagramAXLog("Instagram chat input found: false")
@@ -644,23 +641,7 @@ final class AccessibilityReader {
             return .unsupportedApp
         }
 
-        return webInstagramContext(
-            app: app,
-            window: focusedWindow,
-            input: input,
-            roomTitle: roomTitle,
-            chatMessages: snapshot.messages
-        )
-    }
-
-    private func webInstagramContext(
-        app: NSRunningApplication,
-        window: AXUIElement,
-        input: AXUIElement,
-        roomTitle: String,
-        chatMessages: [ChatMessage]
-    ) -> SummonResult {
-        let inputFrame = frame(of: input) ?? frame(of: window) ?? .zero
+        let inputFrame = frame(of: input) ?? frame(of: focusedWindow) ?? .zero
 
         return .ready(
             FocusedTextContext(
@@ -668,14 +649,14 @@ final class AccessibilityReader {
                 appName: app.localizedName ?? "Browser",
                 bundleIdentifier: app.bundleIdentifier ?? "",
                 element: input,
-                windowElement: window,
+                windowElement: focusedWindow,
                 windowTitle: roomTitle,
                 participantCount: 2,
                 role: copyStringAttribute(input, kAXRoleAttribute) ?? "",
                 value: textValue(of: input) ?? "",
                 frame: inputFrame,
-                windowFrame: frame(of: window),
-                chatMessages: chatMessages
+                windowFrame: frame(of: focusedWindow),
+                chatMessages: snapshot.messages
             )
         )
     }
@@ -800,12 +781,8 @@ final class AccessibilityReader {
         return false
     }
 
-    private func looksLikeInstagramMessagesWindow(
-        _ window: AXUIElement,
-        browserKind: BrowserKind = .unknown,
-        title rawTitle: String? = nil
-    ) -> Bool {
-        let title = (rawTitle ?? chatRoomTitle(for: window)).lowercased()
+    private func looksLikeInstagramMessagesWindow(_ window: AXUIElement, browserKind: BrowserKind = .unknown) -> Bool {
+        let title = chatRoomTitle(for: window).lowercased()
         if title.contains("instagram") && (title.contains("messages") || title.contains("direct")) {
             return true
         }
