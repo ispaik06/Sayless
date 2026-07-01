@@ -340,16 +340,6 @@ final class AccessibilityReader {
         }
     }
 
-    func fastVisibleRoomTitle(for context: FocusedTextContext) -> String? {
-        guard context.source == .webInstagram,
-              let window = context.windowElement else {
-            return nil
-        }
-
-        let browserKind = browserKind(appName: context.appName, bundleIdentifier: context.bundleIdentifier)
-        return fastInstagramRoomTitle(in: window, browserKind: browserKind)
-    }
-
     func latestVisibleMessageSignature(for context: FocusedTextContext) -> ChatTimelineSignature? {
         guard let window = context.windowElement else {
             return nil
@@ -666,11 +656,9 @@ final class AccessibilityReader {
         let snapshot: InstagramChatSnapshot
         if browserKind == .safari,
            let focusedInput = fastFocusedInstagramInput(in: focusedWindow, appElement: appElement, browserKind: browserKind) {
-            let fallbackTitle = chatRoomTitle(for: focusedWindow)
             snapshot = InstagramChatSnapshot(
                 browserKind: browserKind,
-                chatTitle: fastInstagramRoomTitle(in: focusedWindow, browserKind: browserKind)
-                    ?? (fallbackTitle.isEmpty ? "Instagram Messages" : fallbackTitle),
+                chatTitle: chatRoomTitle(for: focusedWindow).isEmpty ? "Instagram Messages" : chatRoomTitle(for: focusedWindow),
                 activeStatus: nil,
                 messages: [],
                 inputField: focusedInput
@@ -2040,32 +2028,6 @@ final class AccessibilityReader {
         }
 
         return nil
-    }
-
-    private func fastInstagramRoomTitle(
-        in window: AXUIElement,
-        browserKind: BrowserKind = .unknown
-    ) -> String? {
-        let windowFrame = frame(of: window)
-        let maxDepth = browserKind == .chrome ? 26 : 18
-        let maxNodes = browserKind == .chrome ? 1600 : 900
-        let textCandidates = collectInstagramStaticTextCandidates(
-            in: window,
-            maxDepth: maxDepth,
-            maxNodes: maxNodes
-        )
-        let title = instagramRoomTitleCandidates(from: textCandidates, windowFrame: windowFrame).first?.text
-        if let title {
-            return title
-        }
-
-        let fallback = chatRoomTitle(for: window)
-        let lowered = fallback.lowercased()
-        if fallback.isEmpty || lowered.contains("instagram") {
-            return nil
-        }
-
-        return fallback
     }
 
     private func instagramRoomTitleCandidates(

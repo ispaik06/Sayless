@@ -227,24 +227,26 @@ final class OverlayPanelController {
         latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
         state.hasNewerVisibleMessages = false
 
-        if !content.activeSuggestions.isEmpty {
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
-                let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
+        if content.activeSuggestions.isEmpty {
+            return
+        }
 
-                DispatchQueue.main.async { [weak self] in
-                    guard let self,
-                          self.displayGeneration == generation,
-                          self.isVisible else {
-                        return
-                    }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.8) {
+            let signature = AccessibilityReader().latestVisibleMessageSignature(for: context)
 
-                    self.latestMessageSignature = signature
-                    self.latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.displayGeneration == generation,
+                      self.isVisible else {
+                    return
                 }
+
+                self.latestMessageSignature = signature
+                self.latestMessageCheckTime = CFAbsoluteTimeGetCurrent()
             }
         }
 
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: context.source == .webInstagram ? 1.2 : 0.5, repeats: true) { [weak self] _ in
             guard let self else {
                 return
             }
@@ -261,45 +263,11 @@ final class OverlayPanelController {
                 return
             }
 
-            if self.hasSourceConversationChanged(for: context) {
-                self.onSourceWindowInvalidated?()
-                self.resetSuggestionState()
-                self.hide()
-                return
-            }
-
             self.detectNewVisibleMessage(for: context)
         }
 
         sourceWindowMonitor = timer
         RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func hasSourceConversationChanged(for context: FocusedTextContext) -> Bool {
-        guard context.source == .webInstagram else {
-            return false
-        }
-
-        let expected = normalizedConversationTitle(context.windowTitle)
-        guard !expected.isEmpty,
-              expected != "instagram messages",
-              expected != "instagram • messages",
-              expected != "instagram · messages" else {
-            return false
-        }
-
-        guard let currentTitle = accessibilityReader.fastVisibleRoomTitle(for: context) else {
-            return false
-        }
-
-        let current = normalizedConversationTitle(currentTitle)
-        return !current.isEmpty && current != expected
-    }
-
-    private func normalizedConversationTitle(_ title: String) -> String {
-        title
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
     }
 
     private func detectNewVisibleMessage(for context: FocusedTextContext) {
