@@ -84,7 +84,7 @@ final class AuthSessionManager: ObservableObject {
 
     private static var clerkOptions: Clerk.Options {
         let bundleIdentifier = Bundle.main.bundleIdentifier ?? "ispaik.Sayless"
-        let keychainService = "\(bundleIdentifier).clerk.v3"
+        let keychainService = "\(bundleIdentifier).clerk.v4"
 
         return Clerk.Options(
             telemetryEnabled: false,
@@ -94,7 +94,7 @@ final class AuthSessionManager: ObservableObject {
 
     private static func prepareClerkKeychainStorageIfNeeded() {
         let storageGenerationKey = "clerkKeychainStorageGeneration"
-        let currentGeneration = 3
+        let currentGeneration = 4
         guard UserDefaults.standard.integer(forKey: storageGenerationKey) < currentGeneration else {
             return
         }
@@ -103,6 +103,7 @@ final class AuthSessionManager: ObservableObject {
         let legacyServices = [
             bundleIdentifier,
             "\(bundleIdentifier).clerk.v2",
+            "\(bundleIdentifier).clerk.v3",
             "\(bundleIdentifier).clerk.debug.\(ProcessInfo.processInfo.processIdentifier)"
         ]
 
