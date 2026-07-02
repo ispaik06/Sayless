@@ -436,6 +436,26 @@ final class AccessibilityReader {
         }
     }
 
+    func isValidInsertionElement(_ element: AXUIElement, for context: FocusedTextContext) -> Bool {
+        switch context.source {
+        case .kakaoTalk:
+            return true
+        case .webInstagram:
+            guard let window = context.windowElement else {
+                instagramAXLog("cached insertion validation failed: missing Instagram window")
+                return false
+            }
+
+            let browserKind = browserKind(appName: context.appName, bundleIdentifier: context.bundleIdentifier)
+            return validateInstagramInsertionTarget(
+                element,
+                window: window,
+                browserKind: browserKind,
+                logPrefix: "cached insertion validation"
+            )
+        }
+    }
+
     func setValue(_ text: String, into element: AXUIElement) -> Bool {
         AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, text as CFTypeRef) == .success
     }

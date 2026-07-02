@@ -16,6 +16,7 @@ final class OverlayPanelController {
     private var sourceWindowMonitor: Timer?
     private var latestMessageSignature: ChatTimelineSignature?
     private var latestMessageCheckTime: CFAbsoluteTime = 0
+    private var prewarmedInsertionTarget: (generation: Int, target: AXUIElement)?
     var onSuggestionGenerationRequested: ((FocusedTextContext, SuggestionIntent) -> Void)?
     var onContextResetRequested: ((FocusedTextContext) -> Void)?
     var onSuggestionAccepted: (() -> Void)?
@@ -61,7 +62,7 @@ final class OverlayPanelController {
         batches: [SuggestionBatch],
         near axFrame: CGRect?
     ) -> Int {
-        show(
+        let generation = show(
             content: .suggestions(
                 context: context,
                 batches: batches,
@@ -69,6 +70,8 @@ final class OverlayPanelController {
             ),
             near: axFrame
         )
+        prewarmInsertionTarget(for: context, generation: generation)
+        return generation
     }
 
     @discardableResult
@@ -97,6 +100,7 @@ final class OverlayPanelController {
             relayoutPanel(for: state.content, animated: false)
         }
         startSourceWindowMonitor(for: state.content)
+        prewarmInsertionTarget(for: context, generation: generation)
     }
 
     func finishSuggestionRequest() {
@@ -109,6 +113,7 @@ final class OverlayPanelController {
         state.selectedAdjustmentIndex = nil
         clearCustomInstruction()
         latestMessageSignature = nil
+        prewarmedInsertionTarget = nil
     }
 
     func update(content: OverlayContent, for generation: Int) {
@@ -191,6 +196,7 @@ final class OverlayPanelController {
         displayGeneration += 1
         let generation = displayGeneration
         stopSourceWindowMonitor()
+        prewarmedInsertionTarget = nil
 
         guard let panel,
               panel.isVisible else {
@@ -281,6 +287,29 @@ final class OverlayPanelController {
 
         sourceWindowMonitor = timer
         RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func prewarmInsertionTarget(for context: FocusedTextContext, generation: Int) {
+        guard context.source == .webInstagram else {
+            return
+        }
+
+        prewarmedInsertionTarget = nil
+        DispatchQueue.global(qos: .utility).async {
+            let reader = AccessibilityReader()
+            let target = reader.insertionElement(for: context)
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.displayGeneration == generation,
+                      self.isVisible,
+                      let target else {
+                    return
+                }
+
+                self.prewarmedInsertionTarget = (generation: generation, target: target)
+            }
+        }
     }
 
     private func normalizedWebInstagramURL(_ rawURL: String?) -> String? {
@@ -464,7 +493,10 @@ final class OverlayPanelController {
     }
 
     private func accept(suggestion: Suggestion, context: FocusedTextContext) {
-        insertionService.insert(suggestion.text, into: context)
+        let cachedTarget = prewarmedInsertionTarget?.generation == displayGeneration
+            ? prewarmedInsertionTarget?.target
+            : nil
+        insertionService.insert(suggestion.text, into: context, prevalidatedTarget: cachedTarget)
         onSuggestionAccepted?()
         hide()
     }

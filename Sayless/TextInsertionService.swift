@@ -2,9 +2,13 @@ import AppKit
 import ApplicationServices
 
 final class TextInsertionService {
-    func insert(_ text: String, into context: FocusedTextContext) {
+    func insert(_ text: String, into context: FocusedTextContext, prevalidatedTarget: AXUIElement? = nil) {
         let reader = AccessibilityReader()
-        guard let target = reader.insertionElement(for: context) else {
+        let cachedTarget = prevalidatedTarget.flatMap { target in
+            reader.isValidInsertionElement(target, for: context) ? target : nil
+        }
+
+        guard let target = cachedTarget ?? reader.insertionElement(for: context) else {
             return
         }
         let insertionContext = contextWithTarget(target, from: context, reader: reader)
