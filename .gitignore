@@ -24,3 +24,8 @@ dist/
 
 # Local docs
 docs/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
