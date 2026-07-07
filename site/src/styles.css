@@ -116,6 +116,33 @@ button {
   gap: 10px;
 }
 
+.service-notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px clamp(18px, 5vw, 72px) 0;
+  border: 1px solid rgba(201, 104, 36, 0.28);
+  border-radius: 8px;
+  padding: 13px 16px;
+  color: #342318;
+  background:
+    linear-gradient(135deg, rgba(255, 247, 237, 0.94), rgba(255, 255, 255, 0.86)),
+    #fff7ed;
+  box-shadow: 0 12px 30px rgba(120, 53, 15, 0.08);
+}
+
+.service-notice strong {
+  flex: 0 0 auto;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.service-notice span {
+  color: #6d4a2f;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .language-toggle {
   display: inline-flex;
   align-items: center;
@@ -2434,6 +2461,12 @@ button {
 
   .topbar-actions {
     margin-left: auto;
+  }
+
+  .service-notice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .language-toggle {

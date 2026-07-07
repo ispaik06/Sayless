@@ -1,9 +1,32 @@
-import 'dotenv/config';
-
 export type SuggestionProvider = 'mock' | 'openai' | 'gemini' | 'groq';
 
-function readNumber(name: string, fallback: number): number {
-  const raw = process.env[name];
+export type Env = {
+  AI_PROVIDER?: string;
+  SUGGESTION_MODE?: string;
+  AI_MODEL?: string;
+  OPENAI_MODEL?: string;
+  AI_BASE_URL?: string;
+  OPENAI_API_KEY?: string;
+  GEMINI_API_KEY?: string;
+  GROQ_API_KEY?: string;
+  NODE_ENV?: string;
+  CLERK_SECRET_KEY?: string;
+  CLERK_PUBLISHABLE_KEY?: string;
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?: string;
+  TURSO_DATABASE_URL?: string;
+  TURSO_AUTH_TOKEN?: string;
+  FREE_DAILY_SUGGESTION_LIMIT?: string;
+  FREE_WEEKLY_SUGGESTION_LIMIT?: string;
+  GITHUB_RELEASE_OWNER?: string;
+  GITHUB_RELEASE_REPO?: string;
+  GITHUB_TOKEN?: string;
+  GH_TOKEN?: string;
+};
+
+export type AppConfig = ReturnType<typeof createConfig>;
+
+function readNumber(env: Env, name: keyof Env, fallback: number): number {
+  const raw = env[name];
   if (!raw) {
     return fallback;
   }
@@ -12,26 +35,26 @@ function readNumber(name: string, fallback: number): number {
   return Number.isFinite(value) ? value : fallback;
 }
 
-function readSuggestionProvider(): SuggestionProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase();
+function readSuggestionProvider(env: Env): SuggestionProvider {
+  const provider = env.AI_PROVIDER?.toLowerCase();
   if (isSuggestionProvider(provider)) {
     return provider;
   }
 
-  if (process.env.SUGGESTION_MODE) {
-    const mode = process.env.SUGGESTION_MODE.toLowerCase();
+  if (env.SUGGESTION_MODE) {
+    const mode = env.SUGGESTION_MODE.toLowerCase();
     return isSuggestionProvider(mode) ? mode : 'mock';
   }
 
-  if (process.env.GEMINI_API_KEY) {
+  if (env.GEMINI_API_KEY) {
     return 'gemini';
   }
 
-  if (process.env.GROQ_API_KEY) {
+  if (env.GROQ_API_KEY) {
     return 'groq';
   }
 
-  return process.env.OPENAI_API_KEY ? 'openai' : 'mock';
+  return env.OPENAI_API_KEY ? 'openai' : 'mock';
 }
 
 function isSuggestionProvider(value: string | undefined): value is SuggestionProvider {
@@ -63,44 +86,44 @@ function defaultBaseUrlForProvider(provider: SuggestionProvider): string | undef
   }
 }
 
-function apiKeyForProvider(provider: SuggestionProvider): string | undefined {
+function apiKeyForProvider(env: Env, provider: SuggestionProvider): string | undefined {
   switch (provider) {
     case 'gemini':
-      return process.env.GEMINI_API_KEY;
+      return env.GEMINI_API_KEY;
     case 'groq':
-      return process.env.GROQ_API_KEY;
+      return env.GROQ_API_KEY;
     case 'openai':
-      return process.env.OPENAI_API_KEY;
+      return env.OPENAI_API_KEY;
     case 'mock':
       return undefined;
   }
 }
 
-const suggestionProvider = readSuggestionProvider();
+export function createConfig(env: Env) {
+  const suggestionProvider = readSuggestionProvider(env);
 
-export const config = {
-  host: '0.0.0.0',
-  port: readNumber('PORT', 3000),
-  nodeEnv: process.env.NODE_ENV ?? 'development',
-  suggestionProvider,
-  aiModel: process.env.AI_MODEL ?? process.env.OPENAI_MODEL ?? defaultModelForProvider(suggestionProvider),
-  aiBaseUrl: process.env.AI_BASE_URL ?? defaultBaseUrlForProvider(suggestionProvider),
-  aiApiKey: apiKeyForProvider(suggestionProvider),
-  openaiApiKey: process.env.OPENAI_API_KEY,
-  geminiApiKey: process.env.GEMINI_API_KEY,
-  groqApiKey: process.env.GROQ_API_KEY,
-  clerkSecretKey: process.env.CLERK_SECRET_KEY,
-  clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-  tursoDatabaseUrl: process.env.TURSO_DATABASE_URL ?? '',
-  tursoAuthToken: process.env.TURSO_AUTH_TOKEN,
-  freeDailySuggestionLimit: readNumber('FREE_DAILY_SUGGESTION_LIMIT', 100),
-  freeWeeklySuggestionLimit: readNumber('FREE_WEEKLY_SUGGESTION_LIMIT', 500),
-  githubReleaseOwner: process.env.GITHUB_RELEASE_OWNER ?? 'ispaik06',
-  githubReleaseRepo: process.env.GITHUB_RELEASE_REPO ?? 'Sayless',
-  githubToken: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
-} as const;
+  return {
+    nodeEnv: env.NODE_ENV ?? 'production',
+    suggestionProvider,
+    aiModel: env.AI_MODEL ?? env.OPENAI_MODEL ?? defaultModelForProvider(suggestionProvider),
+    aiBaseUrl: env.AI_BASE_URL ?? defaultBaseUrlForProvider(suggestionProvider),
+    aiApiKey: apiKeyForProvider(env, suggestionProvider),
+    openaiApiKey: env.OPENAI_API_KEY,
+    geminiApiKey: env.GEMINI_API_KEY,
+    groqApiKey: env.GROQ_API_KEY,
+    clerkSecretKey: env.CLERK_SECRET_KEY,
+    clerkPublishableKey: env.CLERK_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    tursoDatabaseUrl: env.TURSO_DATABASE_URL ?? '',
+    tursoAuthToken: env.TURSO_AUTH_TOKEN,
+    freeDailySuggestionLimit: readNumber(env, 'FREE_DAILY_SUGGESTION_LIMIT', 100),
+    freeWeeklySuggestionLimit: readNumber(env, 'FREE_WEEKLY_SUGGESTION_LIMIT', 500),
+    githubReleaseOwner: env.GITHUB_RELEASE_OWNER ?? 'ispaik06',
+    githubReleaseRepo: env.GITHUB_RELEASE_REPO ?? 'Sayless',
+    githubToken: env.GITHUB_TOKEN ?? env.GH_TOKEN
+  } as const;
+}
 
-export function assertAIConfigured(): void {
+export function assertAIConfigured(config: AppConfig): void {
   if (config.suggestionProvider !== 'mock' && !config.aiApiKey) {
     throw new Error(`AI_PROVIDER=${config.suggestionProvider} requires ${apiKeyNameForProvider(config.suggestionProvider)}`);
   }

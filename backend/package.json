@@ -7,9 +7,9 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "wrangler dev",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "deploy": "wrangler deploy",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --import tsx src/**/*.test.ts",
     "db:generate": "drizzle-kit generate",
@@ -17,13 +17,10 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@clerk/fastify": "^3.1.42",
-    "@fastify/cors": "^11.2.0",
-    "@fastify/rate-limit": "^11.0.0",
+    "@clerk/backend": "^3.8.4",
     "@libsql/client": "^0.17.4",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "fastify": "^5.8.5",
     "openai": "^6.45.0",
     "zod": "^4.4.3"
   },
@@ -31,6 +28,7 @@
     "@types/node": "^26.0.1",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.24.3"
   }
 }

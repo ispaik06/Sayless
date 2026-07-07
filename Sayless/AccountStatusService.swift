@@ -47,7 +47,7 @@ final class AccountStatusService: ObservableObject {
     }
 
     private static var meURL: URL {
-        let fallbackEndpoint = "https://sayless-production-e6b4.up.railway.app/suggestions"
+        let fallbackEndpoint = "https://sayless-backend.example.invalid/suggestions"
         let rawEndpoint = nonEmptyString(Bundle.main.object(forInfoDictionaryKey: "SaylessBackendURL") as? String) ?? fallbackEndpoint
         let endpoint = URL(string: rawEndpoint) ?? URL(string: fallbackEndpoint)!
 
@@ -55,7 +55,7 @@ final class AccountStatusService: ObservableObject {
         components?.path = "/me"
         components?.query = nil
 
-        return components?.url ?? URL(string: "https://sayless-production-e6b4.up.railway.app/me")!
+        return components?.url ?? URL(string: "https://sayless-backend.example.invalid/me")!
     }
 
     private static func nonEmptyString(_ value: String?) -> String? {

@@ -1,15 +1,28 @@
-import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
-import { hashIdentifier, requireAuth } from './auth.js';
-import { config } from './config.js';
+import { authenticateRequest, hashIdentifier, type AuthenticatedUser } from './auth.js';
+import type { AppConfig } from './config.js';
+import type { Database } from './db/client.js';
 import { ensureUserForClerkId, getAccountStatus, recordAIUsageEvent } from './db/accounts.js';
 import { DownloadReleaseError, fetchLatestDmgAsset } from './downloadRelease.js';
 import { createMockSuggestions } from './mockSuggestions.js';
 import { InvalidAIResponseError, UnsafeSuggestionGuardError, createAISuggestionsWithUsage } from './openaiSuggestions.js';
 import { SuggestionRequestSchema } from './schemas.js';
 
-function elapsedMs(startedAt: bigint): number {
-  return Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+type RouteContext = {
+  config: AppConfig;
+  db: Database;
+  request: Request;
+};
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Authorization,Content-Type',
+  'Access-Control-Max-Age': '86400'
+};
+
+function elapsedMs(startedAt: number): number {
+  return performance.now() - startedAt;
 }
 
 function isAIConfigurationError(error: unknown): boolean {
@@ -34,7 +47,7 @@ function isAIRequestError(error: unknown): boolean {
   return Boolean(maybeOpenAIError.status || maybeOpenAIError.code || maybeOpenAIError.type);
 }
 
-function loggableError(error: unknown): Record<string, unknown> {
+function loggableError(error: unknown, config: AppConfig): Record<string, unknown> {
   if (!(error instanceof Error)) {
     return {
       message: 'unknown error',
@@ -56,257 +69,384 @@ function loggableError(error: unknown): Record<string, unknown> {
     code: maybeOpenAIError.code,
     type: maybeOpenAIError.type,
     param: maybeOpenAIError.param,
-    stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    stack: config.nodeEnv === 'development' ? error.stack : undefined
   };
 }
 
-export async function registerRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/health', async () => ({
+function json(body: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(body), {
+    ...init,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      ...corsHeaders,
+      ...init.headers
+    }
+  });
+}
+
+function redirect(location: string): Response {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      ...corsHeaders,
+      'Cache-Control': 'no-store',
+      Location: location
+    }
+  });
+}
+
+function notFound(): Response {
+  return json(
+    {
+      error: 'not_found',
+      message: 'Route not found'
+    },
+    { status: 404 }
+  );
+}
+
+function methodNotAllowed(): Response {
+  return json(
+    {
+      error: 'method_not_allowed',
+      message: 'Method not allowed'
+    },
+    { status: 405 }
+  );
+}
+
+export async function handleRequest(context: RouteContext): Promise<Response> {
+  const { request } = context;
+  const url = new URL(request.url);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
+  }
+
+  if (url.pathname === '/health') {
+    return request.method === 'GET' ? handleHealth(context) : methodNotAllowed();
+  }
+
+  if (url.pathname === '/download') {
+    return request.method === 'GET' ? handleDownload(context) : methodNotAllowed();
+  }
+
+  if (url.pathname === '/auth/config') {
+    return request.method === 'GET' ? handleAuthConfig(context) : methodNotAllowed();
+  }
+
+  if (url.pathname === '/me') {
+    return request.method === 'GET' ? handleMe(context) : methodNotAllowed();
+  }
+
+  if (url.pathname === '/suggestions') {
+    return request.method === 'POST' ? handleSuggestions(context) : methodNotAllowed();
+  }
+
+  return notFound();
+}
+
+type AuthResult =
+  | {
+      auth: AuthenticatedUser;
+    }
+  | {
+      response: Response;
+    };
+
+async function requireAuth(context: RouteContext): Promise<AuthResult> {
+  const auth = await authenticateRequest(context.request, context.config);
+  if (!auth) {
+    return {
+      response: json(
+        {
+          error: 'unauthorized',
+          message: 'Authentication required'
+        },
+        { status: 401 }
+      )
+    };
+  }
+
+  return {
+    auth
+  };
+}
+
+function handleHealth({ config }: RouteContext): Response {
+  return json({
     ok: true,
     service: 'sayless-backend',
     provider: config.suggestionProvider,
     model: config.aiModel
-  }));
+  });
+}
 
-  app.get('/download', async (request, reply) => {
-    try {
-      const { tagName, asset } = await fetchLatestDmgAsset({
-        owner: config.githubReleaseOwner,
-        repo: config.githubReleaseRepo,
-        token: config.githubToken
-      });
+async function handleDownload({ config }: RouteContext): Promise<Response> {
+  try {
+    const { tagName, asset } = await fetchLatestDmgAsset({
+      owner: config.githubReleaseOwner,
+      repo: config.githubReleaseRepo,
+      token: config.githubToken
+    });
 
-      request.log.info(
-        {
-          repo: `${config.githubReleaseOwner}/${config.githubReleaseRepo}`,
-          tagName,
-          assetName: asset.name
-        },
-        'redirecting to latest dmg release asset'
+    console.info(
+      JSON.stringify({
+        event: 'download_redirect',
+        repo: `${config.githubReleaseOwner}/${config.githubReleaseRepo}`,
+        tagName,
+        assetName: asset.name
+      })
+    );
+
+    return redirect(asset.browser_download_url);
+  } catch (error) {
+    if (error instanceof DownloadReleaseError) {
+      console.warn(
+        JSON.stringify({
+          event: 'download_redirect_failed',
+          code: error.code,
+          statusCode: error.statusCode,
+          message: error.message
+        })
       );
 
-      return reply
-        .header('Cache-Control', 'no-store')
-        .code(302)
-        .redirect(asset.browser_download_url);
-    } catch (error) {
-      if (error instanceof DownloadReleaseError) {
-        request.log.warn(
-          {
-            code: error.code,
-            statusCode: error.statusCode,
-            message: error.message
-          },
-          'download redirect failed'
-        );
-
-        return reply.code(error.statusCode).send({
+      return json(
+        {
           error: error.code,
           message: error.message
-        });
-      }
-
-      request.log.error(
-        {
-          error: loggableError(error)
         },
-        'download redirect failed'
+        { status: error.statusCode }
       );
+    }
 
-      return reply.code(502).send({
+    console.error(
+      JSON.stringify({
+        event: 'download_redirect_failed',
+        error: loggableError(error, config)
+      })
+    );
+
+    return json(
+      {
         error: 'download_redirect_failed',
         message: 'Could not resolve latest Sayless DMG download'
-      });
-    }
-  });
+      },
+      { status: 502 }
+    );
+  }
+}
 
-  app.get('/auth/config', async (_request, reply) => {
-    if (!config.clerkPublishableKey) {
-      return reply.code(500).send({
+function handleAuthConfig({ config }: RouteContext): Response {
+  if (!config.clerkPublishableKey) {
+    return json(
+      {
         error: 'configuration_error',
         message: 'Clerk publishable key is not configured'
-      });
+      },
+      { status: 500 }
+    );
+  }
+
+  return json({
+    clerkPublishableKey: config.clerkPublishableKey
+  });
+}
+
+async function handleMe(context: RouteContext): Promise<Response> {
+  const authResult = await requireAuth(context);
+  if ('response' in authResult) {
+    return authResult.response;
+  }
+
+  const accountStatus = await getAccountStatus(context.db, authResult.auth.clerkUserId);
+
+  return json({
+    ...accountStatus,
+    limits: {
+      dailySuggestions: context.config.freeDailySuggestionLimit,
+      weeklySuggestions: context.config.freeWeeklySuggestionLimit
+    }
+  });
+}
+
+async function handleSuggestions(context: RouteContext): Promise<Response> {
+  const startedAt = performance.now();
+  const { config, db, request } = context;
+
+  try {
+    const authResult = await requireAuth(context);
+    if ('response' in authResult) {
+      return authResult.response;
     }
 
-    return {
-      clerkPublishableKey: config.clerkPublishableKey
-    };
-  });
+    const input = SuggestionRequestSchema.parse(await request.json());
+    const userHash = await hashIdentifier(authResult.auth.clerkUserId);
+    const user = await ensureUserForClerkId(db, authResult.auth.clerkUserId);
+    const accountStatus = await getAccountStatus(db, authResult.auth.clerkUserId);
+    const exceededLimit = freeUsageLimitExceeded(config, accountStatus.usage);
 
-  app.get('/me', async (request, reply) => {
-    const auth = requireAuth(request, reply);
-    if (!auth) {
-      return reply;
-    }
+    if (accountStatus.plan === 'free' && exceededLimit) {
+      console.warn(
+        JSON.stringify({
+          event: 'suggestions_usage_limit_exceeded',
+          userHash,
+          scope: exceededLimit.scope,
+          usageRequests: exceededLimit.requests,
+          freeSuggestionLimit: exceededLimit.limit,
+          elapsedMs: Math.round(elapsedMs(startedAt))
+        })
+      );
 
-    const accountStatus = await getAccountStatus(auth.clerkUserId);
-
-    return {
-      ...accountStatus,
-      limits: {
-        dailySuggestions: config.freeDailySuggestionLimit,
-        weeklySuggestions: config.freeWeeklySuggestionLimit
-      }
-    };
-  });
-
-  app.post('/suggestions', async (request, reply) => {
-    const startedAt = process.hrtime.bigint();
-
-    try {
-      const auth = requireAuth(request, reply);
-      if (!auth) {
-        return reply;
-      }
-
-      const input = SuggestionRequestSchema.parse(request.body);
-      const userHash = hashIdentifier(auth.clerkUserId);
-      const user = await ensureUserForClerkId(auth.clerkUserId);
-      const accountStatus = await getAccountStatus(auth.clerkUserId);
-      const exceededLimit = freeUsageLimitExceeded(accountStatus.usage);
-
-      if (accountStatus.plan === 'free' && exceededLimit) {
-        request.log.warn(
-          {
-            userHash,
-            scope: exceededLimit.scope,
-            usageRequests: exceededLimit.requests,
-            freeSuggestionLimit: exceededLimit.limit,
-            elapsedMs: Math.round(elapsedMs(startedAt))
-          },
-          'suggestions usage limit exceeded'
-        );
-
-        return reply.code(402).send({
+      return json(
+        {
           error: 'usage_limit_exceeded',
           message: exceededLimit.message,
           plan: accountStatus.plan,
           scope: exceededLimit.scope,
           usage: accountStatus.usage,
           limit: exceededLimit.limit
-        });
+        },
+        { status: 402 }
+      );
+    }
+
+    const result =
+      config.suggestionProvider !== 'mock'
+        ? await createAISuggestionsWithUsage(config, input)
+        : {
+            suggestions: createMockSuggestions(input),
+            usage: []
+          };
+    const usageTotals = aggregateUsage(result.usage);
+
+    await recordAIUsageEvent(db, {
+      userId: user.id,
+      provider: config.suggestionProvider,
+      model: config.aiModel,
+      inputTokens: usageTotals.inputTokens,
+      outputTokens: usageTotals.outputTokens,
+      totalTokens: usageTotals.totalTokens,
+      latencyMs: usageTotals.latencyMs,
+      metadata: {
+        chatRoomPresent: Boolean(input.chatRoom),
+        participantCount: input.chatRoom?.participantCount ?? null,
+        draftTextPresent: Boolean(input.draftText),
+        activeSuggestionsPresent: Boolean(input.activeSuggestions),
+        intent: input.intent?.kind ?? 'initial',
+        refreshIndex: input.intent?.refreshIndex ?? null,
+        messageCount: input.messages.length,
+        attempts: result.usage.map((item) => ({
+          attempt: item.attempt,
+          usagePresent: item.usagePresent,
+          totalTokens: item.totalTokens,
+          latencyMs: Math.round(item.latencyMs)
+        }))
       }
+    });
 
-      const result =
-        config.suggestionProvider !== 'mock'
-          ? await createAISuggestionsWithUsage(input)
-          : {
-              suggestions: createMockSuggestions(input),
-              usage: []
-            };
-      const usageTotals = aggregateUsage(result.usage);
-
-      await recordAIUsageEvent({
-        userId: user.id,
+    console.info(
+      JSON.stringify({
+        event: 'suggestions_generated',
+        chatRoomPresent: Boolean(input.chatRoom),
+        participantCount: input.chatRoom?.participantCount ?? null,
+        draftTextPresent: Boolean(input.draftText),
+        activeSuggestionsPresent: Boolean(input.activeSuggestions),
+        intent: input.intent?.kind ?? 'initial',
+        refreshIndex: input.intent?.refreshIndex ?? null,
+        messageCount: input.messages.length,
+        userHash,
         provider: config.suggestionProvider,
         model: config.aiModel,
+        plan: accountStatus.plan,
+        freeDailySuggestionLimit: config.freeDailySuggestionLimit,
+        freeWeeklySuggestionLimit: config.freeWeeklySuggestionLimit,
         inputTokens: usageTotals.inputTokens,
         outputTokens: usageTotals.outputTokens,
         totalTokens: usageTotals.totalTokens,
-        latencyMs: usageTotals.latencyMs,
-        metadata: {
-          chatRoomPresent: Boolean(input.chatRoom),
-          participantCount: input.chatRoom?.participantCount ?? null,
-          draftTextPresent: Boolean(input.draftText),
-          activeSuggestionsPresent: Boolean(input.activeSuggestions),
-          intent: input.intent?.kind ?? 'initial',
-          refreshIndex: input.intent?.refreshIndex ?? null,
-          messageCount: input.messages.length,
-          attempts: result.usage.map((item) => ({
-            attempt: item.attempt,
-            usagePresent: item.usagePresent,
-            totalTokens: item.totalTokens,
-            latencyMs: Math.round(item.latencyMs)
-          }))
-        }
-      });
+        elapsedMs: Math.round(elapsedMs(startedAt))
+      })
+    );
 
-      request.log.info(
-        {
-          chatRoomPresent: Boolean(input.chatRoom),
-          participantCount: input.chatRoom?.participantCount ?? null,
-          draftTextPresent: Boolean(input.draftText),
-          activeSuggestionsPresent: Boolean(input.activeSuggestions),
-          intent: input.intent?.kind ?? 'initial',
-          refreshIndex: input.intent?.refreshIndex ?? null,
-          messageCount: input.messages.length,
-          userHash,
-          provider: config.suggestionProvider,
-          model: config.aiModel,
-          plan: accountStatus.plan,
-          freeDailySuggestionLimit: config.freeDailySuggestionLimit,
-          freeWeeklySuggestionLimit: config.freeWeeklySuggestionLimit,
-          inputTokens: usageTotals.inputTokens,
-          outputTokens: usageTotals.outputTokens,
-          totalTokens: usageTotals.totalTokens,
-          elapsedMs: Math.round(elapsedMs(startedAt))
-        },
-        'suggestions generated'
-      );
-
-      return result.suggestions;
-    } catch (error) {
-      if (error instanceof ZodError) {
-        request.log.warn(
-          {
-            issues: error.issues.map((issue) => ({
+    return json(result.suggestions);
+  } catch (error) {
+    if (error instanceof ZodError || error instanceof SyntaxError) {
+      const details =
+        error instanceof ZodError
+          ? error.issues.map((issue) => ({
               path: issue.path.join('.'),
               message: issue.message
-            })),
-            elapsedMs: Math.round(elapsedMs(startedAt))
-          },
-          'suggestions invalid request'
-        );
+            }))
+          : undefined;
 
-        return reply.code(400).send({
-          error: 'invalid_request',
-          message: 'Suggestion request was too large or malformed',
-          details: error.issues.map((issue) => ({
-            path: issue.path.join('.'),
-            message: issue.message
-          }))
-        });
-      }
-
-      if (isAIConfigurationError(error)) {
-        request.log.error(
-          {
-            error: loggableError(error),
-            elapsedMs: Math.round(elapsedMs(startedAt))
-          },
-          'suggestions configuration error'
-        );
-
-        return reply.code(500).send({
-          error: 'configuration_error',
-          message: 'Suggestion service is not configured'
-        });
-      }
-
-      if (error instanceof UnsafeSuggestionGuardError) {
-        return reply.code(422).send({
-          error: 'unsafe_suggestions',
-          message: '추천 생성 실패: 대화 당사자 판단이 불확실합니다'
-        });
-      }
-
-      request.log.error(
-        {
-          error: loggableError(error),
+      console.warn(
+        JSON.stringify({
+          event: 'suggestions_invalid_request',
+          details,
           elapsedMs: Math.round(elapsedMs(startedAt))
-        },
-        isAIRequestError(error) ? 'suggestions ai request failed' : 'suggestions failed'
+        })
       );
 
-      return reply.code(isAIRequestError(error) ? 502 : 500).send({
+      return json(
+        {
+          error: 'invalid_request',
+          message: 'Suggestion request was too large or malformed',
+          details
+        },
+        { status: 400 }
+      );
+    }
+
+    if (isAIConfigurationError(error)) {
+      console.error(
+        JSON.stringify({
+          event: 'suggestions_configuration_error',
+          error: loggableError(error, config),
+          elapsedMs: Math.round(elapsedMs(startedAt))
+        })
+      );
+
+      return json(
+        {
+          error: 'configuration_error',
+          message: 'Suggestion service is not configured'
+        },
+        { status: 500 }
+      );
+    }
+
+    if (error instanceof UnsafeSuggestionGuardError) {
+      return json(
+        {
+          error: 'unsafe_suggestions',
+          message: '추천 생성 실패: 대화 당사자 판단이 불확실합니다'
+        },
+        { status: 422 }
+      );
+    }
+
+    console.error(
+      JSON.stringify({
+        event: isAIRequestError(error) ? 'suggestions_ai_request_failed' : 'suggestions_failed',
+        error: loggableError(error, config),
+        elapsedMs: Math.round(elapsedMs(startedAt))
+      })
+    );
+
+    return json(
+      {
         error: isAIRequestError(error) ? 'ai_request_failed' : 'suggestions_failed',
         message: 'Suggestion generation failed'
-      });
-    }
-  });
+      },
+      { status: isAIRequestError(error) ? 502 : 500 }
+    );
+  }
 }
 
-function freeUsageLimitExceeded(usage: AccountUsageSummary): FreeUsageLimitExceeded | null {
+function freeUsageLimitExceeded(config: AppConfig, usage: AccountUsageSummary): FreeUsageLimitExceeded | null {
   if (usage.daily.requests >= config.freeDailySuggestionLimit) {
     return {
       scope: 'daily',

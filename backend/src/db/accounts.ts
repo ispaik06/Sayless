@@ -1,6 +1,5 @@
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
-import { randomUUID } from 'node:crypto';
-import { db } from './client.js';
+import type { Database } from './client.js';
 import { subscriptions, usageEvents, users } from './schema.js';
 
 export type AIUsageEventInput = {
@@ -16,7 +15,7 @@ export type AIUsageEventInput = {
 
 const activeSubscriptionStatuses = new Set(['active', 'trialing']);
 
-export async function ensureUserForClerkId(clerkUserId: string) {
+export async function ensureUserForClerkId(db: Database, clerkUserId: string) {
   const existing = await db.query.users.findFirst({
     where: eq(users.clerkUserId, clerkUserId)
   });
@@ -25,7 +24,7 @@ export async function ensureUserForClerkId(clerkUserId: string) {
     return existing;
   }
 
-  const id = randomUUID();
+  const id = crypto.randomUUID();
   await db.insert(users).values({
     id,
     clerkUserId
@@ -44,15 +43,15 @@ export async function ensureUserForClerkId(clerkUserId: string) {
   return created;
 }
 
-export async function getAccountStatus(clerkUserId: string) {
-  const user = await ensureUserForClerkId(clerkUserId);
+export async function getAccountStatus(db: Database, clerkUserId: string) {
+  const user = await ensureUserForClerkId(db, clerkUserId);
   const subscription = await db.query.subscriptions.findFirst({
     where: eq(subscriptions.userId, user.id),
     orderBy: desc(subscriptions.updatedAt)
   });
   const usage = {
-    daily: await getUsageSince(user.id, startOfDay()),
-    weekly: await getUsageSince(user.id, startOfWeek())
+    daily: await getUsageSince(db, user.id, startOfDay()),
+    weekly: await getUsageSince(db, user.id, startOfWeek())
   };
   const plan = subscription && activeSubscriptionStatuses.has(subscription.status) ? 'pro' : 'free';
 
@@ -74,9 +73,9 @@ export async function getAccountStatus(clerkUserId: string) {
   };
 }
 
-export async function recordAIUsageEvent(input: AIUsageEventInput): Promise<void> {
+export async function recordAIUsageEvent(db: Database, input: AIUsageEventInput): Promise<void> {
   await db.insert(usageEvents).values({
-    id: randomUUID(),
+    id: crypto.randomUUID(),
     userId: input.userId,
     eventType: 'suggestions.generated',
     provider: input.provider,
@@ -90,7 +89,7 @@ export async function recordAIUsageEvent(input: AIUsageEventInput): Promise<void
   });
 }
 
-async function getUsageSince(userId: string, since: Date) {
+async function getUsageSince(db: Database, userId: string, since: Date) {
   const rows = await db
     .select({
       requests: sql<number>`coalesce(sum(${usageEvents.quantity}), 0)`,

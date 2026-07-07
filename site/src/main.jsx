@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 
-const DOWNLOAD_URL = "https://sayless-production-e6b4.up.railway.app/download";
+const DOWNLOAD_URL = "https://github.com/ispaik06/Sayless/releases/latest";
 const INSTALL_URL = "install.html";
 const LANG_STORAGE_KEY = "sayless-site-language";
 
@@ -36,13 +36,16 @@ const COPY = {
       toggleText: "KO"
     },
     home: {
+      statusTitle: "Project discontinued",
+      statusText:
+        "Sayless is no longer under active development. The hosted backend, AI suggestions, accounts, and download redirect are not supported.",
       eyebrow: "AI communication wingman for macOS",
-      title: "Your next reply, already in context.",
+      title: "Sayless is now an archived experiment.",
       subtitle:
-        "Sayless reads the visible chat and gives you short replies that fit the moment.",
-      downloadCta: "Download for macOS",
-      demoCta: "See how it works",
-      note: "Requires macOS, Accessibility permission, and a Sayless account.",
+        "The source remains available for reference, but the live backend service has ended.",
+      downloadCta: "View archived releases",
+      demoCta: "See how it worked",
+      note: "AI suggestions and account-backed features require a backend that is no longer operated.",
       proof: ["Reads visible context", "Understands the room", "Gives you the line"],
       productKicker: "No prompt theater",
       productTitle: "An assistant for the chat you are already in.",
@@ -122,14 +125,14 @@ const COPY = {
       privacyTitle: "You stay in control.",
       privacyText:
         "Sayless appears when you ask for help. The current macOS build requires Accessibility permission so it can read supported visible text and place a lightweight assistant next to your conversation.",
-      finalKicker: "Ready when the chat is not",
-      finalTitle: "Read the room. Reply with Sayless.",
-      finalCta: "Review install notes",
+      finalKicker: "Archive status",
+      finalTitle: "Sayless is archived, not actively maintained.",
+      finalCta: "View archived releases",
       platformsKicker: "Works with",
       platformsTitle: "Works with your favorite messaging apps",
       platformsText: "KakaoTalk, Web Instagram, Discord, Slack, and more.",
-      platformStatusReady: "Available now",
-      platformStatusPlanned: "Planned",
+      platformStatusReady: "Previously supported",
+      platformStatusPlanned: "Not supported",
       platformsDisclaimer:
         "All product names, logos, and brands are property of their respective owners. Sayless is not affiliated with or endorsed by Kakao, Meta, Discord, Slack, or any listed platform.",
       platforms: [
@@ -151,14 +154,14 @@ const COPY = {
           id: "discord",
           title: "Discord",
           status: "planned",
-          text: "Coming soon.",
+          text: "Not released before project deprecation.",
           logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          text: "Coming soon.",
+          text: "Not released before project deprecation.",
           logo: "logos/slack.svg"
         }
       ],
@@ -169,10 +172,13 @@ const COPY = {
       repliesPrepared: "3 replies prepared"
     },
     install: {
+      statusTitle: "Backend support ended",
+      statusText:
+        "Downloads are archival. AI suggestions, account status, authentication-backed usage limits, and backend redirects are no longer maintained.",
       eyebrow: "Installation notes",
-      title: "Install Sayless for macOS.",
+      title: "Archived Sayless builds.",
       intro:
-        "Review the first-launch steps, then unlock the download. The current release is distributed outside the Mac App Store, so macOS may ask you to allow it manually.",
+        "Review the first-launch steps before opening archived releases. The app may launch, but backend-powered features are no longer supported.",
       appLabel: "macOS menu bar app",
       summary: "Accessibility permission required on first launch.",
       minimumLabel: "Minimum macOS",
@@ -193,8 +199,8 @@ const COPY = {
       ],
       confirmed: "Installation notes confirmed",
       acknowledge: "I have read the installation notes",
-      download: "Download latest DMG",
-      downloadHelp: "Downloads the latest macOS build directly.",
+      download: "Open GitHub releases",
+      downloadHelp: "Archived builds may depend on backend services that are no longer operated.",
       scrollHint: "Download button is below",
       scrollHintSubtext: "Review the notes, then scroll down."
     },
@@ -249,7 +255,7 @@ const COPY = {
       downloadReply: "Go download Sayless and find another girl to hang out with 🥀"
     },
     footer: {
-      rights: "© 2026 Sayless. All rights reserved.",
+      rights: "© 2026 Sayless. Deprecated project archive.",
       createdBy: "Created by Inseong Paik"
     }
   },
@@ -263,13 +269,16 @@ const COPY = {
       toggleText: "EN"
     },
     home: {
+      statusTitle: "프로젝트 개발 종료",
+      statusText:
+        "Sayless는 더 이상 개발하거나 운영하지 않습니다. 호스팅 백엔드, AI 답장 생성, 계정 기능, 다운로드 리다이렉트는 지원하지 않습니다.",
       eyebrow: "macOS용 AI 대화 윙맨",
-      title: "답장 고민,\n이제 Sayless에\n맡기세요",
+      title: "Sayless는\n아카이브된\n실험 프로젝트입니다",
       subtitle:
-        "보이는 대화를 읽고, 지금 바로 보낼 만한 짧은 답장을 준비합니다.",
-      downloadCta: "macOS용 다운로드",
-      demoCta: "작동 방식 알아보기",
-      note: "macOS, 손쉬운 사용 권한, Sayless 계정이 필요합니다.",
+        "소스 코드는 참고용으로 남겨두지만, 실제 백엔드 서비스 운영은 종료되었습니다.",
+      downloadCta: "아카이브 릴리즈 보기",
+      demoCta: "작동 방식 기록 보기",
+      note: "AI 답장 생성과 계정 기반 기능은 더 이상 운영하지 않는 백엔드가 필요합니다.",
       proof: ["보이는 대화 읽기", "분위기 파악하기", "보낼 말 건네주기"],
       productKicker: "프롬프트 쇼 안 해도 됨",
       productTitle: "채팅창 바로 옆,\n나만의 대화\n어시스턴트",
@@ -349,14 +358,14 @@ const COPY = {
       privacyTitle: "필요할 때만 나타납니다.",
       privacyText:
         "Sayless는 네가 도움을 요청할 때만 나타납니다. 현재 macOS 빌드는 화면에 보이는 지원 가능한 텍스트를 읽고 대화 옆에 가벼운 assistant를 띄우기 위해 손쉬운 사용 권한이 필요합니다.",
-      finalKicker: "채팅이 어려울 때 바로",
-      finalTitle: "눈치 빠른 AI와 함께하는 대화",
-      finalCta: "지금 바로 Sayless 써보기",
+      finalKicker: "서비스 종료 안내",
+      finalTitle: "Sayless는 더 이상 유지보수되지 않습니다",
+      finalCta: "아카이브 릴리즈 보기",
       platformsKicker: "지원 플랫폼",
       platformsTitle: "자주 쓰는 메신저와 완벽하게 호환됩니다",
       platformsText: "카카오톡, Web Instagram, Discord, Slack 등 다양한 앱을 지원합니다.",
-      platformStatusReady: "현재 지원",
-      platformStatusPlanned: "확장 예정",
+      platformStatusReady: "이전 지원",
+      platformStatusPlanned: "지원 안 함",
       platformsDisclaimer:
         "모든 제품명, 로고 및 브랜드의 지적재산권은 각 소유자에게 있습니다. Sayless는 카카오, Meta, Discord, Slack 또는 언급된 어떠한 플랫폼과도 공식적인 제휴를 맺거나 이들로부터 보증을 받지 않습니다.",
       platforms: [
@@ -378,14 +387,14 @@ const COPY = {
           id: "discord",
           title: "Discord",
           status: "planned",
-          text: "곧 확장 예정입니다.",
+          text: "프로젝트 종료 전 출시되지 않았습니다.",
           logo: "logos/discord.svg"
         },
         {
           id: "slack",
           title: "Slack",
           status: "planned",
-          text: "곧 확장 예정입니다.",
+          text: "프로젝트 종료 전 출시되지 않았습니다.",
           logo: "logos/slack.svg"
         }
       ],
@@ -396,10 +405,13 @@ const COPY = {
       repliesPrepared: "답장 3개 준비됨"
     },
     install: {
+      statusTitle: "백엔드 지원 종료",
+      statusText:
+        "다운로드는 보관용입니다. AI 답장 생성, 계정 상태, 인증 기반 사용량 제한, 백엔드 다운로드 리다이렉트는 더 이상 유지보수하지 않습니다.",
       eyebrow: "설치 안내",
-      title: "macOS에\nSayless 설치하기.",
+      title: "Sayless\n아카이브 빌드.",
       intro:
-        "처음 실행할 때 필요한 단계를 확인한 뒤 다운로드를 열 수 있습니다. 현재 릴리즈는 Mac App Store 밖에서 배포되기 때문에 macOS가 수동 허용을 요청할 수 있습니다.",
+        "아카이브 릴리즈를 열기 전에 처음 실행 단계를 확인하세요. 앱은 실행될 수 있지만 백엔드 기반 기능은 더 이상 지원되지 않습니다.",
       appLabel: "macOS 메뉴바 앱",
       summary: "처음 실행할 때 손쉬운 사용 권한이\n필요합니다.",
       minimumLabel: "최소 macOS",
@@ -420,8 +432,8 @@ const COPY = {
       ],
       confirmed: "설치 안내 확인 완료",
       acknowledge: "설치 안내를 읽었습니다",
-      download: "최신 DMG 다운로드",
-      downloadHelp: "최신 macOS 빌드를 바로 다운로드합니다.",
+      download: "GitHub 릴리즈 열기",
+      downloadHelp: "아카이브 빌드는 더 이상 운영하지 않는 백엔드 서비스에 의존할 수 있습니다.",
       scrollHint: "아래에 다운로드 버튼이 있어요",
       scrollHintSubtext: "설치 안내 확인 후 내려가세요."
     },
@@ -476,7 +488,7 @@ const COPY = {
       downloadReply: "Sayless 다운받고 다른 사람 찾아보는 게 좋을 듯 🥀"
     },
     footer: {
-      rights: "© 2026 Sayless. All rights reserved",
+      rights: "© 2026 Sayless. 개발 종료된 프로젝트 아카이브.",
       createdBy: "Created by Inseong Paik"
     }
   }
@@ -503,6 +515,8 @@ function App() {
 }
 
 function Shell({ children, install = false, lang, setLang, t }) {
+  const notice = install ? t.install : t.home;
+
   return (
     <div className="site-shell">
       <header className="topbar">
@@ -527,6 +541,10 @@ function Shell({ children, install = false, lang, setLang, t }) {
           </button>
         </div>
       </header>
+      <div className="service-notice" role="status">
+        <strong>{notice.statusTitle}</strong>
+        <span>{notice.statusText}</span>
+      </div>
       {children}
     </div>
   );
@@ -545,7 +563,7 @@ function HomePage({ lang, setLang, t }) {
             <h1>{t.home.title}</h1>
             <p className="hero-subtitle">{t.home.subtitle}</p>
             <div className="hero-actions">
-              <a className="primary-button" href={INSTALL_URL}>
+              <a className="primary-button" href={DOWNLOAD_URL}>
                 <Download size={19} />
                 {t.home.downloadCta}
               </a>
@@ -635,7 +653,7 @@ function HomePage({ lang, setLang, t }) {
             <p className="section-kicker">{t.home.finalKicker}</p>
             <h2>{t.home.finalTitle}</h2>
           </div>
-          <a className="primary-button light" href={INSTALL_URL}>
+          <a className="primary-button light" href={DOWNLOAD_URL}>
             {t.home.finalCta}
             <ArrowRight size={19} />
           </a>

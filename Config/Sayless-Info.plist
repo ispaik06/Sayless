@@ -31,7 +31,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>SaylessBackendURL</key>
-	<string>https://sayless-production-e6b4.up.railway.app/suggestions</string>
+	<string>https://sayless-backend.example.invalid/suggestions</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>

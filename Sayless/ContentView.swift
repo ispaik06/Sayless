@@ -312,7 +312,7 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
             }
 
-            Text("After sign-in, Sayless attaches your Clerk session token to backend requests automatically.")
+            Text("Backend-backed account features are archived and no longer supported by the original project.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }

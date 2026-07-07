@@ -9,21 +9,28 @@
 </p>
 
 <p align="center">
-  A macOS menu bar app that reads your focused KakaoTalk conversation and suggests three replies you can send without breaking flow.
+  Deprecated macOS menu bar app experiment for AI-assisted chat replies.
 </p>
 
 <p align="center">
+  <img alt="Status" src="https://img.shields.io/badge/status-deprecated-lightgrey">
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS-black">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-orange">
-  <img alt="Backend" src="https://img.shields.io/badge/backend-Fastify-202020">
+  <img alt="Backend" src="https://img.shields.io/badge/backend-unsupported-lightgrey">
   <img alt="License" src="https://img.shields.io/badge/license-AGPL--3.0-blue">
 </p>
 
+## Deprecation Notice
+
+Sayless development has ended. The hosted backend, AI suggestions, authentication-backed account features, usage tracking, and release-download redirect are no longer supported.
+
+This repository remains available as an archived source reference. You can still inspect, build, or fork the code, but there is no maintained production service behind the app.
+
 ## Overview
 
-Sayless is a lightweight reply assistant for macOS. Press a global shortcut while your KakaoTalk input is focused, and Sayless opens a glassy overlay with three context-aware replies. Pick one, refresh the set, or ask for a different tone.
+Sayless was a lightweight reply assistant for macOS. Pressing a global shortcut while a supported chat input was focused opened a glassy overlay with three context-aware replies.
 
-The app is built as a native Swift menu bar utility with a Fastify backend for AI generation, authentication, database-backed usage, and future billing.
+The app was built as a native Swift menu bar utility with a TypeScript backend for AI generation, authentication, database-backed usage, and planned billing. The backend code is no longer operated as a supported service.
 
 ## Features
 
@@ -34,7 +41,7 @@ The app is built as a native Swift menu bar utility with a Fastify backend for A
 - Native macOS glass UI
 - Preferences window with General and Account tabs
 - Clerk authentication in the macOS app
-- Fastify backend with Clerk token verification
+- Backend source with Clerk token verification
 - Turso + Drizzle schema for users, subscriptions, and usage events
 - Sparkle-ready update packaging scripts
 
@@ -42,7 +49,7 @@ The app is built as a native Swift menu bar utility with a Fastify backend for A
 
 - App: Swift, SwiftUI, AppKit, Accessibility APIs
 - Auth: Clerk
-- Backend: Node.js, Fastify, TypeScript
+- Backend: TypeScript source retained for reference, not hosted or supported
 - Database: Turso, Drizzle ORM
 - AI providers: Gemini, OpenAI-compatible providers, Groq
 - Updates: Sparkle
@@ -53,7 +60,7 @@ The app is built as a native Swift menu bar utility with a Fastify backend for A
 Sayless/
   Sayless/             macOS app source
   Config/              app Info.plist and build config inputs
-  backend/             Fastify API server
+  backend/             Unsupported backend source archive
   scripts/             release, DMG, and appcast helpers
   assets/              README and project assets
 ```
@@ -62,7 +69,7 @@ Sayless/
 
 - macOS
 - Xcode
-- Node.js 20.11+
+- Node.js 20.11+ for local tooling
 - A Clerk application
 - A Turso database
 - An AI provider key
@@ -83,7 +90,13 @@ For a release build:
 scripts/build-release.sh
 ```
 
-## Run The Backend
+## Backend Status
+
+The backend is deprecated and should be treated as reference code only. Do not expect hosted endpoints, account status, AI suggestions, or `/download` redirects to remain available.
+
+If you fork Sayless and want to run your own service, you will need to provide your own Clerk, Turso, AI provider, and deployment configuration.
+
+## Run The Backend Locally
 
 ```bash
 cd backend
@@ -91,7 +104,18 @@ npm install
 npm run dev
 ```
 
-Required backend environment variables:
+Local development requires your own secrets. The previous production service is not available:
+
+```bash
+cd backend
+npx wrangler secret put CLERK_SECRET_KEY
+npx wrangler secret put CLERK_PUBLISHABLE_KEY
+npx wrangler secret put TURSO_DATABASE_URL
+npx wrangler secret put TURSO_AUTH_TOKEN
+npx wrangler secret put GEMINI_API_KEY
+```
+
+Required backend variables/secrets:
 
 ```env
 CLERK_SECRET_KEY=
@@ -151,7 +175,7 @@ Do not commit generated files from `dist/`.
 
 ## Status
 
-Sayless is early-stage software. Core overlay generation and authentication are implemented. Billing, usage limits, and polish around account state are still in progress.
+Sayless is deprecated. No new features, hosted backend support, billing work, or production release maintenance is planned.
 
 ## License
 

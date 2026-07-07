@@ -97,7 +97,7 @@ final class AuthSessionManager: ObservableObject {
     }
 
     private static var authConfigURL: URL {
-        let fallbackEndpoint = "https://sayless-production-e6b4.up.railway.app/suggestions"
+        let fallbackEndpoint = "https://sayless-backend.example.invalid/suggestions"
         let rawEndpoint = nonEmptyString(Bundle.main.object(forInfoDictionaryKey: "SaylessBackendURL") as? String) ?? fallbackEndpoint
         let endpoint = URL(string: rawEndpoint) ?? URL(string: fallbackEndpoint)!
 
@@ -105,7 +105,7 @@ final class AuthSessionManager: ObservableObject {
         components?.path = "/auth/config"
         components?.query = nil
 
-        return components?.url ?? URL(string: "https://sayless-production-e6b4.up.railway.app/auth/config")!
+        return components?.url ?? URL(string: "https://sayless-backend.example.invalid/auth/config")!
     }
 
     private static let placeholderPublishableKey = "pk_test_c2F5bGVzcy1jb25maWd1cmF0aW9uLXBlbmRpbmc"

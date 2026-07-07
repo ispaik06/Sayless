@@ -235,7 +235,7 @@ final class BackendSuggestionService {
 }
 
 private enum BackendConfiguration {
-    private static let fallbackEndpoint = "https://sayless-production-e6b4.up.railway.app/suggestions"
+    private static let fallbackEndpoint = "https://sayless-backend.example.invalid/suggestions"
 
     static let endpoint: URL = {
         let rawValue = nonEmptyString(

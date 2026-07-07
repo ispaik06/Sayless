@@ -401,7 +401,7 @@ private struct HomeView: View {
 
                     Spacer(minLength: 0)
 
-                    Text(tr("Live", "지원 중"))
+                    Text(tr("Archived", "아카이브"))
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(.black.opacity(0.72))
                         .padding(.horizontal, 10)
@@ -420,28 +420,28 @@ private struct HomeView: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 10)], alignment: .leading, spacing: 10) {
                     PlatformPill(
                         title: tr("KakaoTalk", "카카오톡"),
-                        status: tr("Available now", "현재 지원"),
+                        status: tr("Previously supported", "이전 지원"),
                         icon: "message.fill",
                         accent: [Color(red: 1.0, green: 0.86, blue: 0.22), Color(red: 0.70, green: 1.0, blue: 0.42)],
                         available: true
                     )
                     PlatformPill(
                         title: "Web Insta",
-                        status: tr("Available now", "현재 지원"),
+                        status: tr("Previously supported", "이전 지원"),
                         icon: "globe",
                         accent: [Color(red: 0.96, green: 0.20, blue: 0.58), Color(red: 1.0, green: 0.64, blue: 0.20), Color(red: 0.46, green: 0.28, blue: 0.95)],
                         available: true
                     )
                     PlatformPill(
                         title: "Slack",
-                        status: tr("Coming soon", "추가 예정"),
+                        status: tr("Not released", "미출시"),
                         icon: "number",
                         accent: [Color(red: 0.52, green: 0.86, blue: 1.0), Color(red: 0.92, green: 0.72, blue: 1.0)],
                         available: false
                     )
                     PlatformPill(
                         title: "Discord",
-                        status: tr("Coming soon", "추가 예정"),
+                        status: tr("Not released", "미출시"),
                         icon: "gamecontroller.fill",
                         accent: [Color(red: 0.66, green: 0.72, blue: 1.0), Color(red: 0.54, green: 0.94, blue: 1.0)],
                         available: false
@@ -449,8 +449,8 @@ private struct HomeView: View {
                 }
 
                 Text(tr(
-                    "Sayless is being built platform-by-platform so each app can feel native instead of generic.",
-                    "Sayless는 플랫폼별로 자연스럽게 동작하도록 하나씩 확장하고 있습니다."
+                    "Sayless is archived. Backend-powered features are no longer supported by the original project.",
+                    "Sayless는 아카이브된 프로젝트입니다. 원 프로젝트의 백엔드 기반 기능은 더 이상 지원되지 않습니다."
                 ))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)

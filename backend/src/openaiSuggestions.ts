@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
-import { config } from './config.js';
+import type { AppConfig } from './config.js';
 import { buildNoveltyPayload, buildSuggestionPrompt, type NoveltyPayload } from './prompt.js';
 import { logAIUsage, parseOpenAIUsage, type AIRequestUsageSummary } from './openaiUsage.js';
 import {
@@ -11,7 +11,7 @@ import {
 } from './conversationState.js';
 import { SuggestionResponseSchema, type SuggestionRequest, type SuggestionResponse } from './schemas.js';
 
-let client: OpenAI | undefined;
+const clients = new Map<string, OpenAI>();
 const systemInstruction =
   'You are Sayless, a chat reply judgment and recommendation engine. Always write the next outbound message for role="me"; never answer role="me" messages as another person. Match the conversation language. Return only valid JSON matching the requested schema.';
 
@@ -49,15 +49,20 @@ class AIProviderRequestError extends Error {
   }
 }
 
-function getAIClient(): OpenAI {
+function getAIClient(config: AppConfig): OpenAI {
   if (!config.aiApiKey) {
     throw new Error(`AI_PROVIDER=${config.suggestionProvider} is not configured with an API key`);
   }
 
-  client ??= new OpenAI({
-    apiKey: config.aiApiKey,
-    baseURL: config.aiBaseUrl
-  });
+  const cacheKey = `${config.suggestionProvider}:${config.aiBaseUrl ?? ''}:${config.aiApiKey}`;
+  let client = clients.get(cacheKey);
+  if (!client) {
+    client = new OpenAI({
+      apiKey: config.aiApiKey,
+      baseURL: config.aiBaseUrl
+    });
+    clients.set(cacheKey, client);
+  }
 
   return client;
 }
@@ -96,7 +101,7 @@ function usesReasoningChatParameters(model: string): boolean {
   return /^gpt-5(?:\.|-|$)/.test(model) || /^o\d/.test(model);
 }
 
-function supportsStrictJsonResponseFormat(): boolean {
+function supportsStrictJsonResponseFormat(config: AppConfig): boolean {
   return config.suggestionProvider === 'openai' || config.suggestionProvider === 'groq';
 }
 
@@ -119,14 +124,14 @@ export type SuggestionGenerationResult = {
   usage: AIRequestUsageSummary[];
 };
 
-export async function createAISuggestions(input: SuggestionRequest): Promise<SuggestionResponse> {
-  return (await createAISuggestionsWithUsage(input)).suggestions;
+export async function createAISuggestions(config: AppConfig, input: SuggestionRequest): Promise<SuggestionResponse> {
+  return (await createAISuggestionsWithUsage(config, input)).suggestions;
 }
 
-export async function createAISuggestionsWithUsage(input: SuggestionRequest): Promise<SuggestionGenerationResult> {
+export async function createAISuggestionsWithUsage(config: AppConfig, input: SuggestionRequest): Promise<SuggestionGenerationResult> {
   const conversationState = inferConversationState(input);
   const novelty = buildNoveltyPayload(input);
-  const firstResult = await requestAISuggestions(input, conversationState, novelty, undefined, 'initial');
+  const firstResult = await requestAISuggestions(config, input, conversationState, novelty, undefined, 'initial');
   const firstGuard = validateSuggestionsForConversationState(firstResult.suggestions, conversationState, input);
 
   if (firstGuard.ok) {
@@ -134,6 +139,7 @@ export async function createAISuggestionsWithUsage(input: SuggestionRequest): Pr
   }
 
   const retryResult = await requestAISuggestions(
+    config,
     input,
     conversationState,
     novelty,
@@ -153,6 +159,7 @@ export async function createAISuggestionsWithUsage(input: SuggestionRequest): Pr
 }
 
 async function requestAISuggestions(
+  config: AppConfig,
   input: SuggestionRequest,
   conversationState: ConversationState,
   novelty: NoveltyPayload | null,
@@ -160,7 +167,7 @@ async function requestAISuggestions(
   attempt: 'initial' | 'retry' = 'initial'
 ): Promise<SuggestionGenerationResult> {
   if (config.suggestionProvider === 'gemini') {
-    return requestGeminiSuggestions(input, conversationState, novelty, additionalInstruction, attempt);
+    return requestGeminiSuggestions(config, input, conversationState, novelty, additionalInstruction, attempt);
   }
 
   const usesReasoningParameters = config.suggestionProvider === 'openai' && usesReasoningChatParameters(config.aiModel);
@@ -199,15 +206,15 @@ async function requestAISuggestions(
     ]
   };
 
-  if (supportsStrictJsonResponseFormat()) {
+  if (supportsStrictJsonResponseFormat(config)) {
     params.response_format = {
       type: 'json_object'
     };
   }
 
-  const completion = await getAIClient().chat.completions.create(params);
+  const completion = await getAIClient(config).chat.completions.create(params);
   const latencyMs = performance.now() - startedAt;
-  const usage = usageSummary(completion.usage, latencyMs, attempt);
+  const usage = usageSummary(config, completion.usage, latencyMs, attempt);
   logAIUsage({
     provider: config.suggestionProvider,
     model: config.aiModel,
@@ -228,6 +235,7 @@ async function requestAISuggestions(
 }
 
 async function requestGeminiSuggestions(
+  config: AppConfig,
   input: SuggestionRequest,
   conversationState: ConversationState,
   novelty: NoveltyPayload | null,
@@ -288,7 +296,7 @@ async function requestGeminiSuggestions(
   }
 
   const openAIUsage = geminiUsageToOpenAIUsage(payload?.usageMetadata);
-  const usage = usageSummary(openAIUsage, latencyMs, attempt);
+  const usage = usageSummary(config, openAIUsage, latencyMs, attempt);
   logAIUsage({
     provider: config.suggestionProvider,
     model: config.aiModel,
@@ -308,7 +316,7 @@ async function requestGeminiSuggestions(
   };
 }
 
-function usageSummary(usage: unknown, latencyMs: number, attempt: 'initial' | 'retry'): AIRequestUsageSummary {
+function usageSummary(config: AppConfig, usage: unknown, latencyMs: number, attempt: 'initial' | 'retry'): AIRequestUsageSummary {
   return {
     ...parseOpenAIUsage(usage),
     provider: config.suggestionProvider,

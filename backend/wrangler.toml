@@ -1,0 +1,16 @@
+name = "sayless-backend"
+main = "src/worker.ts"
+compatibility_date = "2026-07-07"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[vars]
+AI_PROVIDER = "gemini"
+AI_MODEL = "gemini-3.5-flash"
+NODE_ENV = "production"
+FREE_DAILY_SUGGESTION_LIMIT = "100"
+FREE_WEEKLY_SUGGESTION_LIMIT = "500"
+GITHUB_RELEASE_OWNER = "ispaik06"
+GITHUB_RELEASE_REPO = "Sayless"
